@@ -1,0 +1,143 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ─── Light theme tokens ─────────────────────────────────────────────── */
+:root {
+  --bg: #EEF1F8;
+  --fg: #0D1117;
+  --card-bg: #FFFFFF;
+  --card-fg: #0D1117;
+  --primary: #4F6EF7;
+  --primary-fg: #FFFFFF;
+  --secondary-bg: #E3E8F4;
+  --secondary-fg: #2E3A55;
+  --muted-bg: #F4F6FB;
+  --muted-fg: #64748B;
+  --accent: #6366F1;
+  --accent-fg: #FFFFFF;
+  --border: #CDD3E4;
+  --ring: #4F6EF7;
+  --sidebar-bg: #0C111C;
+  --sidebar-fg: #8B95A8;
+  --sidebar-active: rgba(79, 110, 247, 0.13);
+  --sidebar-active-fg: #A5B4FC;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --success: #16A34A;
+  --warning: #D97706;
+  --error: #DC2626;
+  --info: #2563EB;
+  --radius: 6px;
+  --radius-lg: 10px;
+  /* Record type brand colors */
+  --color-source: #16A34A;
+  --color-content: #EA580C;
+  --color-analysis: #2563EB;
+}
+
+/* ─── Dark theme tokens ──────────────────────────────────────────────── */
+.dark {
+  --bg: #080C16;
+  --fg: #DDE1EC;
+  --card-bg: #0F1528;
+  --card-fg: #DDE1EC;
+  --primary: #818CF8;
+  --primary-fg: #060A12;
+  --secondary-bg: #151D30;
+  --secondary-fg: #94A3B8;
+  --muted-bg: #0B1020;
+  --muted-fg: #556070;
+  --accent: #818CF8;
+  --accent-fg: #060A12;
+  --border: #1A2540;
+  --ring: #818CF8;
+  --sidebar-bg: #060A12;
+  --sidebar-fg: #6B7990;
+  --sidebar-active: rgba(129, 140, 248, 0.13);
+  --sidebar-active-fg: #A5B4FC;
+  --sidebar-hover: rgba(255, 255, 255, 0.04);
+  --success: #22C55E;
+  --warning: #FBBF24;
+  --error: #F87171;
+  --info: #60A5FA;
+  --color-source: #22C55E;
+  --color-content: #FB923C;
+  --color-analysis: #60A5FA;
+}
+
+/* ─── High contrast mode ─────────────────────────────────────────────── */
+.high-contrast {
+  --border: #000;
+  --muted-fg: #1a1a1a;
+}
+.dark.high-contrast {
+  --border: #fff;
+  --muted-fg: #e0e0e0;
+}
+
+/* ─── Global reset & base ────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 13px; }
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body, 'Inter', sans-serif);
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbars ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-fg); }
+
+/* ─── Selection & focus ──────────────────────────────────────────────── */
+::selection { background: var(--primary); color: var(--primary-fg); }
+*:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* ─── Toast animation ────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Responsive – sidebar collapses at narrow viewports ─────────────── */
+@media (max-width: 768px) {
+  /* Force sidebar to icon-only mode */
+  nav[aria-label="Main navigation"] {
+    width: 48px !important;
+  }
+  /* Stack breadcrumb on very small screens */
+  .breadcrumb-desc {
+    display: none;
+  }
+}
+
+/* ─── Print styles ───────────────────────────────────────────────────── */
+@media print {
+  nav, header { display: none !important; }
+  body { background: white; color: black; font-size: 11pt; }
+}

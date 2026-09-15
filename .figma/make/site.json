@@ -1,0 +1,10 @@
+{
+  "description": "This web application offers a scalable platform for managing multilingual content, designed for desktop users to easily customize and extend data without hardcoding.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
