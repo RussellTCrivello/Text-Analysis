@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { IconSortNeutral, IconSortAsc, IconSortDesc, IconInbox } from './icons';
 
 export interface Column<T> {
   key: keyof T | string;
@@ -88,15 +89,15 @@ export function DataTable<T extends { id: string }>({
   const SortIcon = ({ col }: { col: Column<T> }) => {
     if (!col.sortable) return null;
     const active = sortKey === String(col.key);
+    const color = active ? 'var(--primary)' : 'var(--muted-fg)';
     return (
-      <svg
-        width="8" height="10" viewBox="0 0 8 10" fill="none"
-        className="ms-1 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity"
-        style={{ opacity: active ? 1 : undefined, color: active ? 'var(--primary)' : 'var(--muted-fg)' }}
+      <span
+        className="ms-1 shrink-0 inline-flex items-center opacity-0 group-hover:opacity-60 transition-opacity"
+        style={{ opacity: active ? 1 : undefined, color }}
+        aria-hidden="true"
       >
-        <path d="M4 1v8M1 4l3-3 3 3" stroke={active && sortDir === 'asc' ? 'var(--primary)' : 'currentColor'} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity={active && sortDir === 'desc' ? 0.3 : 1} />
-        <path d="M1 6l3 3 3-3" stroke={active && sortDir === 'desc' ? 'var(--primary)' : 'currentColor'} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity={active && sortDir === 'asc' ? 0.3 : 1} />
-      </svg>
+        {active ? (sortDir === 'asc' ? <IconSortAsc /> : <IconSortDesc />) : <IconSortNeutral />}
+      </span>
     );
   };
 
@@ -189,10 +190,7 @@ export function DataTable<T extends { id: string }>({
                 style={{ padding: '48px 16px', color: 'var(--muted-fg)', fontSize: '0.8rem' }}
               >
                 <div className="flex flex-col items-center gap-2">
-                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ opacity: 0.25 }}>
-                    <rect x="4" y="4" width="24" height="24" rx="3" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M10 11h12M10 16h8M10 21h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
+                  <span className="inline-flex" style={{ opacity: 0.35 }}><IconInbox /></span>
                   <span>{emptyText}</span>
                 </div>
               </td>

@@ -4,6 +4,7 @@
  * simulated — every figure comes from a measurement taken when the panel opens.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { IconClose, IconSuccess } from './icons';
 import { InfoModal } from './FormModal';
 import { Btn } from './ui';
 import { useAppData } from '../store/AppContext';
@@ -169,7 +170,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
                   <td className="px-2 py-1 font-mono" style={{ borderBottom: '1px solid var(--border)', color: b.elapsedMs > SLOW_MS ? '#f59e0b' : 'var(--fg)' }}>
                     {b.ok ? b.elapsedMs.toFixed(2) : 'error'}
                   </td>
-                  <td className="px-2 py-1" style={{ borderBottom: '1px solid var(--border)' }}>{b.ok ? '' : '✕'}</td>
+                  <td className="px-2 py-1" style={{ borderBottom: '1px solid var(--border)' }}>{b.ok ? '' : <span className="inline-flex items-center" style={{ color: 'var(--error)' }}><IconClose size="xs" /></span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -180,7 +181,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
           <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--muted-fg)' }}>Recommendations</div>
           {suggestions.length === 0 ? (
             <div className="text-xs rounded-lg p-2.5" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d' }}>
-              ✓ No performance or integrity issues detected.
+              <span className="inline-flex items-center gap-1.5" style={{ color: 'var(--success)' }}><IconSuccess size="sm" /> No performance or integrity issues detected.</span>
             </div>
           ) : (
             suggestions.map((s, i) => (

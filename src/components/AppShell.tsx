@@ -12,18 +12,24 @@ import { AttachmentManager } from './AttachmentManager';
 import { ImportWizard } from './ImportWizard';
 import { InfoModal } from './FormModal';
 import { SearchInput } from './ui';
+import {
+  IconSources, IconContents, IconAnalysis, IconAllData, IconTimeline, IconActivity, IconDictionary, IconReports,
+  IconBrand, IconExpandMore, IconAdd, IconImport, IconSettings, IconBackup, IconAttach, IconDatabase,
+  IconPrint, IconDelete, IconHelp, IconShortcuts, IconInfo, IconGauge, IconCollapseSidebar,
+  IconThemeLight, IconThemeDark, IconChevronRight, IconSuccess, IconBackupFile,
+} from './icons';
 import type { NavSection } from '../types';
 
 /* ── Nav icon set – thin geometric, consistent weight ─────────────────────── */
 const NAV_ICONS: Record<NavSection, React.ReactNode> = {
-  sources: (<svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" /><path d="M8 4v4l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>),
-  contents: (<svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3" /><path d="M5 6h6M5 8.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>),
-  analysis: (<svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 12L6 7l3 3 2.5-4L14 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>),
-  allData: (<svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /></svg>),
-  timeline: (<svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><circle cx="5.5" cy="8" r="1.5" fill="currentColor" /><circle cx="10.5" cy="8" r="1.5" fill="currentColor" /><path d="M5.5 5v1.5M10.5 9.5V11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>),
-  activity: (<svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 8h3l1.5-4 2.5 8L11 8h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>),
-  dictionary: (<svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 3h4.5A1.5 1.5 0 0 1 9 4.5V13a1.5 1.5 0 0 0-1.5-1.5H3V3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /><path d="M13 3H8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><path d="M13 3v8.5H9" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>),
-  reports: (<svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2.5" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3" /><path d="M5 9.5l2-3 2 2 2-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>),
+  sources: <IconSources size={15} />,
+  contents: <IconContents size={15} />,
+  analysis: <IconAnalysis size={15} />,
+  allData: <IconAllData size={15} />,
+  timeline: <IconTimeline size={15} />,
+  activity: <IconActivity size={15} />,
+  dictionary: <IconDictionary size={15} />,
+  reports: <IconReports size={15} />,
 };
 
 const NAV_ITEMS: { id: NavSection; label: string; desc: string; group: 'collections' | 'intelligence' | 'system' }[] = [
@@ -109,7 +115,7 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
     <div className="relative" ref={dropRef}>
       <button onClick={toggle} aria-haspopup="menu" aria-expanded={open} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" style={{ color: 'var(--fg-soft)', fontFamily: 'var(--font-display)' }}>
         {label}
-        <svg width="9" height="9" viewBox="0 0 10 6" fill="none" className="opacity-60" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <IconExpandMore size="xs" />
       </button>
       {open && (
         <div role="menu" className="absolute end-0 top-full mt-1.5 z-50 overflow-hidden min-w-[210px] animate-[popIn_0.12s_ease-out]" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-pop)' }}>
@@ -137,7 +143,7 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
         {/* Brand */}
         <div className="flex items-center gap-2.5 shrink-0">
           <div className="w-7 h-7 flex items-center justify-center rounded-[var(--radius)]" style={{ background: 'linear-gradient(135deg, var(--primary), var(--accent-violet))', color: '#fff', boxShadow: 'var(--shadow-1)' }}>
-            <svg width="14" height="14" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 1L11 3.5V8.5L6 11L1 8.5V3.5L6 1Z" stroke="currentColor" strokeWidth="1.2" fill="none" /><circle cx="6" cy="6" r="1.6" fill="currentColor" /></svg>
+            <IconBrand size={15} />
           </div>
           <div className="leading-tight hidden sm:block">
             <div className="text-[12.5px] font-extrabold" style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', color: 'var(--fg)' }}>{t.app.name}</div>
@@ -150,7 +156,7 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
         {/* Global command search */}
         <div className="flex-1 flex justify-center px-2 min-w-0">
           <div className="relative w-full max-w-[420px]">
-            <SearchInput value={globalSearch} onChange={onGlobalSearch ?? (() => {})} placeholder={`${t.actions.search} everything…  (⌘K)`} />
+            <SearchInput value={globalSearch} onChange={onGlobalSearch ?? (() => {})} placeholder={`${t.actions.searchAll}…`} />
           </div>
         </div>
 
@@ -158,40 +164,40 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
         <div className="flex items-center gap-1.5 shrink-0">
           <div className="relative" ref={quickRef}>
             <button onClick={() => setQuickAddOpen((o) => !o)} aria-label={t.actions.addNew} aria-haspopup="menu" aria-expanded={quickAddOpen} className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius)] text-xs font-bold transition-all duration-150 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', fontFamily: 'var(--font-display)', boxShadow: 'var(--shadow-1)' }}>
-              <svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+              <IconAdd size={12} />
               {t.actions.addNew}
             </button>
             {quickAddOpen && (
               <div role="menu" className="absolute end-0 top-full mt-1.5 z-50 overflow-hidden min-w-[180px] animate-[popIn_0.12s_ease-out]" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-pop)' }}>
-                <div className="px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] font-bold" style={{ color: 'var(--muted-fg-2)', fontFamily: 'var(--font-display)' }}>New record</div>
+                <div className="px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] font-bold" style={{ color: 'var(--muted-fg-2)', fontFamily: 'var(--font-display)' }}>{t.actions.newRecord}</div>
                 {(['sources', 'contents', 'analysis'] as NavSection[]).map((s) => (
                   <button key={s} role="menuitem" onClick={() => { setQuickAddOpen(false); onSectionChange(s); }} className="w-full flex items-center gap-2.5 text-start px-3.5 py-2 text-xs transition-colors hover:bg-[var(--surface-3)]" style={{ color: 'var(--fg)' }}>{NAV_ICONS[s]}<span>{NAV_ITEMS.find((n) => n.id === s)?.label}</span></button>
                 ))}
                 <DropSep />
-                <button role="menuitem" onClick={() => { setQuickAddOpen(false); setShowImport(true); }} className="w-full flex items-center gap-2.5 text-start px-3.5 py-2 text-xs transition-colors hover:bg-[var(--surface-3)]" style={{ color: 'var(--fg)' }}>📥<span>{t.ops.importData}</span></button>
+                <button role="menuitem" onClick={() => { setQuickAddOpen(false); setShowImport(true); }} className="w-full flex items-center gap-2.5 text-start px-3.5 py-2 text-xs transition-colors hover:bg-[var(--surface-3)]" style={{ color: 'var(--fg)' }}><IconImport size="sm" /><span>{t.ops.importData}</span></button>
               </div>
             )}
           </div>
 
           <Dropdown open={toolsOpen} toggle={() => { setToolsOpen((o) => !o); setHelpOpen(false); }} label={t.menus.tools} dropRef={toolsRef}>
-            <DropItem icon="⚙" label={t.menus.settings} onClick={() => setShowSettings(true)} />
-            <DropItem icon="💾" label={t.menus.backupRestore} onClick={() => setShowBackup(true)} />
-            <DropItem icon="📥" label={t.menus.importData} onClick={() => setShowImport(true)} />
-            <DropItem icon="📎" label={t.ops.attachments} onClick={() => setShowAttachments(true)} />
+            <DropItem icon={<IconSettings size="sm" />} label={t.menus.settings} onClick={() => setShowSettings(true)} />
+            <DropItem icon={<IconBackup size="sm" />} label={t.menus.backupRestore} onClick={() => setShowBackup(true)} />
+            <DropItem icon={<IconImport size="sm" />} label={t.menus.importData} onClick={() => setShowImport(true)} />
+            <DropItem icon={<IconAttach size="sm" />} label={t.ops.attachments} onClick={() => setShowAttachments(true)} />
             <DropSep />
-            <DropItem icon="📊" label={t.actions.loadSample} onClick={() => { loadSampleData(); setToastMsg(t.messages.loadingSample); }} />
-            <DropItem icon="🖨" label={t.menus.printSettings} onClick={() => setShowPrintHeader(true)} />
-            <DropItem icon="📚" label={t.nav.dictionary} onClick={() => onSectionChange('dictionary')} />
-            <DropItem icon="📈" label={t.nav.activity} onClick={() => onSectionChange('activity')} />
-            <DropItem icon="⚡" label={t.menus.performanceMonitor} onClick={() => setShowPerf(true)} />
+            <DropItem icon={<IconDatabase size="sm" />} label={t.actions.loadSample} onClick={() => { loadSampleData(); setToastMsg(t.messages.loadingSample); }} />
+            <DropItem icon={<IconPrint size="sm" />} label={t.menus.printSettings} onClick={() => setShowPrintHeader(true)} />
+            <DropItem icon={<IconDictionary size="sm" />} label={t.nav.dictionary} onClick={() => onSectionChange('dictionary')} />
+            <DropItem icon={<IconActivity size="sm" />} label={t.nav.activity} onClick={() => onSectionChange('activity')} />
+            <DropItem icon={<IconGauge size="sm" />} label={t.menus.performanceMonitor} onClick={() => setShowPerf(true)} />
             <DropSep />
-            <DropItem icon="🗑" label={t.menus.reset} onClick={() => setShowReset(true)} danger />
+            <DropItem icon={<IconDelete size="sm" />} label={t.menus.reset} onClick={() => setShowReset(true)} danger />
           </Dropdown>
 
           <Dropdown open={helpOpen} toggle={() => { setHelpOpen((o) => !o); setToolsOpen(false); }} label={t.menus.help} dropRef={helpRef}>
-            <DropItem icon="❓" label={t.menus.helpDoc} onClick={() => setShowHelp(true)} />
-            <DropItem icon="⌨" label={t.menus.shortcuts} onClick={() => setShowShortcuts(true)} />
-            <DropItem icon="ℹ" label={t.menus.about} onClick={() => setShowAbout(true)} />
+            <DropItem icon={<IconHelp size="sm" />} label={t.menus.helpDoc} onClick={() => setShowHelp(true)} />
+            <DropItem icon={<IconShortcuts size="sm" />} label={t.menus.shortcuts} onClick={() => setShowShortcuts(true)} />
+            <DropItem icon={<IconInfo size="sm" />} label={t.menus.about} onClick={() => setShowAbout(true)} />
           </Dropdown>
 
           <div className="w-px h-6 mx-1" style={{ background: 'var(--border)' }} />
@@ -203,11 +209,11 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
           </div>
 
           <button onClick={() => setTheme(settings.theme === 'dark' ? 'light' : 'dark')} aria-label={settings.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} className="w-8 h-8 flex items-center justify-center rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" style={{ color: 'var(--muted-fg)' }}>
-            {settings.theme === 'dark' ? (<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.3" /><path d="M8 1.5V3M8 13v1.5M1.5 8H3M13 8h1.5M3.5 3.5L4.5 4.5M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>) : (<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 9A5 5 0 117 3c0 .5.1 1 .2 1.5A4 4 0 1013 9z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>)}
+            {settings.theme === 'dark' ? <IconThemeLight size="sm" /> : <IconThemeDark size="sm" />}
           </button>
 
           <button onClick={() => setShowSettings(true)} aria-label={t.ops.settings} className="w-8 h-8 flex items-center justify-center rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" style={{ color: 'var(--muted-fg)' }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3" /><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+            <IconSettings size="sm" />
           </button>
         </div>
       </header>
@@ -217,7 +223,7 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
         {/* ── Sidebar ── */}
         <nav aria-label="Main navigation" className="flex flex-col h-full shrink-0 overflow-hidden" style={{ width: sidebarCollapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w)', background: 'var(--sidebar-bg)', color: 'var(--sidebar-fg)', transition: 'width 0.18s cubic-bezier(0.4,0,0.2,1)', borderInlineEnd: '1px solid var(--sidebar-border)' }}>
           <button onClick={() => setSidebarCollapsed((c) => !c)} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed} className="flex items-center justify-end pe-3 h-9 text-xs transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgba(255,255,255,0.3)]" style={{ color: 'rgba(255,255,255,0.3)', borderBottom: '1px solid var(--sidebar-border)' }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s' }}><path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span className="flex items-center" style={{ transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s' }}><IconCollapseSidebar size="sm" /></span>
           </button>
 
           <div id="main-sidebar-nav" className="flex-1 overflow-y-auto py-2">
@@ -241,7 +247,7 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
                       {!sidebarCollapsed && (
                         <div className="flex-1 text-start min-w-0 flex items-center justify-between">
                           <span className="text-[12px] truncate" style={{ fontFamily: 'var(--font-display)', fontWeight: active ? 600 : 450, letterSpacing: '-0.01em' }}>{item.label}</span>
-                          {active && <span className="text-[9px] font-mono shrink-0 ms-1 opacity-50" style={{ fontFamily: 'var(--font-mono)' }}>⌃{globalIdx}</span>}
+                          {active && <span className="text-[9px] font-mono shrink-0 ms-1 opacity-50" style={{ fontFamily: 'var(--font-mono)' }}>Ctrl+{globalIdx}</span>}
                         </div>
                       )}
                     </button>
@@ -255,9 +261,9 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
           <div style={{ borderTop: '1px solid var(--sidebar-border)' }}>
             {!sidebarCollapsed && (<div className="px-3 pt-3 pb-1"><span className="text-[9px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.25)', letterSpacing: '0.14em', fontFamily: 'var(--font-display)' }}>{t.ops.title}</span></div>)}
             {[
-              { icon: '📎', label: t.ops.attachments, onClick: () => setShowAttachments(true) },
-              { icon: '💾', label: t.ops.backup, onClick: () => setShowBackup(true) },
-              { icon: '📥', label: t.ops.importData, onClick: () => setShowImport(true) },
+              { icon: <IconAttach size="sm" />, label: t.ops.attachments, onClick: () => setShowAttachments(true) },
+              { icon: <IconBackupFile size="sm" />, label: t.ops.backup, onClick: () => setShowBackup(true) },
+              { icon: <IconImport size="sm" />, label: t.ops.importData, onClick: () => setShowImport(true) },
             ].map((item) => (
               <button key={item.label} onClick={item.onClick} className="w-full flex items-center gap-2.5 py-1.5 text-xs transition-all duration-100" style={{ paddingInlineStart: sidebarCollapsed ? 0 : 12, paddingInlineEnd: 12, justifyContent: sidebarCollapsed ? 'center' : 'flex-start', color: 'rgba(255,255,255,0.38)' }}
                 title={sidebarCollapsed ? item.label : undefined}
@@ -290,7 +296,7 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
           {/* Breadcrumb bar */}
           <div className="flex items-center px-4 shrink-0 gap-2 breadcrumb-desc" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', height: 'var(--breadcrumb-h)' }}>
             <span className="text-[11px] font-semibold" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-display)' }}>{t.app.name}</span>
-            <span style={{ color: 'var(--border-strong)', fontSize: 14 }} aria-hidden="true">/</span>
+            <IconChevronRight size="xs" style={{ color: 'var(--border-strong)' }} />
             <span className="text-[12px] font-bold flex items-center gap-1.5" style={{ fontFamily: 'var(--font-display)', color: 'var(--fg)' }}>
               {!sidebarCollapsed && NAV_ICONS[activeSection]}
               {currentSection?.label}
@@ -351,7 +357,7 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
       <div role="status" aria-live="polite" aria-atomic="true" className="fixed z-[60]" style={{ bottom: 28, insetInlineEnd: 16, pointerEvents: toastMsg ? 'auto' : 'none' }}>
         {toastMsg && (
           <div className="px-4 py-2.5 text-sm font-medium animate-[fadeInUp_0.2s_ease-out]" style={{ background: 'var(--sidebar-bg)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--radius-lg)', maxWidth: 360, boxShadow: 'var(--shadow-pop)', fontFamily: 'var(--font-display)', fontSize: '0.75rem' }}>
-            <span aria-hidden="true" style={{ color: 'var(--primary)', marginInlineEnd: 8 }}>✓</span>
+            <span aria-hidden="true" className="inline-flex items-center" style={{ color: 'var(--primary)', marginInlineEnd: 8 }}><IconSuccess size="sm" /></span>
             {toastMsg}
           </div>
         )}

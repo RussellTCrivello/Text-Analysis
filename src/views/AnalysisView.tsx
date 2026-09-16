@@ -19,6 +19,7 @@ import { buildPrintDocument, printHtml } from '../core/print';
 import type { Row } from '../core/repository';
 import { formatDateTime, nowIso } from '../core/text';
 import type { Analysis } from '../types';
+import { IconAdd, IconAnalysis, IconChart, IconCompare, IconCopy, IconExport, IconImport, IconMapRegion, IconPrint, IconSearch, IconSliders, IconZap } from '../components/icons';
 
 const CLASSIFICATION_VOCABULARY = 'analyses.classification';
 
@@ -220,13 +221,13 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
   ];
 
   const moreItems = [
-    { label: t.actions.viewOnMap, icon: '🗺', onClick: openMapView, disabled: !selected?.list_coordinates },
-    { label: t.actions.advancedSearch, icon: '🔍', onClick: () => setShowAdvSearch(true) },
-    { label: t.dialogs.statistics.title, icon: '📊', onClick: () => setShowStats(true) },
-    { label: t.actions.importAnalysis, icon: '📥', onClick: () => setShowImport(true) },
-    { label: 'Compare', icon: '⇆', onClick: () => { if (filtered.length < 2) { onToast('Need at least 2 records to compare.'); return; } setShowCompare(true); } },
+    { label: t.actions.viewOnMap, icon: <IconMapRegion size="sm" />, onClick: openMapView, disabled: !selected?.list_coordinates },
+    { label: t.actions.advancedSearch, icon: <IconSearch size="sm" />, onClick: () => setShowAdvSearch(true) },
+    { label: t.dialogs.statistics.title, icon: <IconChart size="sm" />, onClick: () => setShowStats(true) },
+    { label: t.actions.importAnalysis, icon: <IconImport size="sm" />, onClick: () => setShowImport(true) },
+    { label: t.actions.compare, icon: <IconCompare size="sm" />, onClick: () => { if (filtered.length < 2) { onToast('Need at least 2 records to compare.'); return; } setShowCompare(true); } },
     { label: 'Summary', icon: '∑', onClick: () => { if (!filtered.length) { onToast('No records to summarize.'); return; } setShowSummary(true); } },
-    { label: t.actions.bulkOperations, icon: '⚙', onClick: () => setShowBulkOps(true), disabled: selectedIds.length === 0 },
+    { label: t.actions.bulkOperations, icon: <IconSliders size="sm" />, onClick: () => setShowBulkOps(true), disabled: selectedIds.length === 0 },
   ];
 
   const FormContent = () => (
@@ -244,7 +245,7 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
             usage={classUsage}
             placeholder="Type or pick a classification…"
             error={!!errors.classification}
-            createLabel={typed => `＋ Add “${typed}” and teach the extractor`}
+            createLabel={typed => `Add “${typed}” and teach the extractor`}
             onCreate={value => {
               addVocabularyValue(CLASSIFICATION_VOCABULARY, value);
               // A new category is only useful if automated extraction knows it.
@@ -266,7 +267,7 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
           <Btn size="xs" variant="ghost" onClick={runExtraction} disabled={!form.content_id}>
             Preview extraction
           </Btn>
-          <Btn size="xs" onClick={autoExtract} disabled={!form.content_id} icon="⚡">{t.actions.extract}</Btn>
+          <Btn size="xs" onClick={autoExtract} disabled={!form.content_id} icon={<IconZap size="sm" />}>{t.actions.extract}</Btn>
         </div>
       </div>
       {extraction && (
@@ -332,8 +333,8 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
         eyebrow={t.nav.analysisDesc}
         title={t.sections.analysis.title}
         count={{ value: data.analyses.length, label: t.messages.records }}
-        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 12L6 7l3 3 2.5-4L14 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-        actions={<Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.analysis.add}</Btn>}
+        icon={<IconAnalysis size={16} />}
+        actions={<Btn variant="primary" onClick={openAdd} icon={<IconAdd size={12} />}>{t.sections.analysis.add}</Btn>}
       />
 
       <FilterRow>
@@ -348,12 +349,12 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
       <Toolbar>
         <Btn onClick={openEdit} disabled={!selected}>{t.actions.edit}</Btn>
         <Btn variant="danger" onClick={() => setShowDelete(true)} disabled={!selected}>{t.actions.delete}</Btn>
-        <Btn onClick={() => { if (selectedId) duplicateAnalysis(selectedId); }} disabled={!selected} icon="⎘">{t.actions.duplicate}</Btn>
+        <Btn onClick={() => { if (selectedId) duplicateAnalysis(selectedId); }} disabled={!selected} icon={<IconCopy size="sm" />}>{t.actions.duplicate}</Btn>
         <ToolbarSep />
-        <Btn onClick={openMapView} disabled={!selected?.list_coordinates} icon="🗺">{t.actions.mapView}</Btn>
+        <Btn onClick={openMapView} disabled={!selected?.list_coordinates} icon={<IconMapRegion size="sm" />}>{t.actions.mapView}</Btn>
         <ToolbarSep />
-        <Btn onClick={() => setShowExport(true)} icon="⬇">{t.actions.export}</Btn>
-        <Btn onClick={handlePrint} icon="🖨">{t.actions.print}</Btn>
+        <Btn onClick={() => setShowExport(true)} icon={<IconExport size="sm" />}>{t.actions.export}</Btn>
+        <Btn onClick={handlePrint} icon={<IconPrint size="sm" />}>{t.actions.print}</Btn>
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
@@ -385,7 +386,7 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
             variant={advancedIds || search || classFilter || dateFrom || dateTo ? 'noResults' : 'empty'}
             title={advancedIds || search || classFilter || dateFrom || dateTo ? `No matching ${t.sections.analysis.title}` : t.sections.analysis.noData}
             action={advancedIds || search || classFilter || dateFrom || dateTo ? undefined : (
-              <Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.analysis.add}</Btn>
+              <Btn variant="primary" onClick={openAdd} icon={<IconAdd size={12} />}>{t.sections.analysis.add}</Btn>
             )}
           />
         ) : (
@@ -435,7 +436,7 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
             </div>
           ))}
           <div style={{ color: 'var(--muted-fg)' }}>
-            Geotagged: {analysisStats.withCoordinates ?? 0} · {t.dialogs.statistics.dateRange}: {analysisStats.dateRange.from ?? '—'} → {analysisStats.dateRange.to ?? '—'}
+            Geotagged: {analysisStats.withCoordinates ?? 0} · {t.dialogs.statistics.dateRange}: {analysisStats.dateRange.from ?? '—'} – {analysisStats.dateRange.to ?? '—'}
           </div>
           <div className="flex justify-end">
             <Btn onClick={() => setShowStats(false)}>{t.actions.close}</Btn>

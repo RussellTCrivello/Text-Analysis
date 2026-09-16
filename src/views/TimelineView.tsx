@@ -5,6 +5,7 @@ import { TimelineExportDialog } from '../components/TimelineExportDialog';
 import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
 import { formatDateTime } from '../core/text';
+import { IconClose, IconExport, IconMapPin, IconTimeline } from '../components/icons';
 import type { AppData as CoreAppData } from '../core/repository';
 import {
   buildTimeline,
@@ -122,7 +123,7 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
         eyebrow={t.nav.timelineDesc}
         title={t.sections.timeline.title}
         count={{ value: stats.total, label: t.sections.timeline.totalEvents }}
-        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><circle cx="5.5" cy="8" r="1.5" fill="currentColor" /><circle cx="10.5" cy="8" r="1.5" fill="currentColor" /><path d="M5.5 5v1.5M10.5 9.5V11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
+        icon={<IconTimeline size={16} />}
       />
 
       {/* Filter row */}
@@ -168,13 +169,13 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
           </div>
         ))}
         <span className="text-[11px]" style={{ color: 'var(--muted-fg)' }}>
-          {summary.range.from ?? '—'} → {summary.range.to ?? '—'} · busiest {summary.mostActivePeriod?.label ?? '—'} ({summary.mostActivePeriod?.count ?? 0})
+          {summary.range.from ?? '—'} – {summary.range.to ?? '—'} · busiest {summary.mostActivePeriod?.label ?? '—'} ({summary.mostActivePeriod?.count ?? 0})
         </span>
         <div className="flex-1" />
         <Select value={sortField} onChange={e => setSortField(e.target.value as TimelineSort)} options={sortOpts} className="!w-36" />
         <Select value={sortDir} onChange={e => setSortDir(e.target.value as SortDir)} options={dirOpts} className="!w-28" />
         <Select value={density} onChange={e => setDensity(e.target.value as Density)} options={densityOpts} className="!w-28" />
-        <Btn size="xs" onClick={() => setShowExport(true)} icon="⬇">Export</Btn>
+        <Btn size="xs" onClick={() => setShowExport(true)} icon={<IconExport size="sm" />}>Export</Btn>
       </div>
 
       {/* Main content: left=timeline events, right=detail */}
@@ -248,7 +249,7 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
                       )}
                       {density === 'expanded' && (
                         <div className="flex flex-wrap gap-2 mt-1">
-                          {event.source && <span className="text-xs" style={{ color: 'var(--muted-fg)' }}>📍 {event.source}</span>}
+                          {event.source && <span className="text-xs" style={{ color: 'var(--muted-fg)' }}><IconMapPin size="xs" /> {event.source}</span>}
                           {event.classification && <Badge size="xs">{event.classification}</Badge>}
                           {event.hasCoordinates && <Badge size="xs">geotagged</Badge>}
                           {event.people.slice(0, 3).map(p => <Badge key={p} size="xs">{p}</Badge>)}
@@ -268,7 +269,7 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
           <div className="w-72 shrink-0 overflow-y-auto p-4 flex flex-col gap-3" style={{ borderInlineStart: '1px solid var(--border)', background: 'var(--muted-bg)' }}>
             <div className="flex items-center gap-2">
               <RecordTypeBadge type={selectedEvent.type} />
-              <button onClick={() => setSelectedEvent(null)} className="ms-auto text-xs" style={{ color: 'var(--muted-fg)' }}>✕</button>
+              <button onClick={() => setSelectedEvent(null)} aria-label="Close event details" className="ms-auto flex items-center text-xs" style={{ color: 'var(--muted-fg)' }}><IconClose size="xs" /></button>
             </div>
             <h3 className="text-sm font-bold" style={{ fontFamily: 'var(--font-display)' }}>{selectedEvent.title}</h3>
             {[

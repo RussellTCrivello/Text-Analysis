@@ -12,6 +12,7 @@ import { useAppData } from '../store/AppContext';
 import { useSettings } from '../store/SettingsContext';
 import { useTranslation } from '../i18n';
 import type { RecordType } from '../types';
+import { IconAllData, IconChart, IconExport, IconPrint, IconSearch, IconView } from '../components/icons';
 
 interface UnifiedRecord {
   id: string;
@@ -120,8 +121,8 @@ export function AllDataView({ onToast, onGenerateReport, initialSearch = '' }: {
   ];
 
   const moreItems = [
-    { label: t.actions.advancedSearch, icon: '🔍', onClick: () => setShowAdvSearch(true) },
-    { label: t.actions.generateReport, icon: '📊', onClick: () => { onGenerateReport?.(filtered); onToast('Data sent to Reports.'); } },
+    { label: t.actions.advancedSearch, icon: <IconSearch size="sm" />, onClick: () => setShowAdvSearch(true) },
+    { label: t.actions.generateReport, icon: <IconChart size="sm" />, onClick: () => { onGenerateReport?.(filtered); onToast('Data sent to Reports.'); } },
   ];
 
   const advFields = [
@@ -152,7 +153,7 @@ export function AllDataView({ onToast, onGenerateReport, initialSearch = '' }: {
         eyebrow={t.nav.allDataDesc}
         title={t.sections.allData.title}
         count={{ value: allRecords.length, label: t.messages.records }}
-        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /></svg>}
+        icon={<IconAllData size={16} />}
       />
 
       <FilterRow>
@@ -165,10 +166,10 @@ export function AllDataView({ onToast, onGenerateReport, initialSearch = '' }: {
       </FilterRow>
 
       <Toolbar>
-        <Btn onClick={() => { if (!selectedId) return; setShowPreview(true); }} disabled={!selectedId} icon="👁">{t.actions.quickView}</Btn>
+        <Btn onClick={() => { if (!selectedId) return; setShowPreview(true); }} disabled={!selectedId} icon={<IconView size="sm" />}>{t.actions.quickView}</Btn>
         <ToolbarSep />
-        <Btn onClick={() => setShowExport(true)} icon="⬇">{t.actions.export}</Btn>
-        <Btn onClick={handlePrint} icon="🖨">{t.actions.print}</Btn>
+        <Btn onClick={() => setShowExport(true)} icon={<IconExport size="sm" />}>{t.actions.export}</Btn>
+        <Btn onClick={handlePrint} icon={<IconPrint size="sm" />}>{t.actions.print}</Btn>
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>

@@ -14,6 +14,7 @@ import { ReportsView } from '../src/views/ReportsView';
 import { ActivityView } from '../src/views/ActivityView';
 import { DictionaryView } from '../src/views/DictionaryView';
 import { ImportWizard } from '../src/components/ImportWizard';
+import { SettingsDialog } from '../src/components/SettingsDialog';
 import { ExportDialog } from '../src/components/ExportDialog';
 import { BackupDialog } from '../src/components/BackupDialog';
 import { AttachmentManager } from '../src/components/AttachmentManager';
@@ -39,6 +40,8 @@ const views: Record<string, React.ReactNode> = {
   'activity:ar': <ActivityView onToast={toast} />,
   'dictionary:ar': <DictionaryView onToast={toast} />,
   importWizard: <ImportWizard isOpen onClose={() => {}} onToast={toast} />,
+  settings: <SettingsDialog isOpen onClose={() => {}} />,
+  'settings:ar': <SettingsDialog isOpen onClose={() => {}} />,
   exportDialog: <ExportDialog isOpen onClose={() => {}} data={sampleData.sources as unknown as Record<string, unknown>[]} columns={[]} defaultFilename="x" />,
   backup: <BackupDialog isOpen onClose={() => {}} onToast={toast} />,
   attachments: <AttachmentManager isOpen onClose={() => {}} onToast={toast} />,

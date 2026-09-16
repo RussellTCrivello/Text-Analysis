@@ -1,19 +1,31 @@
 /**
- * Backup & Restore over the core backup engine: versioned envelopes with record
- * counts and checksums, verification before anything touches live data, and the
- * three merge policies (skip / replace / duplicate) for id collisions.
+ * Backup & Restore — full workflow redesign.
+ *
+ * A deliberate system workflow rather than a generic form:
+ *   1. Create — named backup with optional note and a live scope summary.
+ *   2. Existing backups — selectable table with counts, size and checksum.
+ *   3. Actions — restore (with confirmation), merge (policy-driven), export
+ *      and delete (with confirmation), plus file-based restore that is always
+ *      verified before anything is written.
+ * All destructive or consequential operations keep their confirmations. Every
+ * previous capability is preserved: create, restore, merge (skip/replace/
+ * duplicate), export .tam.json, delete, file import with verification.
  */
 import React, { useRef, useState } from 'react';
-import { InfoModal } from './FormModal';
-import { Btn, Field, Input, Select } from './ui';
-import { useAppData } from '../store/AppContext';
+import { Modal } from './ui';
+import { Btn, EmptyState, Field, Input, Select, Callout } from './ui';
+import {
+  IconBackup, IconClose, IconCompare, IconDatabase, IconDelete, IconError,
+  IconExport, IconImport, IconInfo, IconRestore, IconShieldCheck, IconStatusX, IconWarning,
+} from './icons';
 import { useTranslation } from '../i18n';
+import { useAppData, type MergePolicy, type VerifyResult } from '../store/AppContext';
 import { downloadArtifact } from '../core/export/exporters';
 import { formatBytes } from '../core/text';
-import type { MergePolicy, VerifyResult } from '../core/backup';
 
-export function BackupDialog({ isOpen, onClose, onToast }: { isOpen: boolean; onClose: () => void; onToast: (m: string) => void }) {
+export function BackupDialog({ isOpen, onClose, onToast }: { isOpen: boolean; onClose: () => void; onToast: (message: string) => void }) {
   const { t } = useTranslation();
+  const b = t.backup;
   const { backups, createBackup, restoreBackup, mergeBackup, deleteBackup, importBackupFile, exportBackupFile, verifyBackupFile, data } =
     useAppData();
   const [selected, setSelected] = useState<string | null>(null);
@@ -32,7 +44,7 @@ export function BackupDialog({ isOpen, onClose, onToast }: { isOpen: boolean; on
 
   const doRestore = () => {
     if (!selected) return;
-    if (!window.confirm(t.backup.confirmRestore)) return;
+    if (!window.confirm(b.confirmRestore)) return;
     restoreBackup(selected);
     onToast(t.messages.backupRestored);
   };
@@ -45,7 +57,7 @@ export function BackupDialog({ isOpen, onClose, onToast }: { isOpen: boolean; on
 
   const doDelete = () => {
     if (!selected) return;
-    if (!window.confirm(t.backup.confirmDelete)) return;
+    if (!window.confirm(b.confirmDelete)) return;
     deleteBackup(selected);
     setSelected(null);
   };
@@ -55,7 +67,7 @@ export function BackupDialog({ isOpen, onClose, onToast }: { isOpen: boolean; on
     const artifact = exportBackupFile(selected);
     if (!artifact) return;
     downloadArtifact({ ...artifact, filename: `${artifact.filename.replace(/\.json$/, '')}.tam.json` });
-    onToast('Backup file downloaded');
+    onToast(b.fileDownloaded);
   };
 
   const readFile = (file: File) => {
@@ -66,7 +78,7 @@ export function BackupDialog({ isOpen, onClose, onToast }: { isOpen: boolean; on
       try {
         parsed = JSON.parse(text);
       } catch {
-        onToast('That file is not valid JSON.');
+        onToast(b.invalidJson);
         return;
       }
       // Verify first — never write unverified data.
@@ -80,7 +92,7 @@ export function BackupDialog({ isOpen, onClose, onToast }: { isOpen: boolean; on
     if (!pending) return;
     const result = importBackupFile(pending.text, policy);
     if (!result.ok) {
-      onToast(result.errors[0] ?? 'Import failed');
+      onToast(result.errors[0] ?? b.importFailed);
       return;
     }
     onToast(`${t.messages.backupRestored} (${policy})`);
@@ -89,149 +101,172 @@ export function BackupDialog({ isOpen, onClose, onToast }: { isOpen: boolean; on
   };
 
   const fmt = (s: string) => s.slice(0, 16).replace('T', ' ');
+  const selectedBk = backups.find((bk) => bk.id === selected) ?? null;
+  const policyLabel = { skip: b.mergeSkip, replace: b.mergeReplace, duplicate: b.mergeDuplicate }[policy];
 
   return (
-    <InfoModal isOpen={isOpen} title={t.backup.title} onClose={onClose} size="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={b.title}
+      size="xl"
+      footer={<Btn variant="ghost" onClick={onClose} icon={<IconClose size="xs" />}>{t.actions.close}</Btn>}
+    >
       <div className="flex flex-col gap-4">
-        {/* Create */}
-        <div className="flex items-end gap-2">
-          <Field label={t.backup.backupName}>
-            <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={`backup_manual_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`} />
-          </Field>
-          <Field label="Note (optional)">
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Before the Q3 import" />
-          </Field>
-          <Btn variant="primary" onClick={doCreate}>
-            {t.backup.createBackup}
-          </Btn>
-        </div>
-
-        <div className="text-[11px]" style={{ color: 'var(--muted-fg)' }}>
-          Current workspace: {data.sources.length} sources · {data.contents.length} contents · {data.analyses.length} analyses.
-          Each backup stores a schema version, record counts and a checksum, plus the audit log, gazetteer and taxonomy.
-        </div>
-
-        {/* Table */}
-        <div className="border rounded overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-          <div className="overflow-y-auto" style={{ maxHeight: 240 }}>
-            <table className="w-full" style={{ tableLayout: 'fixed' }}>
-              <thead>
-                <tr style={{ background: 'var(--secondary-bg)' }}>
-                  {['', t.backup.colName, t.backup.colDate, t.backup.colSources, t.backup.colContents, t.backup.colAnalyses, t.backup.colSize, 'Checksum'].map((h, i) => (
-                    <th
-                      key={`${h}-${i}`}
-                      className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-start border-b"
-                      style={{ borderColor: 'var(--border)', color: 'var(--muted-fg)', width: i === 0 ? 28 : i === 1 ? '26%' : undefined }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {backups.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="py-6 text-center text-xs" style={{ color: 'var(--muted-fg)' }}>
-                      {t.backup.noBackups}
-                    </td>
-                  </tr>
-                )}
-                {backups.map((bk) => (
-                  <tr
-                    key={bk.id}
-                    onClick={() => setSelected(bk.id)}
-                    className="cursor-pointer transition-colors"
-                    style={{
-                      background: selected === bk.id ? 'var(--primary)' : 'var(--card-bg)',
-                      color: selected === bk.id ? 'var(--primary-fg)' : 'var(--fg)',
-                    }}
-                  >
-                    <td className="px-2 py-1.5 text-center border-b" style={{ borderColor: 'var(--border)' }}>
-                      <input type="radio" checked={selected === bk.id} onChange={() => setSelected(bk.id)} />
-                    </td>
-                    <td className="px-2 py-1.5 text-xs border-b truncate" style={{ borderColor: 'var(--border)' }} title={bk.note}>
-                      {bk.name}
-                    </td>
-                    <td className="px-2 py-1.5 text-xs border-b" style={{ borderColor: 'var(--border)', fontFamily: 'var(--font-mono)' }}>
-                      {fmt(bk.date_creation)}
-                    </td>
-                    <td className="px-2 py-1.5 text-xs border-b text-center" style={{ borderColor: 'var(--border)' }}>{bk.sourceCount}</td>
-                    <td className="px-2 py-1.5 text-xs border-b text-center" style={{ borderColor: 'var(--border)' }}>{bk.contentCount}</td>
-                    <td className="px-2 py-1.5 text-xs border-b text-center" style={{ borderColor: 'var(--border)' }}>{bk.analysisCount}</td>
-                    <td className="px-2 py-1.5 text-xs border-b" style={{ borderColor: 'var(--border)', fontFamily: 'var(--font-mono)' }}>
-                      {formatBytes(bk.bytes)}
-                    </td>
-                    <td className="px-2 py-1.5 text-[10px] border-b truncate" style={{ borderColor: 'var(--border)', fontFamily: 'var(--font-mono)' }}>
-                      {bk.checksum.slice(0, 12)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* ── 1. Create backup ─────────────────────────────────────── */}
+        <section className="rounded-[var(--radius-lg)] overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+          <header className="flex items-center gap-2 px-3 py-2" style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+            <span className="inline-flex" style={{ color: 'var(--primary)' }}><IconBackup size="sm" /></span>
+            <h3 className="text-xs font-bold" style={{ fontFamily: 'var(--font-display)' }}>{b.createBackup}</h3>
+          </header>
+          <div className="p-3 flex flex-col gap-2.5">
+            <div className="flex items-end gap-2 flex-wrap">
+              <Field label={b.backupName}>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={`backup_manual_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`} className="!w-56" />
+              </Field>
+              <Field label={b.noteOptional}>
+                <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Before the Q3 import" className="!w-52" />
+              </Field>
+              <Btn variant="primary" onClick={doCreate} icon={<IconBackup size="sm" />}>{b.createBackup}</Btn>
+            </div>
+            <p className="text-[11px] leading-relaxed flex items-start gap-1.5" style={{ color: 'var(--muted-fg)' }}>
+              <span className="shrink-0 mt-0.5 inline-flex"><IconInfo size="xs" /></span>
+              <span>
+                {b.workspaceNow} <strong style={{ color: 'var(--fg)' }}>{data.sources.length}</strong> {t.nav.sources.toLowerCase()} ·{' '}
+                <strong style={{ color: 'var(--fg)' }}>{data.contents.length}</strong> {t.nav.contents.toLowerCase()} ·{' '}
+                <strong style={{ color: 'var(--fg)' }}>{data.analyses.length}</strong> {t.nav.analysis.toLowerCase()}. {b.scopeHint}
+              </span>
+            </p>
           </div>
-        </div>
+        </section>
 
-        {/* Actions */}
+        {/* ── 2. Existing backups ──────────────────────────────────── */}
+        <section>
+          {backups.length === 0 ? (
+            <EmptyState variant="empty" title={b.noBackups} icon={<IconDatabase size="hero" />} compact />
+          ) : (
+            <div className="rounded-[var(--radius-lg)] overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              <div className="overflow-y-auto" style={{ maxHeight: 232 }}>
+                <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--surface-2)' }}>
+                      {['', b.colName, b.colDate, b.colSources, b.colContents, b.colAnalyses, b.colSize, b.checksum].map((h, i) => (
+                        <th
+                          key={`${h}-${i}`}
+                          className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-start"
+                          style={{ borderBottom: '1px solid var(--border)', color: 'var(--muted-fg)', fontFamily: 'var(--font-display)', width: i === 0 ? 30 : i === 1 ? '26%' : undefined }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {backups.map((bk) => {
+                      const isSel = selected === bk.id;
+                      return (
+                        <tr
+                          key={bk.id}
+                          onClick={() => setSelected(bk.id)}
+                          className="cursor-pointer transition-colors"
+                          style={{
+                            background: isSel ? 'var(--primary-soft)' : 'var(--surface)',
+                            boxShadow: isSel ? 'inset 3px 0 0 var(--primary)' : undefined,
+                          }}
+                          aria-selected={isSel}
+                        >
+                          <td className="px-2 py-1.5 text-center" style={{ borderBottom: '1px solid var(--border)' }}>
+                            <input
+                              type="radio"
+                              name="backup-selection"
+                              checked={isSel}
+                              onChange={() => setSelected(bk.id)}
+                              aria-label={`${b.restoreTitle}: ${bk.name}`}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 text-xs truncate" style={{ borderBottom: '1px solid var(--border)' }} title={bk.note}>
+                            <span className="font-semibold" style={{ color: isSel ? 'var(--primary)' : 'var(--fg)' }}>{bk.name}</span>
+                          </td>
+                          <td className="px-2 py-1.5 text-xs tnum" style={{ borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)' }}>
+                            {fmt(bk.date_creation)}
+                          </td>
+                          <td className="px-2 py-1.5 text-xs text-center tnum" style={{ borderBottom: '1px solid var(--border)' }}>{bk.sourceCount}</td>
+                          <td className="px-2 py-1.5 text-xs text-center tnum" style={{ borderBottom: '1px solid var(--border)' }}>{bk.contentCount}</td>
+                          <td className="px-2 py-1.5 text-xs text-center tnum" style={{ borderBottom: '1px solid var(--border)' }}>{bk.analysisCount}</td>
+                          <td className="px-2 py-1.5 text-xs tnum" style={{ borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)' }}>
+                            {formatBytes(bk.bytes)}
+                          </td>
+                          <td className="px-2 py-1.5 text-[10px] truncate" style={{ borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: 'var(--muted-fg)' }}>
+                            {bk.checksum.slice(0, 12)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ── 3. Actions on the selected backup ────────────────────── */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Btn variant="primary" onClick={doRestore} disabled={!selected}>
-            {t.backup.restoreSelected}
+          <Btn variant="primary" onClick={doRestore} disabled={!selected} icon={<IconRestore size="sm" />}>
+            {b.restoreSelected}
           </Btn>
           <Select
             value={policy}
             onChange={(e) => setPolicy(e.target.value as MergePolicy)}
             options={[
-              { value: 'skip', label: 'Merge: keep current on conflict' },
-              { value: 'replace', label: 'Merge: overwrite on conflict' },
-              { value: 'duplicate', label: 'Merge: insert as new record' },
+              { value: 'skip', label: b.mergeSkip },
+              { value: 'replace', label: b.mergeReplace },
+              { value: 'duplicate', label: b.mergeDuplicate },
             ]}
-            className="!w-64"
+            className="!w-60"
+            aria-label={t.backup.mergeSelected}
           />
-          <Btn onClick={doMerge} disabled={!selected}>
-            {t.backup.mergeSelected}
-          </Btn>
-          <Btn onClick={doExport} disabled={!selected}>
-            {t.backup.exportBackup}
-          </Btn>
-          <Btn variant="danger" onClick={doDelete} disabled={!selected}>
-            {t.backup.deleteSelected}
-          </Btn>
+          <Btn onClick={doMerge} disabled={!selected} icon={<IconCompare size="sm" />}>{b.mergeSelected}</Btn>
+          <Btn onClick={doExport} disabled={!selected} icon={<IconExport size="sm" />}>{b.exportBackup}</Btn>
+          <Btn variant="danger" onClick={doDelete} disabled={!selected} icon={<IconDelete size="sm" />}>{b.deleteSelected}</Btn>
           <div className="flex-1" />
-          <Btn onClick={() => fileRef.current?.click()}>{t.backup.restoreFromFile}</Btn>
+          <Btn variant="subtle" onClick={() => fileRef.current?.click()} icon={<IconImport size="sm" />}>{b.fromFile}</Btn>
         </div>
 
-        {/* Pending file verification */}
+        {/* ── 4. Pending file verification — nothing written until confirmed ── */}
         {pending && (
-          <div className="rounded p-3 text-xs" style={{ background: 'var(--secondary-bg)', border: '1px solid var(--border)' }}>
-            <div className="font-semibold mb-1">
-              {pending.name} — {pending.result.ok ? 'verification passed' : 'verification failed'}
+          <section className="rounded-[var(--radius-lg)] p-3" style={{ border: `1px solid ${pending.result.ok ? 'var(--success-soft)' : 'var(--error-soft)'}`, background: pending.result.ok ? 'var(--success-soft)' : 'var(--error-soft)' }}>
+            <div className="flex items-center gap-2 text-xs font-bold mb-1.5" style={{ fontFamily: 'var(--font-display)' }}>
+              <span className="inline-flex" style={{ color: pending.result.ok ? 'var(--success)' : 'var(--error)' }}>
+                {pending.result.ok ? <IconShieldCheck size="sm" /> : <IconStatusX size="sm" />}
+              </span>
+              <span className="tnum" style={{ fontFamily: 'var(--font-mono)' }}>{pending.name}</span>
+              <span style={{ color: 'var(--muted-fg)' }}>— {pending.result.ok ? b.verifyPassed : b.verifyFailed}</span>
             </div>
             {pending.result.meta && (
-              <div style={{ color: 'var(--muted-fg)' }}>
+              <div className="text-[11px] tnum mb-1.5" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>
                 {pending.result.meta.counts.sources} sources · {pending.result.meta.counts.contents} contents ·{' '}
                 {pending.result.meta.counts.analyses} analyses · {formatBytes(pending.result.meta.bytes)} · schema v
                 {pending.result.meta.version} · app {pending.result.meta.appVersion}
-                {pending.result.meta.hasAudit ? ' · includes audit log' : ''}
+                {pending.result.meta.hasAudit ? ' · audit log' : ''}
               </div>
             )}
             {pending.result.errors.map((e) => (
-              <div key={e} style={{ color: '#b91c1c' }}>
-                ✕ {e}
+              <div key={e} className="text-[11px] flex items-center gap-1.5" style={{ color: 'var(--error)' }}>
+                <IconError size="xs" /> {e}
               </div>
             ))}
             {pending.result.warnings.map((w) => (
-              <div key={w} style={{ color: '#b45309' }}>
-                ⚠ {w}
+              <div key={w} className="text-[11px] flex items-center gap-1.5" style={{ color: 'var(--warning)' }}>
+                <IconWarning size="xs" /> {w}
               </div>
             ))}
-            <div className="flex gap-2 mt-2">
-              <Btn size="xs" variant="primary" disabled={!pending.result.ok} onClick={applyPending}>
-                Import with “{policy}” policy
+            <div className="flex gap-2 mt-2.5">
+              <Btn size="xs" variant="primary" disabled={!pending.result.ok} onClick={applyPending} icon={<IconRestore size="xs" />}>
+                {b.importWithPolicy.replace('{p}', policyLabel)}
               </Btn>
-              <Btn size="xs" onClick={() => setPending(null)}>
-                {t.actions.cancel}
-              </Btn>
+              <Btn size="xs" variant="ghost" onClick={() => setPending(null)} icon={<IconClose size="xs" />}>{t.actions.cancel}</Btn>
             </div>
-          </div>
+          </section>
         )}
       </div>
       <input
@@ -239,11 +274,12 @@ export function BackupDialog({ isOpen, onClose, onToast }: { isOpen: boolean; on
         type="file"
         accept=".json"
         className="hidden"
+        aria-label={b.fromFile}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) readFile(file);
         }}
       />
-    </InfoModal>
+    </Modal>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DataTable, type Column } from '../components/DataTable';
-import { FormModal, ConfirmDialog } from '../components/FormModal';
+import { FormModal, ConfirmDialog, InfoModal } from '../components/FormModal';
 import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, DateTimeInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, ImportanceBar, RecordTypeBadge, MoreMenu, Badge, StatCard, PageHeader, EmptyState } from '../components/ui';
 import { ExportDialog } from '../components/ExportDialog';
 import { AdvancedSearch } from '../components/AdvancedSearch';
@@ -16,6 +16,7 @@ import { applyDateFilter, freeTextSearch } from '../core/search';
 import { computeEntityStats } from '../core/stats';
 import { buildPrintDocument, printHtml } from '../core/print';
 import { hasErrors, type ValidationIssue } from '../core/validation';
+import { IconAdd, IconChart, IconCopy, IconExport, IconImport, IconPrint, IconRefresh, IconSearch, IconSliders, IconTimeline } from '../components/icons';
 
 const TYPE_VOCABULARY = 'sources.type';
 
@@ -183,11 +184,11 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
   ];
 
   const moreItems = [
-    { label: t.actions.advancedSearch, icon: '🔍', onClick: () => setShowAdvSearch(true) },
-    { label: t.actions.bulkOperations, icon: '⚙', onClick: () => setShowBulkOps(true), disabled: selectedIds.length === 0 },
-    { label: t.dialogs.statistics.title, icon: '📊', onClick: () => setShowStats(true) },
+    { label: t.actions.advancedSearch, icon: <IconSearch size="sm" />, onClick: () => setShowAdvSearch(true) },
+    { label: t.actions.bulkOperations, icon: <IconSliders size="sm" />, onClick: () => setShowBulkOps(true), disabled: selectedIds.length === 0 },
+    { label: t.dialogs.statistics.title, icon: <IconChart size="sm" />, onClick: () => setShowStats(true) },
     { divider: true, label: '', onClick: () => {} },
-    { label: t.actions.importSources, icon: '📥', onClick: () => setShowImport(true) },
+    { label: t.actions.importSources, icon: <IconImport size="sm" />, onClick: () => setShowImport(true) },
   ];
 
   const statsInfo = useMemo(() => {
@@ -274,8 +275,8 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
         eyebrow={t.nav.sourcesDesc}
         title={t.sections.sources.title}
         count={{ value: data.sources.length, label: t.messages.records }}
-        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" /><path d="M8 4v4l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
-        actions={<Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.sources.add}</Btn>}
+        icon={<IconTimeline size={16} />}
+        actions={<Btn variant="primary" onClick={openAdd} icon={<IconAdd size={12} />}>{t.sections.sources.add}</Btn>}
       />
 
       {/* Filter row */}
@@ -292,13 +293,13 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
       <Toolbar>
         <Btn onClick={openEdit} disabled={!selected}>{t.actions.edit}</Btn>
         <Btn variant="danger" onClick={() => setShowDelete(true)} disabled={!selected}>{t.actions.delete}</Btn>
-        <Btn onClick={() => { setSelectedId(null); setSelectedIds([]); }} variant="ghost" icon="↺">{t.actions.refresh}</Btn>
+        <Btn onClick={() => { setSelectedId(null); setSelectedIds([]); }} variant="ghost" icon={<IconRefresh size="sm" />}>{t.actions.refresh}</Btn>
         <ToolbarSep />
-        <Btn onClick={() => setShowImport(true)} icon="📥">{t.actions.import}</Btn>
-        <Btn onClick={handleDuplicate} disabled={!selected} icon="⎘">{t.actions.duplicate}</Btn>
+        <Btn onClick={() => setShowImport(true)} icon={<IconImport size="sm" />}>{t.actions.import}</Btn>
+        <Btn onClick={handleDuplicate} disabled={!selected} icon={<IconCopy size="sm" />}>{t.actions.duplicate}</Btn>
         <ToolbarSep />
-        <Btn onClick={() => setShowExport(true)} icon="⬇">{t.actions.export}</Btn>
-        <Btn onClick={handlePrint} icon="🖨">{t.actions.print}</Btn>
+        <Btn onClick={() => setShowExport(true)} icon={<IconExport size="sm" />}>{t.actions.export}</Btn>
+        <Btn onClick={handlePrint} icon={<IconPrint size="sm" />}>{t.actions.print}</Btn>
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
@@ -342,7 +343,7 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
             variant={advancedIds || search || typeFilter || dateFrom || dateTo ? 'noResults' : 'empty'}
             title={advancedIds || search || typeFilter || dateFrom || dateTo ? `No matching ${t.sections.sources.title}` : t.sections.sources.noData}
             action={advancedIds || search || typeFilter || dateFrom || dateTo ? undefined : (
-              <Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.sources.add}</Btn>
+              <Btn variant="primary" onClick={openAdd} icon={<IconAdd size={12} />}>{t.sections.sources.add}</Btn>
             )}
           />
         ) : (
@@ -422,16 +423,13 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
       <ImportWizard isOpen={showImport} onClose={() => setShowImport(false)} targetType="source" onToast={onToast} />
 
       {/* Statistics */}
-      {showStats && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={() => setShowStats(false)}>
-          <div className="rounded-xl shadow-2xl p-6 w-96" style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold mb-4" style={{ fontFamily: 'var(--font-display)' }}>{t.dialogs.statistics.title} — Sources</h3>
+      <InfoModal isOpen={showStats} title={`${t.dialogs.statistics.title} — ${t.sections.sources.title}`} onClose={() => setShowStats(false)} size="md">
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="rounded-lg p-3" style={{ background: 'var(--secondary-bg)' }}>
+              <div className="rounded-lg p-3" style={{ background: 'var(--surface-2)' }}>
                 <div className="text-xs" style={{ color: 'var(--muted-fg)' }}>{t.dialogs.statistics.totalRecords}</div>
                 <div className="text-2xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>{statsInfo.total}</div>
               </div>
-              <div className="rounded-lg p-3" style={{ background: 'var(--secondary-bg)' }}>
+              <div className="rounded-lg p-3" style={{ background: 'var(--surface-2)' }}>
                 <div className="text-xs" style={{ color: 'var(--muted-fg)' }}>{t.dialogs.statistics.avgImportance}</div>
                 <div className="text-2xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>{statsInfo.avgImp}%</div>
               </div>
@@ -450,7 +448,7 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
               ))}
             </div>
             <div className="mb-3 text-[11px]" style={{ color: 'var(--muted-fg)' }}>
-              {t.dialogs.statistics.dateRange}: {statsInfo.dateRange.from ?? '—'} → {statsInfo.dateRange.to ?? '—'}
+              {t.dialogs.statistics.dateRange}: {statsInfo.dateRange.from ?? '—'} – {statsInfo.dateRange.to ?? '—'}
               <br />
               Field coverage: {statsInfo.filled.map(f => `${f.field} ${f.filled}/${statsInfo.total}`).join(' · ')}
             </div>
@@ -466,10 +464,7 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
                 </div>
               ))}
             </div>
-            <Btn onClick={() => setShowStats(false)} className="w-full justify-center">{t.actions.close}</Btn>
-          </div>
-        </div>
-      )}
+      </InfoModal>
     </div>
   );
 }

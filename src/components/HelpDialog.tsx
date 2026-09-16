@@ -165,7 +165,7 @@ Multi-condition builder with 10+ operators (=, !=, LIKE, >, <, IS NULL, etc.). R
 • Bulk Edit — Set field values across all selected records
 • Bulk Import — Append rows from a CSV file
 
-Access from the More (⋯) menu or the selection action bar when rows are selected.`,
+Access from the More menu or the selection action bar when rows are selected.`,
   },
   {
     id: 'activity',

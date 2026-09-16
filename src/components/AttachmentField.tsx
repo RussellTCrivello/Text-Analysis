@@ -13,6 +13,7 @@ import { Btn } from './ui';
 import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
 import { describeProvenance, type AttachmentMeta, type AttachmentOrigin } from '../core/attachments';
+import { IconAttach, IconClose } from './icons';
 import { formatBytes, timestamp } from '../core/text';
 
 export interface StagedAttachment {
@@ -193,7 +194,7 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(function
         }}
       >
         <div className="flex items-center gap-2 flex-wrap">
-          <Btn size="xs" onClick={() => fileRef.current?.click()} disabled={busy} icon="📎">
+          <Btn size="xs" onClick={() => fileRef.current?.click()} disabled={busy} icon={<IconAttach size="sm" />}>
             {recordId ? t.sections.attachments.attachFile : t.sections.attachments.attachFile}
           </Btn>
           <span className="text-[11px]" style={{ color: 'var(--muted-fg)' }}>
@@ -239,15 +240,17 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(function
           {staged.map((item) => (
             <div key={item.key} className="flex items-center gap-2 text-xs px-2 py-1 rounded" style={{ background: 'var(--secondary-bg)' }}>
               <span className="truncate" style={{ flex: '1 1 auto' }}>
-                📎 {item.file.name}
+                <IconAttach size="xs" /> {item.file.name}
                 <span style={{ color: 'var(--muted-fg)' }}> · {formatBytes(item.file.size)}</span>
               </span>
               <Btn
                 size="xs"
                 variant="ghost"
                 onClick={() => setStaged((prev) => prev.filter((s) => s.key !== item.key))}
+                aria-label={t.actions.delete}
+                title={t.actions.delete}
               >
-                ✕
+                <IconClose size="xs" />
               </Btn>
             </div>
           ))}
@@ -263,14 +266,14 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(function
           {stored.map((meta) => (
             <div key={meta.id} className="flex items-center gap-2 text-xs px-2 py-1 rounded" style={{ background: 'var(--secondary-bg)' }}>
               <span className="truncate" style={{ flex: '1 1 auto' }} title={describeProvenance(meta)}>
-                📎 {meta.name}
+                <IconAttach size="xs" /> {meta.name}
                 <span style={{ color: 'var(--muted-fg)' }}>
                   {' '}
                   · {formatBytes(meta.size)} · {meta.origin ?? 'file'} · {meta.addedAt.slice(0, 16).replace('T', ' ')}
                 </span>
               </span>
-              <Btn size="xs" variant="danger" onClick={() => void removeStored(meta.id, meta.name)}>
-                ✕
+              <Btn size="xs" variant="danger" onClick={() => void removeStored(meta.id, meta.name)} aria-label={t.actions.delete} title={t.actions.delete}>
+                <IconClose size="xs" />
               </Btn>
             </div>
           ))}

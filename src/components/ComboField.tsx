@@ -7,6 +7,7 @@
  * again. Keyboard operable and RTL aware.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { IconExpandMore, IconClose } from './icons';
 import { useTranslation } from '../i18n';
 import type { VocabularyEntry } from '../core/vocabulary';
 
@@ -168,9 +169,7 @@ export function ComboField({
           className="px-2 py-1.5 shrink-0"
           style={{ color: 'var(--muted-fg)' }}
         >
-          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transform: open ? 'rotate(180deg)' : 'none' }}>
-            <path d="M0 0l5 6 5-6z" fill="currentColor" />
-          </svg>
+          <span className="flex items-center" style={{ transform: open ? 'rotate(180deg)' : 'none' }}><IconExpandMore size="xs" /></span>
         </button>
       </div>
 
@@ -232,9 +231,7 @@ export function ComboField({
                       onRemove(row.entry.value);
                       if (fold(value) === fold(row.entry.value)) onChange('');
                     }}
-                  >
-                    ✕
-                  </button>
+                  ><IconClose size="xs" /></button>
                 )}
               </li>
             );

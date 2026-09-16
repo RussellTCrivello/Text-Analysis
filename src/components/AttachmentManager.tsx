@@ -16,6 +16,7 @@ import {
   openAttachment,
   type AttachmentMeta,
 } from '../core/attachments';
+import { IconAttach, IconClose, IconEdit } from './icons';
 import { formatBytes, timestamp } from '../core/text';
 
 interface Props {
@@ -194,7 +195,7 @@ export function AttachmentManager({ isOpen, onClose, onToast, initialContentId }
                     style={{ borderBottom: '1px solid var(--border)' }}
                   >
                     <span className="text-xs truncate flex-1" title={describeProvenance(m)}>
-                      📎 {m.name}
+                      <IconAttach size="xs" /> {m.name}
                       <span style={{ color: 'var(--muted-fg)', fontSize: 10 }}>
                         {' '}· {formatBytes(m.size)} · {m.addedAt.slice(0, 16).replace('T', ' ')} · {m.origin ?? 'file'}
                         {m.sourceUrl && m.sourceUrl !== m.name ? ` · ${m.sourceUrl}` : ''}
@@ -206,8 +207,9 @@ export function AttachmentManager({ isOpen, onClose, onToast, initialContentId }
                       variant="ghost"
                       onClick={() => setEditingNote({ id: m.id, note: m.note ?? '' })}
                       title={t.sections.attachments.editDetails}
+                      aria-label={t.sections.attachments.editDetails}
                     >
-                      ✎
+                      <IconEdit size="xs" />
                     </Btn>
                     <Btn size="xs" variant="ghost" onClick={() => void openAttachment(attachments, m.id)}>
                       Open
@@ -215,8 +217,8 @@ export function AttachmentManager({ isOpen, onClose, onToast, initialContentId }
                     <Btn size="xs" variant="ghost" onClick={() => void downloadAttachment(attachments, m.id)}>
                       {t.actions.download}
                     </Btn>
-                    <Btn size="xs" variant="danger" onClick={() => void removeFile(m.id)}>
-                      ✕
+                    <Btn size="xs" variant="danger" onClick={() => void removeFile(m.id)} aria-label={t.actions.delete} title={t.actions.delete}>
+                      <IconClose size="xs" />
                     </Btn>
                   </div>
                 ))}

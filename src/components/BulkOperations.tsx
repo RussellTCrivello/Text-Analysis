@@ -4,6 +4,7 @@
  * history apply exactly as they do for single-record writes.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { IconError, IconSuccessBig } from './icons';
 import { InfoModal } from './FormModal';
 import { Btn, Field, Input, Select, Textarea } from './ui';
 import { useTranslation } from '../i18n';
@@ -210,7 +211,7 @@ export function BulkOperations({ isOpen, onClose, selectedIds, data, entity = 's
             {issues.length > 0 && (
               <div className="text-xs rounded p-2" style={{ background: '#fef2f2', color: '#b91c1c' }}>
                 {issues.map((i) => (
-                  <div key={`${i.field}-${i.code}`}>✕ {i.message}</div>
+                  <div key={`${i.field}-${i.code}`} className="flex items-center gap-1.5"><IconError size="xs" /> {i.message}</div>
                 ))}
               </div>
             )}
@@ -231,7 +232,7 @@ export function BulkOperations({ isOpen, onClose, selectedIds, data, entity = 's
           </>
         ) : (
           <div className="flex flex-col items-center justify-center gap-4 py-8">
-            <div className="text-3xl">✅</div>
+            <span className="inline-flex" style={{ color: 'var(--success)' }}><IconSuccessBig size={34} /></span>
             <p className="text-sm font-semibold">{done.message}</p>
             <Btn variant="primary" onClick={reset}>{t.actions.close}</Btn>
           </div>

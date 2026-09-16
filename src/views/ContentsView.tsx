@@ -17,6 +17,7 @@ import { computeEntityStats } from '../core/stats';
 import { buildPrintDocument, printHtml } from '../core/print';
 import type { Row } from '../core/repository';
 import { formatDateTime, nowIso } from '../core/text';
+import { IconAdd, IconAttach, IconContents, IconCopy, IconExport, IconImport, IconLink, IconPrint, IconSearch, IconSliders, IconView } from '../components/icons';
 
 function emptyContent(sourceId = ''): Omit<Content, 'id' | 'date_creation' | 'date_modified'> {
   return { sources_id: sourceId, title: '', content_data: '', attachments: '', note: '', importance: 0.70, date_content: nowIso() };
@@ -161,7 +162,7 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
     { key: 'attachments', header: t.fields.attachments, width: '80px',
       render: c => {
         const count = c.attachments ? c.attachments.split(/[;,]/).map(v => v.trim()).filter(Boolean).length : 0;
-        return count ? <Badge>📎 {count}</Badge> : <span>—</span>;
+        return count ? <Badge><span className="inline-flex items-center gap-1"><IconAttach size="xs" />{count}</span></Badge> : <span>—</span>;
       } },
     { key: 'date_content', header: t.fields.date_content, width: '90px', sortable: true,
       render: c => <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{c.date_content ? formatDateTime(c.date_content) : '—'}</span> },
@@ -174,13 +175,13 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
   ];
 
   const moreItems = [
-    { label: 'Preview Content', icon: '👁', onClick: () => { if (!selected) return; setShowPreview(true); }, disabled: !selected },
-    { label: t.actions.advancedSearch, icon: '🔍', onClick: () => setShowAdvSearch(true) },
-    { label: t.actions.importContents, icon: '📥', onClick: () => setShowImport(true) },
-    { label: t.actions.bulkOperations, icon: '⚙', onClick: () => setShowBulkOps(true), disabled: selectedIds.length === 0 },
+    { label: t.actions.quickView, icon: <IconView size="sm" />, onClick: () => { if (!selected) return; setShowPreview(true); }, disabled: !selected },
+    { label: t.actions.advancedSearch, icon: <IconSearch size="sm" />, onClick: () => setShowAdvSearch(true) },
+    { label: t.actions.importContents, icon: <IconImport size="sm" />, onClick: () => setShowImport(true) },
+    { label: t.actions.bulkOperations, icon: <IconSliders size="sm" />, onClick: () => setShowBulkOps(true), disabled: selectedIds.length === 0 },
     { label: t.actions.statistics, icon: 'Σ', onClick: () => setShowStats(true) },
     { divider: true, label: '', onClick: () => {} },
-    { label: t.actions.linkToAnalysis, icon: '🔗', onClick: () => { if (selectedId) onLinkToAnalysis?.(selectedId); }, disabled: !selectedId },
+    { label: t.actions.linkToAnalysis, icon: <IconLink size="sm" />, onClick: () => { if (selectedId) onLinkToAnalysis?.(selectedId); }, disabled: !selectedId },
   ];
 
   const FormContent = () => (
@@ -234,8 +235,8 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
         eyebrow={t.nav.contentsDesc}
         title={t.sections.contents.title}
         count={{ value: data.contents.length, label: t.messages.records }}
-        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3" /><path d="M5 6h6M5 8.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
-        actions={<Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.contents.add}</Btn>}
+        icon={<IconContents size={16} />}
+        actions={<Btn variant="primary" onClick={openAdd} icon={<IconAdd size={12} />}>{t.sections.contents.add}</Btn>}
       />
 
       <FilterRow>
@@ -250,21 +251,21 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
       <Toolbar>
         <Btn onClick={openEdit} disabled={!selected}>{t.actions.edit}</Btn>
         <Btn variant="danger" onClick={() => setShowDelete(true)} disabled={!selected}>{t.actions.delete}</Btn>
-        <Btn onClick={() => { if (selected) duplicateContent(selectedId!); }} disabled={!selected} icon="⎘">{t.actions.duplicate}</Btn>
+        <Btn onClick={() => { if (selected) duplicateContent(selectedId!); }} disabled={!selected} icon={<IconCopy size="sm" />}>{t.actions.duplicate}</Btn>
         <ToolbarSep />
-        <Btn onClick={() => { if (selected) setShowPreview(true); }} disabled={!selected} icon="👁">Preview</Btn>
+        <Btn onClick={() => { if (selected) setShowPreview(true); }} disabled={!selected} icon={<IconView size="sm" />}>Preview</Btn>
         <Btn
           onClick={() => {
             if (!selectedId) return;
             window.dispatchEvent(new CustomEvent('tam:open-attachments', { detail: { contentId: selectedId } }));
           }}
           disabled={!selectedId}
-          icon="📎"
+          icon={<IconAttach size="sm" />}
         >
           {t.ops.attachments}
         </Btn>
-        <Btn onClick={() => setShowExport(true)} icon="⬇">{t.actions.export}</Btn>
-        <Btn onClick={handlePrint} icon="🖨">{t.actions.print}</Btn>
+        <Btn onClick={() => setShowExport(true)} icon={<IconExport size="sm" />}>{t.actions.export}</Btn>
+        <Btn onClick={handlePrint} icon={<IconPrint size="sm" />}>{t.actions.print}</Btn>
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
@@ -277,7 +278,7 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
             variant={advancedIds || search || srcFilter || dateFrom || dateTo ? 'noResults' : 'empty'}
             title={advancedIds || search || srcFilter || dateFrom || dateTo ? `No matching ${t.sections.contents.title}` : t.sections.contents.noData}
             action={advancedIds || search || srcFilter || dateFrom || dateTo ? undefined : (
-              <Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.contents.add}</Btn>
+              <Btn variant="primary" onClick={openAdd} icon={<IconAdd size={12} />}>{t.sections.contents.add}</Btn>
             )}
           />
         ) : (
@@ -347,7 +348,7 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
             ))}
           </div>
           <div style={{ color: 'var(--muted-fg)' }}>
-            {t.dialogs.statistics.dateRange}: {contentStats.dateRange.from ?? '—'} → {contentStats.dateRange.to ?? '—'}
+            {t.dialogs.statistics.dateRange}: {contentStats.dateRange.from ?? '—'} – {contentStats.dateRange.to ?? '—'}
           </div>
           <div style={{ color: 'var(--muted-fg)' }}>
             Field coverage: {contentStats.fields.map(f => `${f.field} ${f.filled}/${contentStats.total}`).join(' · ')}

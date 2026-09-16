@@ -8,6 +8,7 @@ import { Btn, Badge, DateInput, FilterRow, SearchInput, Select, StatCard, PageHe
 import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
 import { downloadArtifact, exportData } from '../core/export/exporters';
+import { IconActivity, IconExport } from '../components/icons';
 import type { AuditAction, AuditEntry } from '../core/audit';
 
 const ACTION_COLORS: Record<string, string> = {
@@ -83,7 +84,7 @@ export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
         eyebrow={t.nav.activityDesc}
         title={a.title}
         count={{ value: audit.length, label: a.entriesShown }}
-        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 8h3l1.5-4 2.5 8L11 8h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+        icon={<IconActivity size={16} />}
       />
 
       <FilterRow>
@@ -96,7 +97,7 @@ export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
           {t.actions.clearFilters}
         </Btn>
         <div className="flex-1" />
-        <Btn size="xs" onClick={exportLog} icon="⬇">{t.actions.export}</Btn>
+        <Btn size="xs" onClick={exportLog} icon={<IconExport size="sm" />}>{t.actions.export}</Btn>
       </FilterRow>
 
       <div className="px-3 py-2 flex items-center gap-3 flex-wrap shrink-0" style={{ background: 'var(--card-bg)', borderBottom: '1px solid var(--border)' }}>

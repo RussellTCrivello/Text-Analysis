@@ -10,6 +10,7 @@ import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
 import { DEFAULT_TAXONOMY, type TaxonomyRule } from '../core/extract/engine';
 import { defaultEntries, type GazetteerEntry, type GazetteerKind } from '../core/extract/gazetteer';
+import { IconExport, IconClose, IconDictionary } from '../components/icons';
 
 const KINDS: GazetteerKind[] = ['country', 'city', 'region', 'organization', 'keyword'];
 
@@ -105,7 +106,7 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
       <PageHeader
         eyebrow={t.nav.dictionaryDesc}
         title={d.title}
-        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 3h4.5A1.5 1.5 0 0 1 9 4.5V13a1.5 1.5 0 0 0-1.5-1.5H3V3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /><path d="M13 3H8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><path d="M13 3v8.5H9" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>}
+        icon={<IconDictionary size={16} />}
       />
 
       <Toolbar>
@@ -120,7 +121,7 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
           onChange={(id) => setTab(id as typeof tab)}
         />
         <ToolbarSep />
-        <Btn size="xs" onClick={exportVocabulary} icon="⬇">
+        <Btn size="xs" onClick={exportVocabulary} icon={<IconExport size="sm" />}>
           {d.exportVocabulary}
         </Btn>
         <div className="flex-1" />
@@ -208,8 +209,10 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
                       onClick={() => {
                         if (removeGazetteerEntry(e.name)) onToast(d.entryRemoved.replace('{n}', e.name));
                       }}
+                      aria-label={t.actions.delete}
+                      title={t.actions.delete}
                     >
-                      ✕
+                      <IconClose size="xs" />
                     </Btn>
                   )}
                 </div>
@@ -379,7 +382,6 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
                       size="xs"
                       variant="danger"
                       disabled={!!entry.builtin || count > 0}
-                      title={entry.builtin ? d.builtIn : count > 0 ? d.vocabRecords.replace('{n}', String(count)) : t.actions.delete}
                       onClick={() => {
                         const result = removeVocabularyValue(vocabKey, entry.value, count);
                         onToast(
@@ -388,8 +390,10 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
                             : d.vocabCannotRemove.replace('{r}', String(result.reason ?? 'protected')),
                         );
                       }}
+                      title={entry.builtin ? d.builtIn : count > 0 ? d.vocabRecords.replace('{n}', String(count)) : t.actions.delete}
+                      aria-label={entry.builtin ? d.builtIn : count > 0 ? d.vocabRecords.replace('{n}', String(count)) : t.actions.delete}
                     >
-                      ✕
+                      <IconClose size="xs" />
                     </Btn>
                   </div>
                 ))}

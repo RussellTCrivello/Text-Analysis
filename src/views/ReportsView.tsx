@@ -5,6 +5,7 @@ import {
   AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, ScatterChart, Scatter,
 } from 'recharts';
 import { Btn, Select, Input, InlineTabs, EmptyState } from '../components/ui';
+import { IconClose } from '../components/icons';
 import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
 import type { SavedReport } from '../types';
@@ -307,7 +308,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                       <Select value={f.field} onChange={e => setVisFilters(fs => fs.map((x, j) => j === i ? { ...x, field: e.target.value } : x))} options={fieldOpts} className="flex-1" />
                       <Select value={f.operator} onChange={e => setVisFilters(fs => fs.map((x, j) => j === i ? { ...x, operator: e.target.value } : x))} options={operatorOpts} className="flex-1" />
                       <Input value={f.value} onChange={e => setVisFilters(fs => fs.map((x, j) => j === i ? { ...x, value: e.target.value } : x))} className="flex-1" placeholder="value" />
-                      <button onClick={() => setVisFilters(fs => fs.filter((_, j) => j !== i))} className="text-xs px-1" style={{ color: 'var(--muted-fg)' }}>✕</button>
+                      <button onClick={() => setVisFilters(fs => fs.filter((_, j) => j !== i))} aria-label="Remove filter" className="flex items-center px-1" style={{ color: 'var(--muted-fg)' }}><IconClose size="xs" /></button>
                     </div>
                   ))}
                   <Btn size="xs" variant="ghost" onClick={() => setVisFilters(fs => [...fs, { field: '', operator: '=', value: '' }])}>{r.addFilter}</Btn>

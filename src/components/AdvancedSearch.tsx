@@ -1,12 +1,21 @@
 /**
- * Advanced search built on the core search engine. Conditions are evaluated by
- * `runAdvancedSearch`, the same condition set can be translated to SQL for the
- * Reports workspace, and saved searches persist through the workspace store.
+ * Advanced search — full query-construction workspace redesign.
+ *
+ * Left: the query builder — match logic as a segmented control, numbered
+ * condition rows (field / operator / value) with labelled remove buttons,
+ * add-condition, a live SQL preview, save-search and send-to-Reports actions,
+ * plus the saved-search library. Right: results with count pill, deliberate
+ * empty/no-result states and the apply-to-view action. All engine behaviour
+ * (runAdvancedSearch, SQL translation, saved-search persistence) is preserved.
  */
 import React, { useEffect, useState } from 'react';
-import { InfoModal } from './FormModal';
-import { Btn, Field, Input, Select, InlineTabs } from './ui';
+import { Modal } from './ui';
+import { Btn, EmptyState, InlineTabs, Input, Select, Segmented, IconButton } from './ui';
 import { DataTable, type Column } from './DataTable';
+import {
+  IconAdd, IconAllChecked, IconBookmark, IconChart, IconClose, IconDatabase,
+  IconDelete, IconSave, IconSearch, IconSliders,
+} from './icons';
 import { useTranslation } from '../i18n';
 import { useAppData } from '../store/AppContext';
 import { conditionsToSql, runAdvancedSearch, SEARCH_OPERATORS, type SavedSearch, type SearchCondition, type SearchOperator } from '../core/search';
@@ -30,6 +39,7 @@ const NO_VALUE = new Set<SearchOperator>(['is_empty', 'is_not_empty']);
 
 export function AdvancedSearch({ isOpen, onClose, fields, data, onApply, target = 'all', onSendToReports }: AdvancedSearchProps) {
   const { t } = useTranslation();
+  const a = t.dialogs.advancedSearch;
   const { searches } = useAppData();
 
   const [conditions, setConditions] = useState<SearchCondition[]>([
@@ -45,15 +55,11 @@ export function AdvancedSearch({ isOpen, onClose, fields, data, onApply, target 
     if (isOpen) setSaved(searches.list(target));
   }, [isOpen, searches, target]);
 
-  const ops = t.dialogs.advancedSearch.operators as Record<string, string>;
+  const ops = a.operators as Record<string, string>;
   const operatorOpts = SEARCH_OPERATORS.map((op) => ({
     value: op.value,
     label: `${ops[op.value] ?? op.label}`,
   }));
-  const logicOpts = [
-    { value: 'AND', label: t.dialogs.advancedSearch.and },
-    { value: 'OR', label: t.dialogs.advancedSearch.or },
-  ];
 
   const addCondition = () =>
     setConditions((c) => [...c, { id: id('cond'), field: fields[0]?.value ?? '', operator: 'contains', value: '' }]);
@@ -115,33 +121,57 @@ export function AdvancedSearch({ isOpen, onClose, fields, data, onApply, target 
   }));
 
   const tabs = [
-    { id: 'search', label: t.dialogs.advancedSearch.conditions },
-    { id: 'saved', label: `${t.dialogs.advancedSearch.savedSearches} (${saved.length})` },
+    { id: 'search', label: a.conditions },
+    { id: 'saved', label: `${a.savedSearches} (${saved.length})` },
   ];
 
   return (
-    <InfoModal isOpen={isOpen} title={t.dialogs.advancedSearch.title} onClose={onClose} size="lg">
-      <div className="flex gap-4" style={{ minHeight: 420 }}>
-        {/* Left: conditions */}
-        <div className="flex flex-col gap-3" style={{ width: 380, shrink: 0 } as React.CSSProperties}>
+    <Modal isOpen={isOpen} onClose={onClose} title={a.title} size="xl"
+      footer={
+        <>
+          <span className="me-auto text-[11px] tnum" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>
+            {results !== null ? `${results.length} ${t.messages.records}` : ''}
+          </span>
+          <Btn variant="ghost" onClick={onClose} icon={<IconClose size="xs" />}>{t.actions.close}</Btn>
+        </>
+      }
+    >
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* ── Left: query builder ──────────────────────────────────── */}
+        <div className="flex flex-col gap-3" style={{ width: 400, flexShrink: 0, maxHeight: 470 }}>
           <InlineTabs tabs={tabs} active={tab} onChange={setTab} />
 
           {tab === 'search' && (
             <>
-              <Field label={t.dialogs.advancedSearch.logic}>
-                <Select value={logic} onChange={(e) => setLogic(e.target.value as LogicMode)} options={logicOpts} />
-              </Field>
-              <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: 200 }}>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-display)' }}>
+                  {a.logic}
+                </span>
+                <Segmented
+                  value={logic}
+                  onChange={(v) => setLogic(v as LogicMode)}
+                  options={[
+                    { value: 'AND', label: a.andShort },
+                    { value: 'OR', label: a.orShort },
+                  ]}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 overflow-y-auto pe-1" style={{ maxHeight: 218 }} role="list" aria-label={a.conditions}>
                 {conditions.map((cond, i) => (
-                  <div key={cond.id} className="flex items-center gap-1 rounded p-2" style={{ background: 'var(--muted-bg)', border: '1px solid var(--border)' }}>
-                    <span className="text-xs shrink-0" style={{ color: 'var(--muted-fg)', minWidth: 24 }}>
-                      {i === 0 ? 'IF' : logic}
+                  <div key={cond.id} role="listitem" className="flex items-center gap-1 rounded-[var(--radius)] p-1.5" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                    <span
+                      className="text-[9px] font-bold shrink-0 px-1.5 py-0.5 rounded-[var(--radius-sm)] tnum"
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)', minWidth: 28, textAlign: 'center' }}
+                    >
+                      {i === 0 ? a.ifLabel : logic === 'AND' ? a.andShort : a.orShort}
                     </span>
                     <select
                       value={cond.field}
                       onChange={(e) => updateCondition(cond.id, 'field', e.target.value)}
-                      className="flex-1 rounded border px-1 py-0.5 text-xs outline-none"
-                      style={{ background: 'var(--card-bg)', borderColor: 'var(--border)', color: 'var(--fg)', minWidth: 0 }}
+                      aria-label={`${a.field} ${i + 1}`}
+                      className="flex-1 rounded-[var(--radius-sm)] px-1 py-0.5 text-xs outline-none"
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--fg)', minWidth: 0 }}
                     >
                       {fields.map((f) => (
                         <option key={f.value} value={f.value}>{f.label}</option>
@@ -150,8 +180,9 @@ export function AdvancedSearch({ isOpen, onClose, fields, data, onApply, target 
                     <select
                       value={cond.operator}
                       onChange={(e) => updateCondition(cond.id, 'operator', e.target.value)}
-                      className="rounded border px-1 py-0.5 text-xs outline-none"
-                      style={{ background: 'var(--card-bg)', borderColor: 'var(--border)', color: 'var(--fg)', width: 118 }}
+                      aria-label={`${a.operator} ${i + 1}`}
+                      className="rounded-[var(--radius-sm)] px-1 py-0.5 text-xs outline-none"
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--fg)', width: 112 }}
                     >
                       {operatorOpts.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
@@ -162,58 +193,78 @@ export function AdvancedSearch({ isOpen, onClose, fields, data, onApply, target 
                         value={cond.value}
                         onChange={(e) => updateCondition(cond.id, 'value', e.target.value)}
                         placeholder={cond.operator === 'between' ? 'a, b' : ''}
-                        className="rounded border px-1.5 py-0.5 text-xs outline-none"
-                        style={{ background: 'var(--card-bg)', borderColor: 'var(--border)', color: 'var(--fg)', width: 70 }}
+                        aria-label={`${a.value} ${i + 1}`}
+                        className="rounded-[var(--radius-sm)] px-1.5 py-0.5 text-xs outline-none"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--fg)', width: 66 }}
                       />
                     )}
-                    <button onClick={() => removeCondition(cond.id)} className="text-xs shrink-0" style={{ color: '#ef4444' }}>
-                      ✕
-                    </button>
+                    <IconButton
+                      label={a.removeCondition}
+                      danger
+                      onClick={() => removeCondition(cond.id)}
+                    >
+                      <IconClose size="xs" />
+                    </IconButton>
                   </div>
                 ))}
               </div>
-              <Btn size="xs" onClick={addCondition}>+ {t.dialogs.advancedSearch.addCondition}</Btn>
 
-              <div className="rounded p-2 text-[11px]" style={{ background: 'var(--secondary-bg)', fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>
-                {statement}
+              <div className="flex items-center gap-2">
+                <Btn size="xs" variant="subtle" onClick={addCondition} icon={<IconAdd size="xs" />}>{a.addCondition}</Btn>
+                <div className="flex-1" />
+                <Btn size="xs" variant="primary" onClick={runSearch} icon={<IconSearch size="xs" />}>{a.execute}</Btn>
               </div>
 
-              <div className="flex items-center gap-2 mt-1">
-                <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder={t.dialogs.advancedSearch.searchName} />
-                <Btn size="xs" onClick={saveSearch} disabled={!saveName.trim()}>
-                  {t.dialogs.advancedSearch.saveSearch}
+              {/* Query preview */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <IconDatabase size="xs" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-display)' }}>
+                    {a.queryPreview}
+                  </span>
+                </div>
+                <div className="rounded-[var(--radius)] p-2 text-[11px] overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
+                  {statement}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder={a.searchName} />
+                <Btn size="xs" variant="subtle" onClick={saveSearch} disabled={!saveName.trim()} icon={<IconSave size="xs" />}>
+                  {a.saveSearch}
                 </Btn>
               </div>
               {onSendToReports && (
-                <Btn size="xs" variant="ghost" onClick={() => { onSendToReports(statement); onClose(); }}>
-                  Open in Reports
+                <Btn size="xs" variant="ghost" onClick={() => { onSendToReports(statement); onClose(); }} icon={<IconChart size="xs" />}>
+                  {a.openInReports}
                 </Btn>
               )}
             </>
           )}
 
           {tab === 'saved' && (
-            <div className="flex flex-col gap-1 overflow-y-auto">
+            <div className="flex flex-col gap-1.5 overflow-y-auto" style={{ maxHeight: 380 }}>
               {saved.length === 0 ? (
-                <p className="text-xs py-4 text-center" style={{ color: 'var(--muted-fg)' }}>
-                  {t.dialogs.advancedSearch.noSaved}
-                </p>
+                <EmptyState variant="empty" title={a.noSaved} icon={<IconBookmark size="hero" />} compact />
               ) : (
                 saved.map((ss) => (
                   <div
                     key={ss.id}
-                    className="flex items-center gap-2 text-start px-3 py-2 rounded text-xs hover:bg-[var(--secondary-bg)] transition-colors"
-                    style={{ background: 'var(--muted-bg)', border: '1px solid var(--border)' }}
+                    className="flex items-center gap-2 text-start px-3 py-2 rounded-[var(--radius)] transition-colors"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
                   >
-                    <button className="flex-1 text-start" onClick={() => loadSearch(ss)}>
-                      <div className="font-semibold">{ss.name}</div>
-                      <div style={{ color: 'var(--muted-fg)' }}>
-                        {ss.conditions.length} conditions · {ss.logic} · used {ss.uses}× · {ss.createdAt.slice(0, 10)}
+                    <span className="shrink-0 inline-flex" style={{ color: 'var(--primary)' }}><IconBookmark size="xs" /></span>
+                    <button className="flex-1 text-start min-w-0 focus-visible:outline-none" onClick={() => loadSearch(ss)}>
+                      <div className="font-semibold text-xs truncate">{ss.name}</div>
+                      <div className="text-[10.5px] tnum" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>
+                        {a.savedMeta.replace('{c}', String(ss.conditions.length)).replace('{l}', ss.logic)}
+                        {' · '}{a.usesCount.replace('{n}', String(ss.uses))}
+                        {' · '}{ss.createdAt.slice(0, 10)}
                       </div>
                     </button>
-                    <Btn size="xs" variant="ghost" onClick={() => deleteSearch(ss.id)}>
-                      ✕
-                    </Btn>
+                    <IconButton label={a.removeSaved} danger onClick={() => deleteSearch(ss.id)}>
+                      <IconDelete size="xs" />
+                    </IconButton>
                   </div>
                 ))
               )}
@@ -221,33 +272,41 @@ export function AdvancedSearch({ isOpen, onClose, fields, data, onApply, target 
           )}
         </div>
 
-        {/* Right: results */}
-        <div className="flex-1 flex flex-col gap-2 overflow-hidden">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold" style={{ color: 'var(--muted-fg)' }}>
-              {t.dialogs.advancedSearch.results}
-              {results !== null && ` — ${results.length} ${t.messages.records}`}
+        {/* ── Right: results ───────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col gap-2 overflow-hidden" style={{ minWidth: 0, maxHeight: 470 }}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold flex items-center gap-1.5" style={{ color: 'var(--fg-soft)', fontFamily: 'var(--font-display)' }}>
+              <IconSliders size="xs" />
+              {a.results}
             </span>
-            <span className="text-[11px]" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>
-              {results !== null ? timestamp().slice(11, 19) : ''}
-            </span>
+            {results !== null && (
+              <span className="inline-flex items-center px-2 py-px rounded-full text-[11px] font-semibold tnum" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                {results.length}
+              </span>
+            )}
+            {results !== null && (
+              <span className="text-[11px] tnum" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>
+                {timestamp().slice(11, 19)}
+              </span>
+            )}
             <div className="flex-1" />
-            <Btn variant="primary" onClick={runSearch}>{t.dialogs.advancedSearch.execute}</Btn>
+            {results !== null && results.length > 0 && (
+              <Btn variant="primary" onClick={applyResults} icon={<IconAllChecked size="xs" />}>
+                {a.applyResults.replace('{n}', String(results.length))}
+              </Btn>
+            )}
           </div>
-          <div className="flex-1 overflow-hidden border rounded" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex-1 overflow-hidden rounded-[var(--radius)]" style={{ border: '1px solid var(--border)' }}>
             {results === null ? (
-              <div className="flex items-center justify-center h-full text-xs" style={{ color: 'var(--muted-fg)' }}>
-                Configure conditions and click &quot;{t.dialogs.advancedSearch.execute}&quot;
-              </div>
+              <EmptyState variant="noResults" title={a.execute} description={a.resultsHint} icon={<IconSearch size="hero" />} compact />
+            ) : results.length === 0 ? (
+              <EmptyState variant="noResults" title={t.messages.noRecords} description={a.resultsHint} compact />
             ) : (
               <DataTable columns={resultColumns} data={results as (Record<string, unknown> & { id: string })[]} emptyText={t.messages.noRecords} />
             )}
           </div>
-          {results !== null && results.length > 0 && (
-            <Btn variant="primary" onClick={applyResults}>Apply {results.length} results to view</Btn>
-          )}
         </div>
       </div>
-    </InfoModal>
+    </Modal>
   );
 }

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { IconWarning } from './icons';
 import { InfoModal } from './FormModal';
 import { Btn } from './ui';
+import { useTranslation } from '../i18n';
 
 interface Props {
   isOpen: boolean;
@@ -12,6 +14,7 @@ interface Props {
 type Mode = 'data' | 'all';
 
 export function ResetDialog({ isOpen, onClose, onResetData, onResetAll }: Props) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>('data');
   const [confirming, setConfirming] = useState(false);
 
@@ -27,7 +30,7 @@ export function ResetDialog({ isOpen, onClose, onResetData, onResetAll }: Props)
     <InfoModal isOpen={isOpen} title="Reset" onClose={() => { setConfirming(false); onClose(); }} size="md">
       <div className="flex flex-col gap-4">
         <div className="flex items-start gap-2 rounded-lg p-3" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
-          <span className="text-lg shrink-0">⚠️</span>
+          <span className="shrink-0 inline-flex" style={{ color: 'var(--error)' }}><IconWarning /></span>
           <p className="text-sm font-bold" style={{ color: '#dc2626' }}>WARNING: This operation cannot be undone!</p>
         </div>
 
@@ -61,7 +64,7 @@ export function ResetDialog({ isOpen, onClose, onResetData, onResetAll }: Props)
         <div className="flex gap-2 justify-end pt-1">
           <Btn onClick={() => { setConfirming(false); onClose(); }} variant="ghost">Cancel</Btn>
           <Btn onClick={handleReset} variant="danger">
-            {confirming ? '⚠️ Confirm Reset' : 'Reset'}
+            {confirming ? t.actions.confirm : t.menus.reset}
           </Btn>
         </div>
       </div>

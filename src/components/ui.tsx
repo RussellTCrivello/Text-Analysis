@@ -1,5 +1,6 @@
 import React, { type ReactNode, useState, useRef, useEffect } from 'react';
 import { formatDateTime, fromDateTimeLocal, nowIso, toDateTimeLocal } from '../core/text';
+import { IconWarning, IconClose, IconExpandMore, IconMore, IconChevronRight, IconChevronLeft, IconChevronsLeft, IconChevronsRight, IconSearch, IconStatusX, IconSuccess, IconInfo, IconInbox, IconNoResults, IconError as IconErrorState, IconCheckGlyph, IconLoader } from './icons';
 import type { RecordType, Source, Content, Analysis } from '../types';
 
 /* ============================================================================
@@ -62,7 +63,7 @@ export function Field({ label, required, hint, error, children }: FieldProps) {
       {hint && <p className="text-[11px] leading-snug" style={{ color: 'var(--muted-fg-2)' }}>{hint}</p>}
       {error && (
         <p className="text-[11px] leading-snug font-medium flex items-center gap-1" style={{ color: 'var(--error)' }}>
-          <span aria-hidden="true">⚠</span>
+          <IconWarning size="xs" />
           {error}
         </p>
       )}
@@ -107,7 +108,8 @@ export function Textarea({ className = '', ...rest }: React.TextareaHTMLAttribut
   );
 }
 
-export function Select({ options, placeholder, className = '', ...rest }: React.SelectHTMLAttributes<HTMLSelectElement> & { options: { value: string; label: string }[]; placeholder?: string }) {
+export function Select({ options, placeholder, className = '', grouped, ...rest }: React.SelectHTMLAttributes<HTMLSelectElement> & { options: { value: string; label: string; group?: string }[]; placeholder?: string; grouped?: boolean }) {
+  const groups = grouped ? [...new Set(options.map((o) => o.group ?? ''))] : [];
   return (
     <select
       className={`w-full px-3 py-1.5 text-sm outline-none transition-all duration-150 appearance-none ${className}`}
@@ -127,7 +129,13 @@ export function Select({ options, placeholder, className = '', ...rest }: React.
       {...rest}
     >
       {placeholder && <option value="">{placeholder}</option>}
-      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      {grouped
+        ? groups.map((g) => (
+            <optgroup key={g} label={g}>
+              {options.filter((o) => (o.group ?? '') === g).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </optgroup>
+          ))
+        : options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   );
 }
@@ -222,7 +230,7 @@ export function Tag({ children, color, onRemove }: { children: ReactNode; color?
       {children}
       {onRemove && (
         <button onClick={onRemove} aria-label="Remove" className="leading-none opacity-60 hover:opacity-100 focus-visible:outline-none" style={{ color: 'inherit' }}>
-          ✕
+          <IconClose size="xs" />
         </button>
       )}
     </span>
@@ -253,10 +261,7 @@ export const ImportanceStars = ImportanceBar;
 export function SearchInput({ value, onChange, placeholder = 'Search…' }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div className="relative flex items-center" style={{ minWidth: 180 }}>
-      <svg className="absolute start-2.5 pointer-events-none" width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.5, color: 'var(--muted-fg)' }} aria-hidden="true">
-        <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
+      <span className="absolute start-2.5 pointer-events-none inline-flex items-center" style={{ opacity: 0.5, color: 'var(--muted-fg)' }} aria-hidden="true"><IconSearch size="xs" /></span>
       <input
         type="text"
         role="searchbox"
@@ -272,10 +277,10 @@ export function SearchInput({ value, onChange, placeholder = 'Search…' }: { va
         <button
           onClick={() => onChange('')}
           aria-label="Clear search"
-          className="absolute end-2 flex items-center justify-center w-4 h-4 rounded-full text-[10px] transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          className="absolute end-2 flex items-center justify-center w-4 h-4 rounded-full transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           style={{ color: 'var(--muted-fg)' }}
         >
-          ✕
+          <IconClose size="xs" />
         </button>
       )}
     </div>
@@ -390,7 +395,7 @@ export function SelectionBar({ count, onClear, onBulkDelete, onBulkEdit, label =
         </button>
       )}
       <button onClick={onClear} aria-label="Clear selection" className="px-2 py-1 text-[11px] rounded transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-        ✕ Clear
+        <IconClose size="xs" /> Clear
       </button>
     </div>
   );
@@ -411,8 +416,8 @@ export function PaginationBar({ total, page, pageSize, onPage, onPageSize, perPa
     pages.push(totalPages);
     return pages;
   };
-  const pgBtn = (label: string | number, target: number, active = false, disabled = false) => (
-    <button key={`${label}-${target}`} onClick={() => !disabled && onPage(target)} disabled={disabled} aria-current={active ? 'page' : undefined} className="min-w-[26px] h-[26px] px-1.5 text-[11px] font-medium flex items-center justify-center transition-all duration-150 disabled:opacity-30" style={{ background: active ? 'var(--primary)' : 'transparent', color: active ? 'var(--primary-fg)' : 'var(--muted-fg)', border: active ? '1px solid var(--primary)' : '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontFamily: active ? 'var(--font-mono)' : 'inherit' }}>
+  const pgBtn = (label: React.ReactNode, target: number, active = false, disabled = false, ariaLabel?: string) => (
+    <button key={target} onClick={() => !disabled && onPage(target)} disabled={disabled} aria-current={active ? 'page' : undefined} aria-label={ariaLabel} className="min-w-[26px] h-[26px] px-1.5 text-[11px] font-medium flex items-center justify-center transition-all duration-150 disabled:opacity-30" style={{ background: active ? 'var(--primary)' : 'transparent', color: active ? 'var(--primary-fg)' : 'var(--muted-fg)', border: active ? '1px solid var(--primary)' : '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontFamily: active ? 'var(--font-mono)' : 'inherit' }}>
       {label}
     </button>
   );
@@ -423,11 +428,11 @@ export function PaginationBar({ total, page, pageSize, onPage, onPageSize, perPa
       </span>
       <div className="flex-1" />
       <div className="flex items-center gap-0.5">
-        {pgBtn('«', 1, false, page === 1)}
-        {pgBtn('‹', page - 1, false, page === 1)}
-        {getPages().map((p, i) => (p === '...' ? <span key={`e${i}`} className="text-xs px-1" style={{ color: 'var(--muted-fg)' }}>…</span> : pgBtn(p, p as number, p === page)))}
-        {pgBtn('›', page + 1, false, page === totalPages)}
-        {pgBtn('»', totalPages, false, page === totalPages)}
+        {pgBtn(<IconChevronsLeft size="xs" />, 1, false, page === 1, 'First page')}
+        {pgBtn(<IconChevronLeft size="xs" />, page - 1, false, page === 1, 'Previous page')}
+        {getPages().map((p, i) => (p === '...' ? <span key={`e${i}`} className="text-xs px-1" style={{ color: 'var(--muted-fg)' }} aria-hidden="true">…</span> : pgBtn(p, p as number, p === page)))}
+        {pgBtn(<IconChevronRight size="xs" />, page + 1, false, page === totalPages, 'Next page')}
+        {pgBtn(<IconChevronsRight size="xs" />, totalPages, false, page === totalPages, 'Last page')}
       </div>
       <div className="flex items-center gap-2 ms-2">
         <span className="text-[11px]" style={{ color: 'var(--muted-fg)' }}>{perPageLabel}</span>
@@ -490,7 +495,7 @@ export function FullTextPreview({ record, recordType, sources = [], contents = [
       <button onClick={() => setExpanded((e) => !e)} aria-expanded={expanded} aria-controls="full-text-preview-body" className="w-full flex items-center gap-2.5 px-3 h-9 text-start transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]">
         <span className="text-[10px] font-bold uppercase tracking-[0.1em]" style={{ color: 'var(--primary)', fontFamily: 'var(--font-display)' }}>{label}</span>
         {record && recordType && (<><RecordTypeBadge type={recordType} /><span className="text-xs font-medium truncate" style={{ color: 'var(--fg)' }}>{getTitle()}</span></>)}
-        <span className="ms-auto text-[10px] transition-transform duration-200" style={{ color: 'var(--muted-fg)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block' }}>▾</span>
+        <span className="ms-auto flex items-center transition-transform duration-200" style={{ color: 'var(--muted-fg)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}><IconExpandMore size="xs" /></span>
       </button>
 
       {expanded && (
@@ -541,7 +546,7 @@ export function MoreMenu({ items, label = 'More' }: { items: MenuItem[]; label?:
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((o) => !o)} aria-label={label} aria-haspopup="menu" aria-expanded={open} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" style={{ border: '1px solid var(--border-strong)', background: open ? 'var(--surface-3)' : 'var(--surface)', color: 'var(--fg)' }}>
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.4" /><circle cx="8" cy="8" r="1.4" /><circle cx="13" cy="8" r="1.4" /></svg>
+        <IconMore size="sm" />
         {label}
       </button>
       {open && (
@@ -636,7 +641,7 @@ export function Checkbox({ checked, onChange, label, disabled }: { checked: bool
   return (
     <label className={`inline-flex items-center gap-2 text-xs cursor-pointer select-none ${disabled ? 'opacity-40' : ''}`} style={{ color: 'var(--fg-soft)' }}>
       <span className="relative inline-flex items-center justify-center w-4 h-4 rounded-[5px] shrink-0 transition-all" style={{ background: checked ? 'var(--primary)' : 'var(--surface)', border: `1.5px solid ${checked ? 'var(--primary)' : 'var(--border-strong)'}`, boxShadow: checked ? '0 0 0 3px var(--primary-soft)' : 'none' }}>
-        {checked && <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6.5L5 9L9.5 3.5" stroke="var(--primary-fg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+        {checked && <IconCheckGlyph size={11} strokeWidth={2.4} style={{ color: 'var(--primary-fg)' }} />}
         <input type="checkbox" className="sr-only" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       </span>
       {label}
@@ -724,12 +729,7 @@ export function IconButton({ label, onClick, children, danger, active }: { label
    SPINNER / PROGRESS / SKELETON
    ========================================================================== */
 export function Spinner({ size = 16, color }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="animate-spin" style={{ color: color ?? 'var(--primary)' }} aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" opacity="0.18" />
-      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
-  );
+  return <IconLoader size={size} className="animate-spin" style={{ color: color ?? 'var(--primary)' }} strokeWidth={2.4} />;
 }
 
 export function Skeleton({ width = '100%', height = 12, radius = 6, className = '' }: { width?: number | string; height?: number | string; radius?: number; className?: string }) {
@@ -792,7 +792,7 @@ export function Breadcrumbs({ items }: { items: { label: ReactNode; onClick?: ()
     <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[11px]" style={{ fontFamily: 'var(--font-display)' }}>
       {items.map((it, i) => (
         <React.Fragment key={i}>
-          {i > 0 && <span style={{ color: 'var(--border-strong)' }} aria-hidden="true">/</span>}
+          {i > 0 && <span className="flex items-center" style={{ color: 'var(--border-strong)' }} aria-hidden="true"><IconChevronRight size="xs" /></span>}
           {it.onClick ? (
             <button onClick={it.onClick} className="hover:underline transition-colors" style={{ color: 'var(--muted-fg)' }}>{it.label}</button>
           ) : (
@@ -816,13 +816,13 @@ export function Callout({ variant = 'info', title, children, icon, action, onClo
   }[variant];
   return (
     <div className="flex items-start gap-2.5 px-3 py-2 rounded-[var(--radius)] text-xs" style={{ background: map.bg, border: `1px solid ${map.b}40`, color: 'var(--fg-soft)' }} role="status">
-      <span className="shrink-0 mt-0.5" style={{ color: map.c }}>{icon ?? (variant === 'error' ? '⛔' : variant === 'warning' ? '⚠' : variant === 'success' ? '✓' : 'ℹ')}</span>
+      <span className="shrink-0 mt-0.5" style={{ color: map.c }}>{icon ?? (variant === 'error' ? <IconStatusX size="sm" /> : variant === 'warning' ? <IconWarning size="sm" /> : variant === 'success' ? <IconSuccess size="sm" /> : <IconInfo size="sm" />)}</span>
       <div className="min-w-0 flex-1">
         {title && <div className="font-semibold mb-0.5" style={{ color: map.c }}>{title}</div>}
         {children && <div style={{ color: 'var(--fg-soft)' }}>{children}</div>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
-      {onClose && <button onClick={onClose} aria-label="Dismiss" className="shrink-0 opacity-60 hover:opacity-100" style={{ color: map.c }}>✕</button>}
+      {onClose && <button onClick={onClose} aria-label="Dismiss" className="shrink-0 opacity-60 hover:opacity-100" style={{ color: map.c }}><IconClose size="xs" /></button>}
     </div>
   );
 }
@@ -831,14 +831,14 @@ export function Callout({ variant = 'info', title, children, icon, action, onClo
    EMPTY / STATE PANEL — covers empty, no-results, loading, error, success
    ========================================================================== */
 const STATE_ICONS: Record<string, ReactNode> = {
-  empty: (<svg width="34" height="34" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="4" y="6" width="24" height="20" rx="3" stroke="currentColor" strokeWidth="1.5" /><path d="M10 13h12M10 18h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>),
-  noResults: (<svg width="34" height="34" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="8" stroke="currentColor" strokeWidth="1.5" /><path d="M20 20l6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>),
-  error: (<svg width="34" height="34" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="11" stroke="currentColor" strokeWidth="1.5" /><path d="M16 10v8M16 21v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>),
-  success: (<svg width="34" height="34" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="11" stroke="currentColor" strokeWidth="1.5" /><path d="M11 16.5l3.5 3.5L21 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>),
+  empty: <IconInbox />,
+  noResults: <IconNoResults />,
+  error: <IconErrorState />,
+  success: <IconSuccess size="hero" />,
 };
 
-export function EmptyState({ title, description, icon, action, variant = 'empty', compact }: { title: string; description?: ReactNode; icon?: ReactNode; action?: ReactNode; variant?: 'empty' | 'noResults' | 'error' | 'success' | 'loading'; compact?: boolean }) {
-  const color = variant === 'error' ? 'var(--error)' : variant === 'success' ? 'var(--success)' : variant === 'noResults' ? 'var(--muted-fg)' : 'var(--muted-fg-2)';
+export function EmptyState({ title, description, icon, action, variant = 'empty', compact }: { title: string; description?: ReactNode; icon?: ReactNode; action?: ReactNode; variant?: 'empty' | 'noResults' | 'error' | 'success' | 'warning' | 'loading'; compact?: boolean }) {
+  const color = variant === 'error' ? 'var(--error)' : variant === 'success' ? 'var(--success)' : variant === 'warning' ? 'var(--warning)' : variant === 'noResults' ? 'var(--muted-fg)' : 'var(--muted-fg-2)';
   return (
     <div className={`flex flex-col items-center justify-center text-center ${compact ? 'py-10' : 'py-20'} px-6 gap-3 animate-[fadeIn_0.2s_ease-out]`}>
       <div className="opacity-70" style={{ color }}>{variant === 'loading' ? <Spinner size={34} /> : (icon ?? STATE_ICONS[variant] ?? STATE_ICONS.empty)}</div>
@@ -890,10 +890,10 @@ export function Modal({ isOpen, onClose, title, size = 'lg', children, footer, a
         {accent === 'danger' && <div style={{ height: 3, background: 'var(--error)', borderTopLeftRadius: 'var(--radius-lg)', borderTopRightRadius: 'var(--radius-lg)' }} />}
         <div className="flex items-center justify-between px-5 py-3.5 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
           <h2 id={titleId} className="font-bold text-[13px] tracking-tight flex items-center gap-2" style={{ fontFamily: 'var(--font-display)' }}>
-            {accent === 'danger' && <span style={{ color: 'var(--error)' }}>⚠</span>}
+            {accent === 'danger' && <IconWarning size="sm" />}
             {title}
           </h2>
-          <IconButton label="Close" onClick={onClose}><svg width="11" height="11" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg></IconButton>
+          <IconButton label="Close" onClick={onClose}><IconClose size="xs" /></IconButton>
         </div>
         <div className="flex-1 overflow-y-auto p-5">{children}</div>
         {!hideFooter && (footer || <div className="flex items-center justify-end gap-2 px-5 py-3 shrink-0" style={{ borderTop: '1px solid var(--border)', background: 'var(--surface-2)' }}>{footer}</div>)}

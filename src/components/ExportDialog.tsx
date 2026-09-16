@@ -1,11 +1,19 @@
 /**
- * Unified export dialog: column selection plus every format the core supports
- * (CSV/TSV, JSON/JSONL, XML, HTML, Markdown, XLSX, XLS, DOCX, DOC, PDF, TXT),
- * with a live preview and the global print header applied to document formats.
+ * Unified export dialog — full workflow redesign.
+ *
+ * Layout: a summary strip (what is being exported), a configuration column
+ * (format, destination, options, column scope with progressive disclosure) and
+ * a live preview pane. States are deliberate: empty scope (nothing to export),
+ * invalid scope (no columns selected), success (Callout with the produced
+ * artifact) and warnings surface through the toast system. Every capability of
+ * the core exporters remains available: CSV/TSV, JSON/JSONL, XML, HTML,
+ * Markdown, XLSX, XLS, DOCX, DOC, PDF, TXT, BOM control, header/ID inclusion,
+ * live size estimation and the global print header for document formats.
  */
 import React, { useMemo, useState } from 'react';
-import { InfoModal } from './FormModal';
-import { Btn, Field, Input, Select } from './ui';
+import { Modal } from './ui';
+import { Btn, Checkbox, EmptyState, Field, Input, Select, Callout } from './ui';
+import { IconClose, IconExport, IconFileCode, IconFileDoc, IconFileJson, IconFileSheet, IconSearch, IconSuccess, IconWarning } from './icons';
 import { useTranslation } from '../i18n';
 import { useAppData } from '../store/AppContext';
 import {
@@ -26,14 +34,15 @@ interface ExportDialogProps {
   onToast?: (message: string) => void;
 }
 
-const FORMAT_GROUPS: { group: string; formats: ExportFormat[] }[] = [
-  { group: 'Spreadsheet', formats: ['xlsx', 'xls', 'csv', 'tsv'] },
-  { group: 'Document', formats: ['docx', 'doc', 'pdf', 'html', 'markdown'] },
-  { group: 'Data interchange', formats: ['json', 'jsonl', 'xml', 'txt'] },
+const FORMAT_GROUPS: { group: 'groupSpreadsheet' | 'groupDocument' | 'groupInterchange'; icon: React.ReactNode; formats: ExportFormat[] }[] = [
+  { group: 'groupSpreadsheet', icon: <IconFileSheet size="sm" />, formats: ['xlsx', 'xls', 'csv', 'tsv'] },
+  { group: 'groupDocument', icon: <IconFileDoc size="sm" />, formats: ['docx', 'doc', 'pdf', 'html', 'markdown'] },
+  { group: 'groupInterchange', icon: <IconFileJson size="sm" />, formats: ['json', 'jsonl', 'xml', 'txt'] },
 ];
 
 export function ExportDialog({ isOpen, onClose, data, columns, defaultFilename = 'export', onToast }: ExportDialogProps) {
   const { t } = useTranslation();
+  const d = t.dialogs.exportDialog;
   const { printConfig } = useAppData();
   const [format, setFormat] = useState<ExportFormat>('xlsx');
   const [filename, setFilename] = useState(defaultFilename);
@@ -41,6 +50,7 @@ export function ExportDialog({ isOpen, onClose, data, columns, defaultFilename =
   const [includeHeaders, setIncludeHeaders] = useState(true);
   const [includeId, setIncludeId] = useState(false);
   const [bom, setBom] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [lastResult, setLastResult] = useState<string>('');
 
   const activeCols = useMemo(
@@ -50,6 +60,7 @@ export function ExportDialog({ isOpen, onClose, data, columns, defaultFilename =
 
   const previewRows = data.slice(0, 6);
   const isDocument = ['docx', 'doc', 'pdf', 'html'].includes(format);
+  const allSelected = selectedCols.size === columns.length;
 
   const buildOptions = () => ({
     columns: activeCols.map((c) => ({ key: c.key, label: c.label, format: c.format })),
@@ -57,8 +68,8 @@ export function ExportDialog({ isOpen, onClose, data, columns, defaultFilename =
     filename,
     includeHeaders,
     bom,
-    sheetName: t.dialogs.exportDialog.title,
-    title: printConfig.reportTitle || t.dialogs.exportDialog.title,
+    sheetName: d.title,
+    title: printConfig.reportTitle || d.title,
     subtitle: printConfig.reportSubtitle,
     headerLines: [printConfig.header1, printConfig.header2, printConfig.header3].filter(Boolean),
     footerText: printConfig.footerText,
@@ -88,160 +99,168 @@ export function ExportDialog({ isOpen, onClose, data, columns, defaultFilename =
     });
   };
 
+  const canExport = data.length > 0 && activeCols.length > 0 && !exporting;
+
   const doExport = () => {
-    if (!data.length) {
-      window.alert(t.messages.nothingToExport);
-      return;
-    }
-    if (!activeCols.length) return;
-    const artifact = exportData(data, buildOptions());
-    downloadArtifact(artifact);
-    setLastResult(`${artifact.filename} · ${formatBytes(artifact.bytes)} · ${artifact.rows} rows`);
-    if (artifact.warnings.length && onToast) onToast(artifact.warnings[0]);
-    else if (onToast) onToast(t.messages.exportSuccess);
+    if (!data.length || !activeCols.length) return;
+    setExporting(true);
+    setLastResult('');
+    // Give the spinner one frame so the pressed state is perceivable on fast exports.
+    window.setTimeout(() => {
+      try {
+        const artifact = exportData(data, buildOptions());
+        downloadArtifact(artifact);
+        setLastResult(`${artifact.filename} · ${formatBytes(artifact.bytes)} · ${artifact.rows} rows`);
+        if (artifact.warnings.length && onToast) onToast(artifact.warnings[0]);
+        else if (onToast) onToast(t.messages.exportSuccess);
+      } finally {
+        setExporting(false);
+      }
+    }, 30);
   };
 
   return (
-    <InfoModal isOpen={isOpen} title={t.dialogs.exportDialog.title} onClose={onClose} size="lg">
-      <div className="flex gap-4" style={{ minHeight: 360 }}>
-        {/* Settings */}
-        <div className="flex flex-col gap-3" style={{ width: 232, flexShrink: 0 }}>
-          <Field label={t.dialogs.exportDialog.format}>
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value as ExportFormat)}
-              className="w-full rounded border px-2 py-1 text-xs outline-none"
-              style={{ background: 'var(--card-bg)', borderColor: 'var(--border)', color: 'var(--fg)' }}
-            >
-              {FORMAT_GROUPS.map((group) => (
-                <optgroup key={group.group} label={group.group}>
-                  {group.formats.map((f) => (
-                    <option key={f} value={f}>
-                      {FORMAT_META[f].label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </Field>
-          <Field label={t.dialogs.exportDialog.filename} hint={`${filename || 'export'}.${FORMAT_META[format].ext}`}>
-            <Input value={filename} onChange={(e) => setFilename(e.target.value)} />
-          </Field>
-
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>
-              {t.dialogs.exportDialog.options}
-            </span>
-            {[
-              { label: t.dialogs.exportDialog.includeHeaders, value: includeHeaders, set: setIncludeHeaders },
-              { label: t.dialogs.exportDialog.includeId, value: includeId, set: setIncludeId },
-              { label: 'UTF-8 BOM (Excel)', value: bom, set: setBom },
-            ].map((opt) => (
-              <label key={opt.label} className="flex items-center gap-2 text-xs cursor-pointer">
-                <input type="checkbox" checked={opt.value} onChange={(e) => opt.set(e.target.checked)} />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-
-          {isDocument && (
-            <div className="rounded p-2 text-[11px] leading-snug" style={{ background: 'var(--secondary-bg)', color: 'var(--muted-fg)' }}>
-              Document formats use the print header from Settings → Print Settings
-              {printConfig.header1 ? ` (“${printConfig.header1}”)` : ''} and document number{' '}
-              <span style={{ fontFamily: 'var(--font-mono)' }}>{nextDocumentNumber(printConfig)}</span>.
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>
-                {t.dialogs.exportDialog.columns}
-              </span>
-              <button
-                className="text-[10px] underline"
-                style={{ color: 'var(--primary)' }}
-                onClick={() =>
-                  setSelectedCols((prev) => (prev.size === columns.length ? new Set() : new Set(columns.map((c) => c.key))))
-                }
-              >
-                {selectedCols.size === columns.length ? 'none' : 'all'}
-              </button>
-            </div>
-            <div className="overflow-y-auto flex flex-col gap-1" style={{ maxHeight: 150 }}>
-              {columns.map((col) => (
-                <label key={col.key} className="flex items-center gap-2 text-xs cursor-pointer">
-                  <input type="checkbox" checked={selectedCols.has(col.key)} onChange={() => toggleCol(col.key)} />
-                  {col.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {estimated && (
-            <div className="text-[11px]" style={{ color: 'var(--muted-fg)' }}>
-              ≈ {estimated} · {data.length} rows × {activeCols.length} cols
-            </div>
-          )}
-        </div>
-
-        {/* Preview */}
-        <div className="flex-1 flex flex-col gap-2 overflow-hidden">
-          <span className="text-xs font-semibold" style={{ color: 'var(--muted-fg)' }}>
-            {t.dialogs.exportDialog.preview} · {data.length} {t.messages.records}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={d.title}
+      size="xl"
+      footer={
+        <>
+          <span className="me-auto text-[11px] tnum" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>
+            {estimated ? `${d.estimateLabel}: ${estimated}` : ''}
           </span>
-          <div className="flex-1 overflow-auto border rounded" style={{ borderColor: 'var(--border)' }}>
-            <table className="w-full">
-              <thead>
-                <tr style={{ background: 'var(--secondary-bg)' }}>
-                  {activeCols.map((c) => (
-                    <th
-                      key={c.key}
-                      className="px-2 py-1 text-xs font-semibold text-start border-b whitespace-nowrap"
-                      style={{ borderColor: 'var(--border)', color: 'var(--muted-fg)' }}
-                    >
-                      {c.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {previewRows.map((row, i) => (
-                  <tr key={i} style={{ background: i % 2 === 0 ? 'var(--card-bg)' : 'var(--secondary-bg)' }}>
-                    {activeCols.map((c) => (
-                      <td
-                        key={c.key}
-                        className="px-2 py-1 text-xs border-b truncate"
-                        style={{ borderColor: 'var(--border)', maxWidth: 130 }}
-                      >
-                        {String(row[c.key] ?? '—')}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-                {!previewRows.length && (
-                  <tr>
-                    <td colSpan={Math.max(1, activeCols.length)} className="px-2 py-6 text-center text-xs" style={{ color: 'var(--muted-fg)' }}>
-                      {t.messages.noRecords}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {lastResult && (
-            <div className="text-[11px]" style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-              ✓ {lastResult}
-            </div>
-          )}
-        </div>
+          <Btn variant="ghost" onClick={onClose} icon={<IconClose size="xs" />}>{t.actions.close}</Btn>
+          <Btn variant="primary" onClick={doExport} disabled={!canExport} icon={<IconExport size="sm" />}>
+            {exporting ? `${d.exportBtn}…` : d.exportBtn}
+          </Btn>
+        </>
+      }
+    >
+      {/* Summary strip — what is being exported, right under the title */}
+      <div className="flex items-center gap-3 px-3 py-2 mb-3 rounded-[var(--radius)] flex-wrap" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+        <span className="text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-display)' }}>{d.scope}</span>
+        <span className="text-xs font-bold tnum" style={{ fontFamily: 'var(--font-mono)' }}>{data.length}</span>
+        <span className="text-xs" style={{ color: 'var(--muted-fg)' }}>{t.messages.records}</span>
+        <span style={{ color: 'var(--border-strong)' }}>·</span>
+        <span className="text-xs font-bold tnum" style={{ fontFamily: 'var(--font-mono)' }}>{activeCols.length}</span>
+        <span className="text-xs" style={{ color: 'var(--muted-fg)' }}>{d.columns}</span>
+        <span style={{ color: 'var(--border-strong)' }}>·</span>
+        <span className="text-xs font-semibold flex items-center gap-1.5" style={{ color: 'var(--primary)' }}>
+          {FORMAT_GROUPS.find((g) => g.formats.includes(format))?.icon}
+          {FORMAT_META[format].label}
+        </span>
       </div>
 
-      <div className="flex justify-end gap-2 mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-        <Btn onClick={onClose}>{t.actions.cancel}</Btn>
-        <Btn variant="primary" onClick={doExport} disabled={!activeCols.length || !data.length}>
-          {t.dialogs.exportDialog.exportBtn}
-        </Btn>
-      </div>
-    </InfoModal>
+      {data.length === 0 ? (
+        <EmptyState variant="noResults" title={t.messages.nothingToExport} description={d.nothingToExportHint} />
+      ) : (
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* ── Configuration ──────────────────────────────────────── */}
+          <div className="flex flex-col gap-3" style={{ width: 250, flexShrink: 0 }}>
+            <Field label={d.format}>
+              <Select
+                value={format}
+                onChange={(e) => setFormat(e.target.value as ExportFormat)}
+                options={FORMAT_GROUPS.flatMap((g) => g.formats.map((f) => ({ value: f, label: FORMAT_META[f].label, group: g.group as string })))}
+                grouped
+              />
+            </Field>
+            <Field label={d.filename} hint={`${filename || 'export'}.${FORMAT_META[format].ext}`}>
+              <Input value={filename} onChange={(e) => setFilename(e.target.value)} />
+            </Field>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-display)' }}>
+                {d.options}
+              </span>
+              <Checkbox checked={includeHeaders} onChange={setIncludeHeaders} label={d.includeHeaders} />
+              <Checkbox checked={includeId} onChange={setIncludeId} label={d.includeId} />
+              <Checkbox checked={bom} onChange={setBom} label={d.bom} />
+            </div>
+
+            {isDocument && (
+              <Callout variant="info" icon={<IconFileDoc size="sm" />}>
+                {d.docHeaderNote} <span style={{ fontFamily: 'var(--font-mono)' }}>{nextDocumentNumber(printConfig)}</span>
+              </Callout>
+            )}
+
+            {/* Column scope */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-display)' }}>
+                  {d.columns}
+                </span>
+                <button
+                  className="text-[10px] underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] rounded-sm"
+                  style={{ color: 'var(--primary)' }}
+                  onClick={() => setSelectedCols((prev) => (allSelected ? new Set() : new Set(columns.map((c) => c.key))))}
+                >
+                  {allSelected ? d.selectNone : d.selectAll}
+                </button>
+              </div>
+              <div className="overflow-y-auto flex flex-col gap-0.5 p-1 rounded-[var(--radius)]" style={{ maxHeight: 148, background: 'var(--surface-2)' }}>
+                {columns.map((col) => (
+                  <Checkbox key={col.key} checked={selectedCols.has(col.key)} onChange={() => toggleCol(col.key)} label={col.label} />
+                ))}
+              </div>
+            </div>
+
+            {activeCols.length === 0 && (
+              <Callout variant="warning" icon={<IconWarning size="sm" />}>{d.needColumn}</Callout>
+            )}
+          </div>
+
+          {/* ── Preview ────────────────────────────────────────────── */}
+          <div className="flex-1 flex flex-col gap-2 overflow-hidden" style={{ minWidth: 0 }}>
+            <span className="text-xs font-semibold" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-display)' }}>
+              {d.preview} · {data.length} {t.messages.records}
+            </span>
+            <div className="flex-1 overflow-auto rounded-[var(--radius)]" style={{ border: '1px solid var(--border)', minHeight: 260 }}>
+              {previewRows.length === 0 ? (
+                <EmptyState variant="noResults" title={t.messages.noRecords} compact />
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ background: 'var(--surface-2)' }}>
+                      {activeCols.map((c) => (
+                        <th
+                          key={c.key}
+                          className="px-2 py-1.5 text-[10px] font-semibold text-start whitespace-nowrap"
+                          style={{ borderBottom: '1px solid var(--border)', color: 'var(--muted-fg)', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                        >
+                          {c.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewRows.map((row, i) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
+                        {activeCols.map((c) => (
+                          <td
+                            key={c.key}
+                            className="px-2 py-1 text-xs truncate"
+                            style={{ borderBottom: '1px solid var(--border)', maxWidth: 130 }}
+                          >
+                            {String(row[c.key] ?? '—')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {lastResult && (
+              <Callout variant="success" icon={<IconSuccess size="sm" />} title={d.exportDone}>
+                <span className="tnum" style={{ fontFamily: 'var(--font-mono)' }}>{lastResult}</span>
+              </Callout>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
