@@ -15,6 +15,7 @@ const dom = new JSDOM(
 )
 const w = globalThis as unknown as Record<string, unknown>
 w.window = dom.window
+;(w as any).CustomEvent = dom.window.CustomEvent
 w.document = dom.window.document
 try {
   Object.defineProperty(globalThis, "navigator", {
@@ -268,6 +269,57 @@ async function main() {
       (lastDialog()?.textContent ?? "none").slice(0, 160),
     )
   check("record saved via form", saved, "name not found in table")
+  await closeAllDialogs()
+
+  // 6b. Contents: attachments are managed right next to the field, in-form
+  await click(allButtons().find((b) => text(b).startsWith("Contents")))
+  await sleep(30)
+  await click(findButton("Add Content"))
+  await sleep(30)
+  const cDialog = lastDialog() as HTMLElement | null
+  const cText = cDialog?.textContent ?? ""
+  check(
+    "content form: unified attachments field",
+    cText.includes("Attach file") &&
+      cText.includes("Add files") &&
+      cText.includes("Save the record first, then attach files to it."),
+  )
+  // The "Attach file" button must drive the real (hidden) file input — no dead control.
+  let pickerOpened = false
+  if (cDialog) {
+    const finput = cDialog.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement | null
+    if (finput) {
+      const original = finput.click.bind(finput)
+      finput.click = () => {
+        pickerOpened = true
+      }
+      const attachBtn = Array.from(cDialog.querySelectorAll("button")).find(
+        (b) => text(b) === "Attach file",
+      )
+      await click(attachBtn)
+      finput.click = original
+    }
+  }
+  check("attach-file button opens the native picker", pickerOpened)
+  await closeAllDialogs()
+
+  // A stored attachment count in the table opens the manager for that record.
+  const attBadge = allButtons().find((b) =>
+    (b.getAttribute("aria-label") ?? "").startsWith("Manage Attachments "),
+  )
+  // (the toolbar path below uses the same event bridge as the badge)
+  await sleep(30)
+  await click(attBadge)
+  await sleep(120)
+  check(
+    "row attachments badge opens the manager",
+    !!lastDialog() &&
+      (lastDialog() as HTMLElement)
+        .textContent!.includes("Manage Attachments") &&
+      (lastDialog() as HTMLElement).textContent!.includes("Files"),
+  )
   await closeAllDialogs()
 
   // 7. Export dialog flow from Sources toolbar

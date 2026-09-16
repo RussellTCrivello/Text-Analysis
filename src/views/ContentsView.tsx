@@ -58,7 +58,7 @@ import { applyDateFilter, freeTextSearch } from "../core/search"
 import { computeEntityStats } from "../core/stats"
 import { buildPrintDocument, printHtml } from "../core/print"
 import type { Row } from "../core/repository"
-import { formatDateTime, nowIso } from "../core/text"
+import { formatBytes, formatDateTime, nowIso } from "../core/text"
 
 function emptyContent(
   sourceId = "",
@@ -332,9 +332,23 @@ export function ContentsView({
               .filter(Boolean).length
           : 0
         return count ? (
-          <Badge>
-            <Attachment size="xs" /> {count}
-          </Badge>
+          <button
+            type="button"
+            title={`${t.ops.attachments}: ${c.title}`}
+            aria-label={`${t.ops.attachments} ${c.title}`}
+            className="inline-flex cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            onClick={() =>
+              window.dispatchEvent(
+                new window.CustomEvent("tam:open-attachments", {
+                  detail: { contentId: c.id },
+                }),
+              )
+            }
+          >
+            <Badge>
+              <Attachment size="xs" /> {count}
+            </Badge>
+          </button>
         ) : (
           <span aria-hidden="true">—</span>
         )
@@ -457,19 +471,43 @@ export function ContentsView({
             hint="Publication date and time"
           />
         </Field>
-        <Field
-          label={t.fields.attachments}
-          hint="Semicolon-separated list, kept in sync with stored files"
-        >
-          <Input
-            value={form.attachments}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, attachments: e.target.value }))
-            }
-            placeholder="file1.pdf; file2.docx"
-          />
-        </Field>
       </div>
+      <Field
+        label={t.fields.attachments}
+        hint={t.sections.attachments.syncHint}
+      >
+        <div className="flex flex-col gap-2">
+          <div className="flex items-start gap-2">
+            <Input
+              value={form.attachments}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, attachments: e.target.value }))
+              }
+              placeholder="file1.pdf; file2.docx"
+              className="flex-1"
+            />
+            <Btn
+              size="sm"
+              icon={<Attachment size="xs" />}
+              onClick={() => attachRef.current?.openPicker()}
+            >
+              {t.sections.attachments.attachFile}
+            </Btn>
+          </div>
+          <AttachmentField
+            ref={attachRef}
+            recordId={showEdit ? (selectedId ?? undefined) : undefined}
+            recordType="content"
+            recordTitle={form.title}
+            sourceId={form.sources_id}
+            sourceName={sourceName(form.sources_id)}
+            value={form.attachments}
+            onChange={(next) => setForm((f) => ({ ...f, attachments: next }))}
+            onToast={onToast}
+            embedded
+          />
+        </div>
+      </Field>
       <Field label={t.fields.content_data} required>
         <Textarea
           value={form.content_data}
@@ -484,22 +522,6 @@ export function ContentsView({
           value={form.note}
           onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
           rows={2}
-        />
-      </Field>
-      <Field
-        label={t.ops.attachments}
-        hint="Files are stored in this browser and linked to this content record"
-      >
-        <AttachmentField
-          ref={attachRef}
-          recordId={showEdit ? (selectedId ?? undefined) : undefined}
-          recordType="content"
-          recordTitle={form.title}
-          sourceId={form.sources_id}
-          sourceName={sourceName(form.sources_id)}
-          value={form.attachments}
-          onChange={(next) => setForm((f) => ({ ...f, attachments: next }))}
-          onToast={onToast}
         />
       </Field>
     </div>
@@ -614,7 +636,7 @@ export function ContentsView({
           onClick={() => {
             if (!selectedId) return
             window.dispatchEvent(
-              new CustomEvent("tam:open-attachments", {
+              new window.CustomEvent("tam:open-attachments", {
                 detail: { contentId: selectedId },
               }),
             )

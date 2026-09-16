@@ -17,7 +17,7 @@ import React, {
   useState,
 } from "react"
 import { Btn, IconButton } from "./ui"
-import { Attachment, Close, UploadIcon } from "./icons"
+import { Attachment, Close, Pencil, Save, UploadIcon } from "./icons"
 import { useAppData } from "../store/AppContext"
 import { useTranslation } from "../i18n"
 import {
@@ -40,6 +40,8 @@ export interface AttachmentFieldHandle {
   flush: (recordId: string) => Promise<AttachmentMeta[]>
   staged: StagedAttachment[]
   clearStaged: () => void
+  /** Open the native file picker (used by the "Attach file" action next to the field). */
+  openPicker: () => void
 }
 
 interface Props {
@@ -53,6 +55,8 @@ interface Props {
   value?: string
   onChange?: (next: string) => void
   onToast?: (message: string) => void
+  /** Compact styling when the field is embedded inside a Field slot. */
+  embedded?: boolean
 }
 
 export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
@@ -66,6 +70,7 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
       value = "",
       onChange,
       onToast,
+      embedded = false,
     },
     ref,
   ) {
@@ -79,6 +84,20 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
     const [note, setNote] = useState("")
     const [dragging, setDragging] = useState(false)
     const [busy, setBusy] = useState(false)
+    /** Inline editor for one stored attachment (id -> draft). */
+    const [editStored, setEditStored] = useState<{
+      id: string
+      name: string
+      sourceUrl: string
+      note: string
+    } | null>(null)
+    /** Inline editor for one staged attachment (key -> draft). */
+    const [editStaged, setEditStaged] = useState<{
+      key: string
+      name: string
+      sourceUrl: string
+      note: string
+    } | null>(null)
 
     const refresh = useCallback(async () => {
       if (!recordId) {
@@ -163,6 +182,7 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
       () => ({
         staged,
         clearStaged: () => setStaged([]),
+        openPicker: () => fileRef.current?.click(),
         flush: async (newRecordId: string) => {
           const saved: AttachmentMeta[] = []
           for (const item of staged) {
@@ -200,6 +220,34 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
       await refresh()
     }
 
+    const saveStoredEdit = async () => {
+      if (!editStored) return
+      await attachments.update(editStored.id, {
+        name: editStored.name.trim() || undefined,
+        sourceUrl: editStored.sourceUrl.trim(),
+        note: editStored.note.trim(),
+      })
+      setEditStored(null)
+      await refresh()
+      onToast?.(t.sections.attachments.updated)
+    }
+
+    const saveStagedEdit = () => {
+      if (!editStaged) return
+      setStaged((prev) =>
+        prev.map((item) =>
+          item.key === editStaged.key
+            ? {
+                ...item,
+                sourceUrl: editStaged.sourceUrl.trim() || editStaged.name,
+                note: editStaged.note.trim(),
+              }
+            : item,
+        ),
+      )
+      setEditStaged(null)
+    }
+
     const inputBase = {
       background: "var(--card-bg)",
       color: "var(--fg)",
@@ -210,7 +258,7 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
     return (
       <div className="flex flex-col gap-2">
         <div
-          className="rounded-lg p-3 flex flex-col gap-2"
+          className={`rounded-lg flex flex-col gap-2 ${embedded ? "p-2" : "p-3"}`}
           style={{
             background: "var(--secondary-bg)",
             border: dragging
@@ -235,14 +283,12 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
               disabled={busy}
               icon={<UploadIcon size="xs" />}
             >
-              {recordId
-                ? t.sections.attachments.attachFile
-                : t.sections.attachments.attachFile}
+              {t.sections.attachments.addFiles}
             </Btn>
             <span className="text-[11px]" style={{ color: "var(--muted-fg)" }}>
               {recordId
                 ? t.sections.attachments.stored
-                : t.sections.attachments.staged}
+                : t.sections.attachments.needsRecord}
             </span>
           </div>
 
@@ -282,11 +328,14 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
               className="text-[10px] uppercase tracking-wide font-semibold"
               style={{ color: "var(--muted-fg)" }}
             >
-              {t.sections.attachments.staged}
+              {t.sections.attachments.stagedCount.replace(
+                "{n}",
+                String(staged.length),
+              )}
             </div>
             {staged.map((item) => (
+              <React.Fragment key={item.key}>
               <div
-                key={item.key}
                 className="flex items-center gap-2 text-xs px-2 py-1 rounded"
                 style={{ background: "var(--secondary-bg)" }}
               >
@@ -300,17 +349,70 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
                     · {formatBytes(item.file.size)}
                   </span>
                 </span>
-                <IconButton
-                  label={`${t.actions.delete} ${item.file.name}`}
-                  onClick={() =>
-                    setStaged((prev) =>
-                      prev.filter((s2) => s2.key !== item.key),
-                    )
-                  }
-                >
-                  <Close size="xs" />
-                </IconButton>
+                <span className="inline-flex items-center gap-0.5">
+                  <IconButton
+                    label={`${t.actions.edit} ${item.file.name}`}
+                    onClick={() =>
+                      setEditStaged(
+                        editStaged?.key === item.key
+                          ? null
+                          : {
+                              key: item.key,
+                              name: item.file.name,
+                              sourceUrl: item.sourceUrl,
+                              note: item.note,
+                            },
+                      )
+                    }
+                  >
+                    <Pencil size="xs" />
+                  </IconButton>
+                  <IconButton
+                    label={`${t.actions.delete} ${item.file.name}`}
+                    onClick={() =>
+                      setStaged((prev) =>
+                        prev.filter((s2) => s2.key !== item.key),
+                      )
+                    }
+                  >
+                    <Close size="xs" />
+                  </IconButton>
+                </span>
               </div>
+              {editStaged?.key === item.key && (
+                <div
+                  className="grid gap-1.5 px-2 pb-1"
+                  style={{ gridTemplateColumns: "1fr 1fr auto" }}
+                >
+                  <input
+                    value={editStaged.name}
+                    onChange={(e) =>
+                      setEditStaged({ ...editStaged, name: e.target.value })
+                    }
+                    placeholder={t.fields.title}
+                    className="px-2 py-1 text-xs outline-none"
+                    style={inputBase}
+                  />
+                  <input
+                    value={editStaged.note}
+                    onChange={(e) =>
+                      setEditStaged({ ...editStaged, note: e.target.value })
+                    }
+                    placeholder={t.sections.attachments.notePlaceholder}
+                    className="px-2 py-1 text-xs outline-none"
+                    style={inputBase}
+                  />
+                  <Btn
+                    size="xs"
+                    variant="primary"
+                    icon={<Save size="xs" />}
+                    onClick={saveStagedEdit}
+                  >
+                    {t.actions.save}
+                  </Btn>
+                </div>
+              )}
+              </React.Fragment>
             ))}
           </div>
         )}
@@ -325,8 +427,8 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
               {t.sections.attachments.title} ({stored.length})
             </div>
             {stored.map((meta) => (
+              <React.Fragment key={meta.id}>
               <div
-                key={meta.id}
                 className="flex items-center gap-2 text-xs px-2 py-1 rounded"
                 style={{ background: "var(--secondary-bg)" }}
               >
@@ -342,19 +444,81 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
                     {meta.addedAt.slice(0, 16).replace("T", " ")}
                   </span>
                 </span>
-                <IconButton
-                  label={`${t.actions.delete} ${meta.name}`}
-                  danger
-                  onClick={() => void removeStored(meta.id, meta.name)}
-                >
-                  <Close size="xs" />
-                </IconButton>
+                <span className="inline-flex items-center gap-0.5">
+                  <IconButton
+                    label={t.sections.attachments.editDetails}
+                    onClick={() =>
+                      setEditStored(
+                        editStored?.id === meta.id
+                          ? null
+                          : {
+                              id: meta.id,
+                              name: meta.name,
+                              sourceUrl: meta.sourceUrl ?? "",
+                              note: meta.note ?? "",
+                            },
+                      )
+                    }
+                  >
+                    <Pencil size="xs" />
+                  </IconButton>
+                  <IconButton
+                    label={`${t.actions.delete} ${meta.name}`}
+                    danger
+                    onClick={() => void removeStored(meta.id, meta.name)}
+                  >
+                    <Close size="xs" />
+                  </IconButton>
+                </span>
               </div>
+              {editStored?.id === meta.id && (
+                <div
+                  className="grid gap-1.5 px-2 pb-1"
+                  style={{ gridTemplateColumns: "1fr 1fr 1fr auto" }}
+                >
+                  <input
+                    value={editStored.name}
+                    onChange={(e) =>
+                      setEditStored({ ...editStored, name: e.target.value })
+                    }
+                    placeholder={t.fields.name}
+                    className="px-2 py-1 text-xs outline-none"
+                    style={inputBase}
+                  />
+                  <input
+                    value={editStored.sourceUrl}
+                    onChange={(e) =>
+                      setEditStored({ ...editStored, sourceUrl: e.target.value })
+                    }
+                    placeholder={t.sections.attachments.sourcePlaceholder}
+                    className="px-2 py-1 text-xs outline-none"
+                    style={inputBase}
+                  />
+                  <input
+                    value={editStored.note}
+                    onChange={(e) =>
+                      setEditStored({ ...editStored, note: e.target.value })
+                    }
+                    placeholder={t.sections.attachments.notePlaceholder}
+                    className="px-2 py-1 text-xs outline-none"
+                    style={inputBase}
+                  />
+                  <Btn
+                    size="xs"
+                    variant="primary"
+                    icon={<Save size="xs" />}
+                    onClick={() => void saveStoredEdit()}
+                  >
+                    {t.actions.save}
+                  </Btn>
+                </div>
+              )}
+              </React.Fragment>
             ))}
           </div>
         )}
 
-        {value && (
+        {!embedded && value && (
           <div className="text-[11px]" style={{ color: "var(--muted-fg)" }}>
             {t.fields.attachments}:{" "}
             <span style={{ fontFamily: "var(--font-mono)" }}>{value}</span>

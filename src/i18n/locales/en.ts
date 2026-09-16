@@ -406,7 +406,9 @@ const en = {
       openFile: "Open",
       storedCount: "{n} stored file(s)",
       attachedTo: "{n} file(s) attached to {t}",
-    },
+      syncHint:
+        "Attach files with the button or by dropping them below — the list and stored files stay in sync; rename or remove any file here.",
+      stagedCount: "Staged ({n}) — attached when the record is saved",    },
   },
   messages: {
     confirmDelete: "Delete this record permanently?",
