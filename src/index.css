@@ -1,88 +1,218 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ============================================================================
+   DESIGN TOKENS — "Graphite & Iris"
+   A single source of truth for the entire interface. Every colour, surface,
+   radius, shadow and spacing step below is referenced from components; no
+   view hard-codes a colour. Light is the default canvas; .dark overrides the
+   same names so the whole product inverts from one switch.
+   ========================================================================== */
 @theme inline {
-  --font-display: 'Plus Jakarta Sans', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-/* ─── Light theme tokens ─────────────────────────────────────────────── */
+/* ─── Light theme ────────────────────────────────────────────────────────── */
 :root {
-  --bg: #EEF1F8;
-  --fg: #0D1117;
-  --card-bg: #FFFFFF;
-  --card-fg: #0D1117;
-  --primary: #4F6EF7;
+  /* Canvas + layered surfaces */
+  --bg: #EBEEF4;
+  --surface: #FFFFFF;
+  --surface-2: #F7F8FB;
+  --surface-3: #EEF1F6;
+  --surface-inset: #F1F3F8;
+  --card-bg: #FFFFFF; /* kept for backward compatibility with existing components */
+
+  /* Text */
+  --fg: #131A24;
+  --fg-soft: #3A4250;
+  --muted-fg: #66707F;
+  --muted-fg-2: #97A0AE;
+
+  /* Lines */
+  --border: #E3E8EF;
+  --border-strong: #D2D9E4;
+  --border-faint: #EEF1F6;
+
+  /* Brand + accent */
+  --primary: #4F46E5;
+  --primary-600: #4338CA;
+  --primary-700: #3730A3;
   --primary-fg: #FFFFFF;
-  --secondary-bg: #E3E8F4;
-  --secondary-fg: #2E3A55;
-  --muted-bg: #F4F6FB;
-  --muted-fg: #64748B;
-  --accent: #6366F1;
+  --primary-soft: rgba(79, 70, 229, 0.1);
+  --primary-soft-2: rgba(79, 70, 229, 0.16);
+  --accent: #0EA5E9;
+  --accent-violet: #7C3AED;
   --accent-fg: #FFFFFF;
-  --border: #CDD3E4;
-  --ring: #4F6EF7;
-  --sidebar-bg: #0C111C;
-  --sidebar-fg: #8B95A8;
-  --sidebar-active: rgba(79, 110, 247, 0.13);
-  --sidebar-active-fg: #A5B4FC;
-  --sidebar-hover: rgba(255, 255, 255, 0.05);
+
+  /* Kept for backward-compatibility with existing components */
+  --secondary-bg: #EEF1F6;
+  --secondary-fg: #414B5C;
+  --muted-bg: #F6F8FB;
+
+  /* Semantic status */
   --success: #16A34A;
+  --success-soft: rgba(22, 163, 74, 0.12);
   --warning: #D97706;
+  --warning-soft: rgba(217, 119, 6, 0.13);
   --error: #DC2626;
+  --error-soft: rgba(220, 38, 38, 0.12);
   --info: #2563EB;
-  --radius: 6px;
-  --radius-lg: 10px;
-  /* Record type brand colors */
+  --info-soft: rgba(37, 99, 235, 0.12);
+  --processing: #7C3AED;
+  --processing-soft: rgba(124, 58, 237, 0.13);
+  --locked: #64748B;
+  --unsupported: #94A3B8;
+
+  /* Focus ring */
+  --ring: #4F46E5;
+
+  /* Application shell */
+  --sidebar-bg: #0F1525;
+  --sidebar-fg: #8B97A8;
+  --sidebar-active: rgba(99, 102, 241, 0.18);
+  --sidebar-active-fg: #C7D2FE;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --topbar-bg: #FFFFFF;
+  --topbar-fg: #131A24;
+
+  /* Record-type brand colours */
   --color-source: #16A34A;
   --color-content: #EA580C;
   --color-analysis: #2563EB;
+
+  /* Radii */
+  --radius-sm: 5px;
+  --radius: 7px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.07);
+  --shadow-2: 0 4px 14px rgba(16, 24, 40, 0.09), 0 2px 5px rgba(16, 24, 40, 0.05);
+  --shadow-3: 0 14px 40px rgba(16, 24, 40, 0.14), 0 4px 12px rgba(16, 24, 40, 0.08);
+  --shadow-pop: 0 18px 50px rgba(16, 24, 40, 0.2), 0 6px 16px rgba(16, 24, 40, 0.1);
+
+  /* Layout metrics */
+  --topbar-h: 54px;
+  --breadcrumb-h: 46px;
+  --status-h: 28px;
+  --sidebar-w: 240px;
+  --sidebar-w-collapsed: 64px;
+
+  /* Type scale multiplier driven by Settings → Font scale */
+  --app-font-scale: 1;
 }
 
-/* ─── Dark theme tokens ──────────────────────────────────────────────── */
+/* ─── Dark theme ─────────────────────────────────────────────────────────── */
 .dark {
-  --bg: #080C16;
-  --fg: #DDE1EC;
-  --card-bg: #0F1528;
-  --card-fg: #DDE1EC;
+  --bg: #090D16;
+  --surface: #121826;
+  --surface-2: #0E1320;
+  --surface-3: #1A2132;
+  --surface-inset: #0B0F1A;
+  --card-bg: #121826;
+
+  --fg: #E6E9F0;
+  --fg-soft: #C2C9D6;
+  --muted-fg: #8B96A8;
+  --muted-fg-2: #5E6779;
+
+  --border: #1E2636;
+  --border-strong: #2B3548;
+  --border-faint: #161D2C;
+
   --primary: #818CF8;
-  --primary-fg: #060A12;
-  --secondary-bg: #151D30;
-  --secondary-fg: #94A3B8;
-  --muted-bg: #0B1020;
-  --muted-fg: #556070;
-  --accent: #818CF8;
-  --accent-fg: #060A12;
-  --border: #1A2540;
-  --ring: #818CF8;
-  --sidebar-bg: #060A12;
-  --sidebar-fg: #6B7990;
-  --sidebar-active: rgba(129, 140, 248, 0.13);
-  --sidebar-active-fg: #A5B4FC;
-  --sidebar-hover: rgba(255, 255, 255, 0.04);
+  --primary-600: #6366F1;
+  --primary-700: #6366F1;
+  --primary-fg: #0A0E17;
+  --primary-soft: rgba(129, 140, 248, 0.14);
+  --primary-soft-2: rgba(129, 140, 248, 0.22);
+  --accent: #38BDF8;
+  --accent-violet: #A78BFA;
+  --accent-fg: #0A0E17;
+
+  --secondary-bg: #161D2C;
+  --secondary-fg: #AAB3C5;
+  --muted-bg: #0E1320;
+
   --success: #22C55E;
+  --success-soft: rgba(34, 197, 94, 0.14);
   --warning: #FBBF24;
+  --warning-soft: rgba(251, 191, 36, 0.15);
   --error: #F87171;
+  --error-soft: rgba(248, 113, 113, 0.15);
   --info: #60A5FA;
+  --info-soft: rgba(96, 165, 250, 0.14);
+  --processing: #A78BFA;
+  --processing-soft: rgba(167, 139, 250, 0.16);
+  --locked: #94A3B8;
+  --unsupported: #64748B;
+
+  --ring: #818CF8;
+
+  --sidebar-bg: #070A12;
+  --sidebar-fg: #7A879B;
+  --sidebar-active: rgba(129, 140, 248, 0.16);
+  --sidebar-active-fg: #C7D2FE;
+  --sidebar-hover: rgba(255, 255, 255, 0.04);
+  --sidebar-border: rgba(255, 255, 255, 0.05);
+  --topbar-bg: #0E1320;
+  --topbar-fg: #E6E9F0;
+
   --color-source: #22C55E;
   --color-content: #FB923C;
   --color-analysis: #60A5FA;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 18px 48px rgba(0, 0, 0, 0.55);
+  --shadow-pop: 0 22px 60px rgba(0, 0, 0, 0.6);
 }
 
-/* ─── High contrast mode ─────────────────────────────────────────────── */
+/* ─── High-contrast refinement ───────────────────────────────────────────── */
 .high-contrast {
   --border: #000;
-  --muted-fg: #1a1a1a;
+  --border-strong: #000;
+  --muted-fg: #1A1A1A;
+  --fg-soft: #1A1A1A;
 }
 .dark.high-contrast {
-  --border: #fff;
-  --muted-fg: #e0e0e0;
+  --border: #FFFFFF;
+  --border-strong: #FFFFFF;
+  --muted-fg: #E2E2E2;
+  --fg-soft: #F2F2F2;
+  --fg: #FFFFFF;
 }
 
-/* ─── Global reset & base ────────────────────────────────────────────── */
+/* ─── Colour-blind safe palettes (set on <html data-color-blind>). ─────────
+   Replaces the red/green semantic pair (the most common deficit) with pairs
+   that stay distinguishable across each deficiency type. Record-type colours
+   are swapped at the same time so timelines, badges and legends follow. ──── */
+[data-color-blind='deuteranopia'],
+[data-color-blind='protanopia'] {
+  --success: #1F6FB2;
+  --error: #E08A1E;
+  --color-source: #1F6FB2;
+  --color-content: #E08A1E;
+  --color-analysis: #6D5BD0;
+}
+[data-color-blind='tritanopia'] {
+  --success: #C2410C;
+  --error: #1F6FB2;
+  --color-source: #C2410C;
+  --color-content: #1F6FB2;
+  --color-analysis: #7C3AED;
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================== */
 *, *::before, *::after { box-sizing: border-box; }
 
 html { font-size: 13px; }
@@ -90,31 +220,123 @@ html { font-size: 13px; }
 body {
   background-color: var(--bg);
   color: var(--fg);
-  font-family: var(--font-body, 'Inter', sans-serif);
-  line-height: 1.5;
+  font-family: var(--font-body);
+  line-height: 1.55;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* ─── Scrollbars ─────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+/* The workspace font scale multiplies the root so dense analytical tables
+   stay calm while remaining fully adjustable (Settings → Accessibility). */
+#root { font-size: calc(0.92rem * var(--app-font-scale)); }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--fg);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+/* Scrollbars — thin, unobtrusive, theme-aware */
+::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted-fg); }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--muted-fg-2); background-clip: padding-box; }
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 
-/* ─── Selection & focus ──────────────────────────────────────────────── */
 ::selection { background: var(--primary); color: var(--primary-fg); }
-*:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
-/* ─── Toast animation ────────────────────────────────────────────────── */
+/* Focus visibility. Settings → "Enhanced focus indicator" switches between a
+   crisp 2px ring and a heavier halo for keyboard users who need it; turning
+   it off keeps the default ring (never no indication). */
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+html[data-focus-indicator='enhanced'] *:focus-visible {
+  outline-width: 3px;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--primary-soft);
+}
+
+/* ============================================================================
+   COMPONENT-LEVEL HELPER CLASSES
+   Small, token-driven utilities used by the shell and views so repeated
+   patterns stay visually identical everywhere.
+   ========================================================================== */
+@layer components {
+  .surface-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+  }
+  .surface-panel {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .hairline-b { border-bottom: 1px solid var(--border); }
+  .hairline-t { border-top: 1px solid var(--border); }
+  .hairline-r { border-inline-end: 1px solid var(--border); }
+  .hairline-l { border-inline-start: 1px solid var(--border); }
+  .tnum { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
+  .elev-1 { box-shadow: var(--shadow-1); }
+  .elev-2 { box-shadow: var(--shadow-2); }
+  .elev-3 { box-shadow: var(--shadow-3); }
+  .grad-fg {
+    background: linear-gradient(120deg, var(--primary), var(--accent-violet));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+}
+
+/* ============================================================================
+   MOTION
+   ========================================================================== */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes shimmer {
+  0% { background-position: -480px 0; }
+  100% { background-position: 480px 0; }
+}
+@keyframes spin360 {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow { animation: spin360 0.9s linear infinite; }
 
-/* ─── Reduced motion ─────────────────────────────────────────────────── */
+/* RTL: directional chevrons flip to follow reading order. Lucide applies
+   stable class names (lucide-chevron-left / lucide-chevron-right), so the
+   icons themselves stay layout-agnostic. */
+[dir="rtl"] .lucide-chevron-left,
+[dir="rtl"] .lucide-chevron-right,
+[dir="rtl"] .lucide-chevron-left,
+[dir="rtl"] .lucide-arrow-right,
+[dir="rtl"] .lucide-arrow-left {
+  transform: scaleX(-1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -124,20 +346,24 @@ body {
   }
 }
 
-/* ─── Responsive – sidebar collapses at narrow viewports ─────────────── */
-@media (max-width: 768px) {
-  /* Force sidebar to icon-only mode */
-  nav[aria-label="Main navigation"] {
-    width: 48px !important;
-  }
-  /* Stack breadcrumb on very small screens */
-  .breadcrumb-desc {
-    display: none;
-  }
+/* ============================================================================
+   RESPONSIVE
+   The sidebar collapses to an icon rail at narrow widths; the breadcrumb
+   description is hidden on small screens. Views handle their own stacking.
+   ========================================================================== */
+@media (max-width: 860px) {
+  nav[aria-label='Main navigation'] { width: var(--sidebar-w-collapsed) !important; }
+  .breadcrumb-desc { display: none; }
 }
 
-/* ─── Print styles ───────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .topbar-brand-text { display: none; }
+}
+
+/* ============================================================================
+   PRINT
+   ========================================================================== */
 @media print {
-  nav, header { display: none !important; }
+  nav, header, footer { display: none !important; }
   body { background: white; color: black; font-size: 11pt; }
 }
