@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --import ./scripts/ts-resolve-hooks.mjs --test \"src/core/**/*.test.ts\"",
+    "check": "npm run typecheck && npm run test && npm run smoke",
+    "smoke": "vite build --ssr scripts/smoke.tsx --outDir .smoke --logLevel error && node .smoke/smoke.js"
   },
   "dependencies": {
     "react": "^19.0.0",

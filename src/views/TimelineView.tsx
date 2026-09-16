@@ -1,15 +1,28 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from 'recharts';
-import { Btn, FilterRow, SearchInput, Select, Badge, RecordTypeBadge } from '../components/ui';
+import { Btn, FilterRow, SearchInput, Select, Badge, RecordTypeBadge, DateInput } from '../components/ui';
 import { TimelineExportDialog } from '../components/TimelineExportDialog';
 import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
-import type { TimelineEvent } from '../types';
+import { formatDateTime } from '../core/text';
+import type { AppData as CoreAppData } from '../core/repository';
+import {
+  buildTimeline,
+  filterTimeline,
+  paginateEvents,
+  sortTimeline,
+  summarizeTimeline,
+  timelineFacets,
+  timelineSeries,
+  timelineStats,
+  type TimelineChart,
+  type TimelineEvent,
+  type TimelineRecordType,
+  type TimelineSort,
+} from '../core/timeline';
 
 const COLORS = ['#0f766e','#1d4ed8','#c2410c','#7c3aed','#db2777','#15803d','#dc2626','#0369a1'];
 
-type ChartType = 'typeDistribution' | 'monthly' | 'dayOfWeek' | 'classification';
-type SortField = 'date' | 'type' | 'source';
 type SortDir = 'asc' | 'desc';
 type Density = 'compact' | 'normal' | 'expanded';
 
@@ -20,10 +33,13 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
   const [peopleFilter, setPeopleFilter] = useState('');
   const [placesFilter, setPlacesFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
-  const [sortField, setSortField] = useState<SortField>('date');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [types, setTypes] = useState<TimelineRecordType[]>(['source', 'content', 'analysis']);
+  const [sortField, setSortField] = useState<TimelineSort>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [density, setDensity] = useState<Density>('normal');
-  const [chartType, setChartType] = useState<ChartType>('typeDistribution');
+  const [chartType, setChartType] = useState<TimelineChart>('type');
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [page, setPage] = useState(1);
@@ -31,85 +47,45 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
 
   const sourceName = (id: string) => data.sources.find(s => s.id === id)?.name ?? '—';
 
-  const allEvents = useMemo<TimelineEvent[]>(() => {
-    const events: TimelineEvent[] = [];
-    data.sources.forEach(s => events.push({
-      id: s.id, type: 'source', date: s.date_entry, title: s.name,
-      summary: s.description?.slice(0, 120), source: s.name, list_names_people: '', list_names_places: s.city, classification: s.type,
-    }));
-    data.contents.forEach(c => events.push({
-      id: c.id, type: 'content', date: c.date_content, title: c.title,
-      summary: c.content_data?.slice(0, 120), source: sourceName(c.sources_id), list_names_people: '', list_names_places: '', classification: '',
-    }));
-    data.analyses.forEach(a => {
-      const c = data.contents.find(x => x.id === a.content_id);
-      events.push({
-        id: a.id, type: 'analysis', date: a.date_analysis, title: c?.title ?? a.classification,
-        summary: [a.list_names_people, a.list_names_places].filter(Boolean).join(' · ').slice(0, 120),
-        source: c ? sourceName(c.sources_id) : '—', list_names_people: a.list_names_people, list_names_places: a.list_names_places, classification: a.classification,
-      });
-    });
-    return events;
-  }, [data]);
+  const allEvents = useMemo(() => buildTimeline(data as unknown as CoreAppData), [data]);
 
-  const allClassifications = useMemo(() => [...new Set(allEvents.map(e => e.classification).filter(Boolean))], [allEvents]);
-  const allPeople = useMemo(() => [...new Set(allEvents.map(e => e.list_names_people).filter(Boolean))], [allEvents]);
-  const allPlaces = useMemo(() => [...new Set(allEvents.map(e => e.list_names_places).filter(Boolean))], [allEvents]);
+  const facets = useMemo(() => timelineFacets(allEvents), [allEvents]);
 
-  const filtered = useMemo(() => {
-    return allEvents.filter(e => {
-      const q = search.toLowerCase();
-      if (q && ![e.title, e.summary, e.source, e.classification].some(v => v?.toLowerCase().includes(q))) return false;
-      if (peopleFilter && !e.list_names_people.includes(peopleFilter)) return false;
-      if (placesFilter && !e.list_names_places.includes(placesFilter)) return false;
-      if (classFilter && e.classification !== classFilter) return false;
-      return true;
-    }).sort((a, b) => {
-      let av = '', bv = '';
-      if (sortField === 'date') { av = a.date; bv = b.date; }
-      else if (sortField === 'type') { av = a.type; bv = b.type; }
-      else if (sortField === 'source') { av = a.source; bv = b.source; }
-      const cmp = av.localeCompare(bv);
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
-  }, [allEvents, search, peopleFilter, placesFilter, classFilter, sortField, sortDir]);
+  const filtered = useMemo(
+    () =>
+      sortTimeline(
+        filterTimeline(allEvents, {
+          from: dateFrom || undefined,
+          to: dateTo || undefined,
+          search: search || undefined,
+          person: peopleFilter || undefined,
+          place: placesFilter || undefined,
+          category: classFilter || undefined,
+          types,
+        }),
+        sortField,
+        sortDir,
+      ),
+    [allEvents, dateFrom, dateTo, search, peopleFilter, placesFilter, classFilter, types, sortField, sortDir],
+  );
 
-  const pageEvents = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const { slice: pageEvents, pages } = paginateEvents(filtered, page, pageSize);
 
-  const chartData = useMemo(() => {
-    if (chartType === 'typeDistribution') {
-      return ['source', 'content', 'analysis'].map(t2 => ({ name: t2.charAt(0).toUpperCase() + t2.slice(1), value: filtered.filter(e => e.type === t2).length }));
-    }
-    if (chartType === 'monthly') {
-      const months: Record<string, number> = {};
-      filtered.forEach(e => { const m = e.date.slice(0, 7); if (m) months[m] = (months[m] ?? 0) + 1; });
-      return Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => ({ name, value }));
-    }
-    if (chartType === 'dayOfWeek') {
-      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      const counts = [0,0,0,0,0,0,0];
-      filtered.forEach(e => { if (e.date) { const d = new Date(e.date).getDay(); if (!isNaN(d)) counts[d]++; } });
-      return days.map((name, i) => ({ name, value: counts[i] }));
-    }
-    if (chartType === 'classification') {
-      const grouped: Record<string, number> = {};
-      filtered.forEach(e => { const k = e.classification || '(none)'; grouped[k] = (grouped[k] ?? 0) + 1; });
-      return Object.entries(grouped).sort(([,a],[,b]) => b - a).slice(0, 8).map(([name, value]) => ({ name, value }));
-    }
-    return [];
-  }, [filtered, chartType]);
+  const summary = useMemo(() => summarizeTimeline(filtered), [filtered]);
 
-  const stats = {
-    total: allEvents.length,
-    filtered: filtered.length,
-    sources: allEvents.filter(e => e.type === 'source').length,
-    analyses: allEvents.filter(e => e.type === 'analysis').length,
-  };
+  const toggleType = (type: TimelineRecordType) =>
+    setTypes((current) => (current.includes(type) ? current.filter((x) => x !== type) : [...current, type]));
 
-  const sortOpts: { value: SortField; label: string }[] = [
+  const chartData = useMemo(() => timelineSeries(filtered, chartType), [filtered, chartType]);
+
+  const stats = timelineStats(allEvents, filtered);
+
+  const sortOpts: { value: TimelineSort; label: string }[] = [
     { value: 'date', label: t.sections.timeline.sortDate },
-    { value: 'type', label: t.sections.timeline.sortType },
     { value: 'source', label: t.sections.timeline.sortSource },
+    { value: 'classification', label: 'Classification' },
+    { value: 'people', label: 'People' },
+    { value: 'places', label: 'Places' },
   ];
   const dirOpts = [
     { value: 'asc', label: t.sections.timeline.ascending },
@@ -120,15 +96,17 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
     { value: 'normal', label: t.sections.timeline.densityNormal },
     { value: 'expanded', label: t.sections.timeline.densityExpanded },
   ];
-  const chartOpts: { value: ChartType; label: string }[] = [
-    { value: 'typeDistribution', label: t.sections.timeline.chartTypeDistribution },
+  const chartOpts: { value: TimelineChart; label: string }[] = [
+    { value: 'type', label: t.sections.timeline.chartTypeDistribution },
     { value: 'monthly', label: t.sections.timeline.chartMonthly },
-    { value: 'dayOfWeek', label: t.sections.timeline.chartDayOfWeek },
+    { value: 'weekday', label: t.sections.timeline.chartDayOfWeek },
     { value: 'classification', label: t.sections.timeline.chartClassification },
+    { value: 'daily', label: 'Daily' },
+    { value: 'yearly', label: 'Yearly' },
   ];
-  const classOpts = [{ value: '', label: '— All —' }, ...allClassifications.map(c => ({ value: c, label: c }))];
-  const peopleOpts = [{ value: '', label: '— All people —' }, ...allPeople.map(p => ({ value: p, label: p.slice(0, 40) }))];
-  const placesOpts = [{ value: '', label: '— All places —' }, ...allPlaces.map(p => ({ value: p, label: p.slice(0, 40) }))];
+  const classOpts = [{ value: '', label: '— All —' }, ...facets.categories.map((c) => ({ value: c, label: c }))];
+  const peopleOpts = [{ value: '', label: '— All people —' }, ...facets.people.map((p) => ({ value: p, label: p.slice(0, 40) }))];
+  const placesOpts = [{ value: '', label: '— All places —' }, ...facets.places.map((p) => ({ value: p, label: p.slice(0, 40) }))];
 
   const axisDot = (type: string): { color: string; size: number } => {
     if (type === 'source') return { color: '#15803d', size: 8 };
@@ -146,7 +124,24 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
         <Select value={classFilter} onChange={e => setClassFilter(e.target.value)} options={classOpts} className="!w-36" />
         <Select value={peopleFilter} onChange={e => setPeopleFilter(e.target.value)} options={peopleOpts} className="!w-36" />
         <Select value={placesFilter} onChange={e => setPlacesFilter(e.target.value)} options={placesOpts} className="!w-36" />
-        <Btn size="xs" onClick={() => { setSearch(''); setClassFilter(''); setPeopleFilter(''); setPlacesFilter(''); }} variant="ghost">{t.actions.clearFilters}</Btn>
+        <DateInput label={t.messages.dateFrom} value={dateFrom} onChange={v => { setDateFrom(v); setPage(1); }} />
+        <DateInput label={t.messages.dateTo} value={dateTo} onChange={v => { setDateTo(v); setPage(1); }} />
+        <Btn size="xs" onClick={() => { setSearch(''); setClassFilter(''); setPeopleFilter(''); setPlacesFilter(''); setDateFrom(''); setDateTo(''); setTypes(['source', 'content', 'analysis']); }} variant="ghost">{t.actions.clearFilters}</Btn>
+        <div className="flex items-center gap-1">
+          {(['source', 'content', 'analysis'] as TimelineRecordType[]).map(type => (
+            <button
+              key={type}
+              onClick={() => toggleType(type)}
+              className="px-2 py-1 rounded text-[10px] font-semibold uppercase tracking-wide transition-colors"
+              style={{
+                background: types.includes(type) ? 'var(--primary)' : 'var(--secondary-bg)',
+                color: types.includes(type) ? 'var(--primary-fg)' : 'var(--muted-fg)',
+              }}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
       </FilterRow>
 
       {/* Stats + controls */}
@@ -156,14 +151,19 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
           { label: t.sections.timeline.filteredEvents, value: stats.filtered, color: '#1d4ed8' },
           { label: t.sections.timeline.sourcesCount, value: stats.sources, color: '#15803d' },
           { label: t.sections.timeline.analysesCount, value: stats.analyses, color: '#7c3aed' },
+          { label: 'Contents', value: stats.contents, color: '#1d4ed8' },
+          { label: 'Geotagged', value: stats.withCoordinates, color: '#c2410c' },
         ].map(s => (
           <div key={s.label} className="flex items-center gap-2 px-3 py-1 rounded" style={{ background: 'var(--secondary-bg)' }}>
             <span className="text-xs" style={{ color: 'var(--muted-fg)' }}>{s.label}</span>
             <span className="text-sm font-bold" style={{ fontFamily: 'var(--font-mono)', color: s.color }}>{s.value}</span>
           </div>
         ))}
+        <span className="text-[11px]" style={{ color: 'var(--muted-fg)' }}>
+          {summary.range.from ?? '—'} → {summary.range.to ?? '—'} · busiest {summary.mostActivePeriod?.label ?? '—'} ({summary.mostActivePeriod?.count ?? 0})
+        </span>
         <div className="flex-1" />
-        <Select value={sortField} onChange={e => setSortField(e.target.value as SortField)} options={sortOpts} className="!w-28" />
+        <Select value={sortField} onChange={e => setSortField(e.target.value as TimelineSort)} options={sortOpts} className="!w-36" />
         <Select value={sortDir} onChange={e => setSortDir(e.target.value as SortDir)} options={dirOpts} className="!w-28" />
         <Select value={density} onChange={e => setDensity(e.target.value as Density)} options={densityOpts} className="!w-28" />
         <Btn size="xs" onClick={() => setShowExport(true)} icon="⬇">Export</Btn>
@@ -177,11 +177,11 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
           <div className="mb-4 rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
             <div className="flex items-center px-3 py-2 gap-2" style={{ borderBottom: '1px solid var(--border)' }}>
               <span className="text-xs font-semibold" style={{ color: 'var(--muted-fg)' }}>Chart</span>
-              <Select value={chartType} onChange={e => setChartType(e.target.value as ChartType)} options={chartOpts} className="!w-40" />
+              <Select value={chartType} onChange={e => setChartType(e.target.value as TimelineChart)} options={chartOpts} className="!w-40" />
             </div>
             <div className="px-2 py-2">
               <ResponsiveContainer width="100%" height={160}>
-                {chartType === 'typeDistribution' ? (
+                {chartType === 'type' || chartType === 'classification' ? (
                   <PieChart>
                     <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                       {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -227,15 +227,24 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
                       <div className="flex items-center gap-2 mb-0.5">
                         <RecordTypeBadge type={event.type} />
                         <span className="text-xs font-semibold truncate">{event.title}</span>
-                        <span className="ms-auto text-xs shrink-0" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>{event.date || '—'}</span>
+                        <span
+                          className="ms-auto text-xs shrink-0"
+                          style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}
+                          title={formatDateTime(event.date)}
+                        >
+                          {event.date ? formatDateTime(event.date) : '—'}
+                        </span>
                       </div>
                       {density !== 'compact' && (
                         <p className="text-xs truncate" style={{ color: 'var(--muted-fg)' }}>{event.summary}</p>
                       )}
                       {density === 'expanded' && (
-                        <div className="flex gap-3 mt-1">
+                        <div className="flex flex-wrap gap-2 mt-1">
                           {event.source && <span className="text-xs" style={{ color: 'var(--muted-fg)' }}>📍 {event.source}</span>}
                           {event.classification && <Badge size="xs">{event.classification}</Badge>}
+                          {event.hasCoordinates && <Badge size="xs">geotagged</Badge>}
+                          {event.people.slice(0, 3).map(p => <Badge key={p} size="xs">{p}</Badge>)}
+                          {event.places.slice(0, 3).map(p => <Badge key={p} size="xs">{p}</Badge>)}
                         </div>
                       )}
                     </div>
@@ -258,8 +267,9 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
               ['Date', selectedEvent.date],
               ['Source', selectedEvent.source],
               ['Classification', selectedEvent.classification],
-              ['People', selectedEvent.list_names_people],
-              ['Places', selectedEvent.list_names_places],
+              ['People', selectedEvent.people.join(', ')],
+              ['Places', selectedEvent.places.join(', ')],
+              ['Importance', selectedEvent.importance ? (selectedEvent.importance * 100).toFixed(0) + '%' : ''],
             ].filter(([, v]) => v).map(([k, v]) => (
               <div key={k} className="py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
                 <div className="text-[10px] uppercase tracking-wide font-semibold mb-0.5" style={{ color: 'var(--muted-fg)' }}>{k}</div>
@@ -275,7 +285,22 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
           </div>
         )}
       </div>
-      <TimelineExportDialog isOpen={showExport} onClose={() => setShowExport(false)} filteredEvents={filtered} allEvents={allEvents} pageEvents={pageEvents} />
+      <div className="px-3 py-1.5 flex items-center gap-2 shrink-0 text-xs" style={{ borderTop: '1px solid var(--border)', background: 'var(--card-bg)' }}>
+        <span style={{ color: 'var(--muted-fg)' }}>
+          Page {page} of {Math.max(1, pages)} · showing {pageEvents.length} of {filtered.length}
+        </span>
+        <div className="flex-1" />
+        <Btn size="xs" variant="ghost" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Btn>
+        <Btn size="xs" variant="ghost" onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page >= pages}>Next</Btn>
+      </div>
+      <TimelineExportDialog
+        isOpen={showExport}
+        onClose={() => setShowExport(false)}
+        filteredEvents={filtered}
+        allEvents={allEvents}
+        pageEvents={pageEvents}
+        onToast={onToast}
+      />
     </div>
   );
 }

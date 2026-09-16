@@ -1,23 +1,37 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { DataTable, type Column } from '../components/DataTable';
-import { FormModal, ConfirmDialog } from '../components/FormModal';
-import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, ImportanceBar, MoreMenu, Badge } from '../components/ui';
+import { FormModal, ConfirmDialog, InfoModal } from '../components/FormModal';
+import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, DateTimeInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, ImportanceBar, MoreMenu, Badge, StatCard } from '../components/ui';
 import { ExportDialog } from '../components/ExportDialog';
+import { ImportWizard } from '../components/ImportWizard';
+import { AdvancedSearch } from '../components/AdvancedSearch';
+import { AttachmentField, type AttachmentFieldHandle } from '../components/AttachmentField';
 import { BulkOperations } from '../components/BulkOperations';
 import { ContentPreviewDialog } from '../components/ContentPreviewDialog';
 import { useAppData } from '../store/AppContext';
 import { useSettings } from '../store/SettingsContext';
 import { useTranslation } from '../i18n';
 import type { Content } from '../types';
+import { applyDateFilter, freeTextSearch } from '../core/search';
+import { computeEntityStats } from '../core/stats';
+import { buildPrintDocument, printHtml } from '../core/print';
+import type { Row } from '../core/repository';
+import { formatDateTime, nowIso } from '../core/text';
 
 function emptyContent(sourceId = ''): Omit<Content, 'id' | 'date_creation' | 'date_modified'> {
-  return { sources_id: sourceId, title: '', content_data: '', attachments: '', note: '', importance: 0.70, date_content: new Date().toISOString().split('T')[0] };
+  return { sources_id: sourceId, title: '', content_data: '', attachments: '', note: '', importance: 0.70, date_content: nowIso() };
 }
 
 export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: string) => void; onLinkToAnalysis?: (contentId: string) => void }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
-  const { data, addContent, updateContent, deleteContent, duplicateContent, bulkDeleteContents } = useAppData();
+  const { data, addContent, updateContent, deleteContent, duplicateContent, bulkDeleteContents, validate, printConfig } =
+    useAppData();
+  const [showStats, setShowStats] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showAdvSearch, setShowAdvSearch] = useState(false);
+  const [advancedIds, setAdvancedIds] = useState<string[] | null>(null);
+  const attachRef = useRef<AttachmentFieldHandle>(null);
 
   const [search, setSearch] = useState('');
   const [srcFilter, setSrcFilter] = useState('');
@@ -40,16 +54,20 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
   const selected = data.contents.find(c => c.id === selectedId) ?? null;
   const sourceName = (id: string) => data.sources.find(s => s.id === id)?.name ?? id;
 
+  const searchFields = ['id', 'title', 'content_data', 'note', 'attachments', 'sources_id', 'importance', 'date_content'];
+
   const filtered = useMemo(() => {
-    return data.contents.filter(c => {
-      const q = search.toLowerCase();
-      if (q && ![c.title, c.content_data, c.note, sourceName(c.sources_id)].some(v => v.toLowerCase().includes(q))) return false;
-      if (srcFilter && c.sources_id !== srcFilter) return false;
-      if (dateFrom && c.date_content < dateFrom) return false;
-      if (dateTo && c.date_content > dateTo) return false;
-      return true;
-    });
-  }, [data.contents, search, srcFilter, dateFrom, dateTo]);
+    const typed = data.contents as unknown as Row[];
+    const byText = freeTextSearch(typed, search, searchFields);
+    const bySource = srcFilter ? byText.filter(c => c.sources_id === srcFilter) : byText;
+    const byAdvanced = advancedIds ? bySource.filter(c => advancedIds.includes(String(c.id))) : bySource;
+    return applyDateFilter(byAdvanced, dateFrom || null, dateTo || null, ['date_content', 'date_creation']) as unknown as Content[];
+  }, [data.contents, search, srcFilter, dateFrom, dateTo, advancedIds]);
+
+  const contentStats = useMemo(
+    () => computeEntityStats('contents', (srcFilter || search ? filtered : data.contents) as unknown as Row[]),
+    [filtered, data.contents, srcFilter, search],
+  );
 
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
@@ -62,22 +80,41 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
     setShowEdit(true);
   };
 
-  const validate = (f: typeof form): Record<string, string> => {
+  const validateForm = (f: typeof form): Record<string, string> => {
     const errs: Record<string, string> = {};
-    if (!f.title.trim()) errs.title = t.messages.required;
-    if (!f.sources_id) errs.sources_id = t.messages.required;
     const imp = parseFloat(importancePct);
     if (isNaN(imp) || imp < 0 || imp > 100) errs.importance = t.messages.importanceRange;
+    const issues = validate('contents', { ...f, importance: imp / 100 } as unknown as Record<string, unknown>, showEdit ? selectedId ?? undefined : undefined);
+    for (const issue of issues) if (issue.level === 'error') errs[issue.field] = issue.message;
+    for (const issue of issues) {
+      if (issue.level === 'warning' && !errs[issue.field]) onToast(`${issue.field}: ${issue.message}`);
+    }
     return errs;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const imp = parseFloat(importancePct) / 100;
     const payload = { ...form, importance: imp };
-    const errs = validate(payload);
+    const errs = validateForm(payload);
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    if (showAdd) addContent(payload);
-    else updateContent({ ...payload, id: selectedId!, date_creation: selected!.date_creation, date_modified: '' });
+    let recordId = selectedId ?? '';
+    if (showAdd) {
+      const result = addContent(payload);
+      recordId = String(result.record?.id ?? '');
+    } else {
+      updateContent({ ...payload, id: selectedId!, date_creation: selected!.date_creation, date_modified: '' });
+    }
+    // Flush any files staged while the record was still new.
+    const staged = attachRef.current?.staged ?? [];
+    if (recordId && staged.length) {
+      const saved = await attachRef.current!.flush(recordId);
+      const merged = [...new Set([
+        ...String(payload.attachments ?? '').split(';').map(v => v.trim()).filter(Boolean),
+        ...saved.map(m => m.name),
+      ])].join('; ');
+      updateContent({ id: recordId, attachments: merged });
+      onToast(`${saved.length} attachment(s) linked to “${payload.title}”`);
+    }
     setShowAdd(false); setShowEdit(false);
     onToast(t.messages.saved);
   };
@@ -102,6 +139,17 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
   ];
   const srcFormOpts = data.sources.map(s => ({ value: s.id, label: s.name }));
 
+  const handlePrint = () => {
+    const html = buildPrintDocument({
+      columns: exportColumns.map(c => ({ key: c.key, label: c.label, format: c.key === 'importance' ? 'percent' : c.key.startsWith('date') ? 'datetime' : undefined })),
+      rows: filtered as unknown as Record<string, unknown>[],
+      config: printConfig,
+      title: `${t.sections.contents.title} — ${filtered.length} ${t.messages.records}`,
+      subtitle: [search ? `search: ${search}` : '', srcFilter ? `source: ${sourceName(srcFilter)}` : ''].filter(Boolean).join(' · '),
+    });
+    if (!printHtml(html)) onToast('Printing is not available in this browser context.');
+  };
+
   const columns: Column<Content>[] = [
     { key: 'title', header: t.fields.title, width: '26%', sortable: true },
     { key: 'sources_id', header: t.fields.sources_id, width: '16%', sortable: true,
@@ -111,9 +159,12 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
     { key: 'importance', header: t.fields.importance, width: '110px', sortable: true,
       render: c => <ImportanceBar value={c.importance} /> },
     { key: 'attachments', header: t.fields.attachments, width: '80px',
-      render: c => c.attachments ? <Badge>📎 {c.attachments.split(',').length}</Badge> : <span>—</span> },
+      render: c => {
+        const count = c.attachments ? c.attachments.split(/[;,]/).map(v => v.trim()).filter(Boolean).length : 0;
+        return count ? <Badge>📎 {count}</Badge> : <span>—</span>;
+      } },
     { key: 'date_content', header: t.fields.date_content, width: '90px', sortable: true,
-      render: c => <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{c.date_content || '—'}</span> },
+      render: c => <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{c.date_content ? formatDateTime(c.date_content) : '—'}</span> },
   ];
 
   const exportColumns = [
@@ -124,7 +175,10 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
 
   const moreItems = [
     { label: 'Preview Content', icon: '👁', onClick: () => { if (!selected) return; setShowPreview(true); }, disabled: !selected },
+    { label: t.actions.advancedSearch, icon: '🔍', onClick: () => setShowAdvSearch(true) },
+    { label: t.actions.importContents, icon: '📥', onClick: () => setShowImport(true) },
     { label: t.actions.bulkOperations, icon: '⚙', onClick: () => setShowBulkOps(true), disabled: selectedIds.length === 0 },
+    { label: t.actions.statistics, icon: 'Σ', onClick: () => setShowStats(true) },
     { divider: true, label: '', onClick: () => {} },
     { label: t.actions.linkToAnalysis, icon: '🔗', onClick: () => { if (selectedId) onLinkToAnalysis?.(selectedId); }, disabled: !selectedId },
   ];
@@ -146,10 +200,10 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
           </div>
         </Field>
         <Field label={t.fields.date_content} required>
-          <Input type="date" value={form.date_content} onChange={e => setForm(f => ({ ...f, date_content: e.target.value }))} />
+          <DateTimeInput value={form.date_content} onChange={v => setForm(f => ({ ...f, date_content: v }))} hint="Publication date and time" />
         </Field>
-        <Field label={t.fields.attachments} hint="Comma-separated filenames">
-          <Input value={form.attachments} onChange={e => setForm(f => ({ ...f, attachments: e.target.value }))} placeholder="file1.pdf, file2.docx" />
+        <Field label={t.fields.attachments} hint="Semicolon-separated list, kept in sync with stored files">
+          <Input value={form.attachments} onChange={e => setForm(f => ({ ...f, attachments: e.target.value }))} placeholder="file1.pdf; file2.docx" />
         </Field>
       </div>
       <Field label={t.fields.content_data} required>
@@ -157,6 +211,19 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
       </Field>
       <Field label={t.fields.note}>
         <Textarea value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} rows={2} />
+      </Field>
+      <Field label={t.ops.attachments} hint="Files are stored in this browser and linked to this content record">
+        <AttachmentField
+          ref={attachRef}
+          recordId={showEdit ? selectedId ?? undefined : undefined}
+          recordType="content"
+          recordTitle={form.title}
+          sourceId={form.sources_id}
+          sourceName={sourceName(form.sources_id)}
+          value={form.attachments}
+          onChange={next => setForm(f => ({ ...f, attachments: next }))}
+          onToast={onToast}
+        />
       </Field>
     </div>
   );
@@ -168,7 +235,8 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
         <Select value={srcFilter} onChange={e => { setSrcFilter(e.target.value); setPage(1); }} options={srcOpts} className="!w-36" />
         <DateInput label={t.messages.dateFrom} value={dateFrom} onChange={v => { setDateFrom(v); setPage(1); }} />
         <DateInput label={t.messages.dateTo} value={dateTo} onChange={v => { setDateTo(v); setPage(1); }} />
-        <Btn size="xs" onClick={() => { setSearch(''); setSrcFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }} variant="ghost">{t.actions.clearFilters}</Btn>
+        <Btn size="xs" onClick={() => { setSearch(''); setSrcFilter(''); setDateFrom(''); setDateTo(''); setAdvancedIds(null); setPage(1); }} variant="ghost">{t.actions.clearFilters}</Btn>
+        {advancedIds && <Btn size="xs" variant="ghost" onClick={() => setAdvancedIds(null)}>Clear advanced ({advancedIds.length})</Btn>}
       </FilterRow>
 
       <Toolbar>
@@ -178,8 +246,18 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
         <Btn onClick={() => { if (selected) duplicateContent(selectedId!); }} disabled={!selected} icon="⎘">{t.actions.duplicate}</Btn>
         <ToolbarSep />
         <Btn onClick={() => { if (selected) setShowPreview(true); }} disabled={!selected} icon="👁">Preview</Btn>
+        <Btn
+          onClick={() => {
+            if (!selectedId) return;
+            window.dispatchEvent(new CustomEvent('tam:open-attachments', { detail: { contentId: selectedId } }));
+          }}
+          disabled={!selectedId}
+          icon="📎"
+        >
+          {t.ops.attachments}
+        </Btn>
         <Btn onClick={() => setShowExport(true)} icon="⬇">{t.actions.export}</Btn>
-        <Btn onClick={() => window.print()} icon="🖨">{t.actions.print}</Btn>
+        <Btn onClick={handlePrint} icon="🖨">{t.actions.print}</Btn>
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
@@ -206,8 +284,62 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
       <FormModal isOpen={showEdit} title={t.sections.contents.edit} onClose={() => setShowEdit(false)} onSave={handleSave} saveLabel={t.actions.save} size="lg"><FormContent /></FormModal>
       <ConfirmDialog isOpen={showDelete} title={t.actions.delete} message={t.messages.confirmDelete} onConfirm={handleDelete} onCancel={() => setShowDelete(false)} danger />
       <ExportDialog isOpen={showExport} onClose={() => setShowExport(false)} data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns} defaultFilename="contents" />
-      <BulkOperations isOpen={showBulkOps} onClose={() => setShowBulkOps(false)} selectedIds={selectedIds} data={data.contents.map(c => ({ id: c.id, label: c.title }))} onBulkDelete={handleBulkDelete} />
+      <BulkOperations isOpen={showBulkOps} onClose={() => setShowBulkOps(false)} selectedIds={selectedIds} entity="contents" data={data.contents.map(c => ({ id: c.id, label: c.title }))} onToast={onToast} onBulkDelete={handleBulkDelete} />
+      <ImportWizard isOpen={showImport} onClose={() => setShowImport(false)} targetType="content" onToast={onToast} />
+      <AdvancedSearch
+        isOpen={showAdvSearch}
+        onClose={() => setShowAdvSearch(false)}
+        fields={[
+          { value: 'title', label: t.fields.title },
+          { value: 'sources_id', label: t.fields.sources_id },
+          { value: 'attachments', label: t.fields.attachments },
+          { value: 'importance', label: t.fields.importance },
+          { value: 'note', label: t.fields.note },
+          { value: 'date_content', label: t.fields.date_content },
+        ]}
+        data={data.contents as unknown as Record<string, unknown>[]}
+        target="contents"
+        onApply={(rows) => { setAdvancedIds(rows.map(r => String(r.id))); setPage(1); onToast(`Advanced search applied: ${rows.length} rows`); }}
+      />
       <ContentPreviewDialog isOpen={showPreview} onClose={() => setShowPreview(false)} content={selected} source={selected ? data.sources.find(s => s.id === selected.sources_id) : null} />
+      <InfoModal isOpen={showStats} title={t.actions.statistics} onClose={() => setShowStats(false)} size="md">
+        <div className="flex flex-col gap-3 text-xs">
+          <div className="grid grid-cols-2 gap-2">
+            <StatCard label={t.dialogs.statistics.totalRecords} value={String(contentStats.total)} />
+            <StatCard label={t.dialogs.statistics.avgImportance} value={`${(contentStats.avgImportance * 100).toFixed(1)}%`} />
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wide font-semibold mb-1" style={{ color: 'var(--muted-fg)' }}>By source</div>
+            {(contentStats.fields.find(f => f.field === 'sources_id')?.top ?? []).slice(0, 10).map(b => (
+              <div key={b.key} className="flex items-center gap-2 py-0.5">
+                <span className="truncate" style={{ flex: '1 1 auto' }}>{sourceName(b.key) || b.label}</span>
+                <div className="h-2 rounded-full overflow-hidden" style={{ width: 80, background: 'var(--border)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${(b.share * 100).toFixed(1)}%`, background: '#1d4ed8' }} />
+                </div>
+                <span style={{ fontFamily: 'var(--font-mono)', width: 34, textAlign: 'end' }}>{b.count}</span>
+              </div>
+            ))}
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wide font-semibold mb-1" style={{ color: 'var(--muted-fg)' }}>Importance bands</div>
+            {contentStats.importanceBands.map(b => (
+              <div key={b.label} className="flex items-center gap-2 py-0.5">
+                <span style={{ flex: '1 1 auto' }}>{b.label}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{b.count}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ color: 'var(--muted-fg)' }}>
+            {t.dialogs.statistics.dateRange}: {contentStats.dateRange.from ?? '—'} → {contentStats.dateRange.to ?? '—'}
+          </div>
+          <div style={{ color: 'var(--muted-fg)' }}>
+            Field coverage: {contentStats.fields.map(f => `${f.field} ${f.filled}/${contentStats.total}`).join(' · ')}
+          </div>
+          <div className="flex justify-end">
+            <Btn onClick={() => setShowStats(false)}>{t.actions.close}</Btn>
+          </div>
+        </div>
+      </InfoModal>
     </div>
   );
 }

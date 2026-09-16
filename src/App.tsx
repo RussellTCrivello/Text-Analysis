@@ -6,6 +6,8 @@ import { AnalysisView } from './views/AnalysisView';
 import { AllDataView } from './views/AllDataView';
 import { TimelineView } from './views/TimelineView';
 import { ReportsView } from './views/ReportsView';
+import { ActivityView } from './views/ActivityView';
+import { DictionaryView } from './views/DictionaryView';
 import { SettingsProvider, useSettings } from './store/SettingsContext';
 import { AppProvider } from './store/AppContext';
 import { LanguageProvider } from './i18n';
@@ -38,6 +40,8 @@ function Inner() {
       case 'allData': return <AllDataView onToast={handleToast} onGenerateReport={handleGenerateReport} />;
       case 'timeline': return <TimelineView onToast={handleToast} />;
       case 'reports': return <ReportsView onToast={handleToast} />;
+      case 'activity': return <ActivityView onToast={handleToast} />;
+      case 'dictionary': return <DictionaryView onToast={handleToast} />;
     }
   };
 

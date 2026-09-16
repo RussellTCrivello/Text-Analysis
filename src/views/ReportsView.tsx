@@ -9,46 +9,15 @@ import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
 import type { SavedReport } from '../types';
 import { generateId } from '../data/sampleData';
+import { buildSql, queryTemplates, type SqlError, type TableInfo } from '../core/sql/engine';
+import { downloadArtifact, exportData, type ExportFormat } from '../core/export/exporters';
+import { buildPrintDocument, printHtml } from '../core/print';
+import { sqlColumns } from '../core/schema';
+import type { EntityName } from '../core/schema';
 
 const COLORS = ['#0f766e','#1d4ed8','#c2410c','#7c3aed','#db2777','#15803d','#dc2626','#0369a1','#b45309','#0e7490'];
 
-const SQL_TEMPLATES = [
-  'SELECT * FROM sources',
-  'SELECT * FROM contents',
-  'SELECT * FROM analyses',
-  'SELECT * FROM sources WHERE importance > 0.7',
-  'SELECT * FROM contents ORDER BY date_content DESC',
-  'SELECT * FROM analyses ORDER BY date_analysis DESC',
-  'SELECT name, importance FROM sources ORDER BY importance DESC',
-  'SELECT title, importance FROM contents WHERE importance > 0.5',
-  'SELECT classification, COUNT(*) as count FROM analyses GROUP BY classification',
-  'SELECT type, COUNT(*) as count FROM sources GROUP BY type',
-  'SELECT country, COUNT(*) as count FROM sources GROUP BY country',
-  'SELECT date_content, title FROM contents ORDER BY date_content',
-  'SELECT date_analysis, classification FROM analyses ORDER BY date_analysis',
-  'SELECT s.name, COUNT(c.id) as content_count FROM sources s JOIN contents c ON c.sources_id = s.id GROUP BY s.id',
-  'SELECT c.title, COUNT(a.id) as analysis_count FROM contents c JOIN analyses a ON a.content_id = c.id GROUP BY c.id',
-  'SELECT * FROM sources WHERE country != ""',
-  'SELECT * FROM contents WHERE note != ""',
-  'SELECT * FROM sources ORDER BY date_creation DESC LIMIT 10',
-  'SELECT * FROM contents ORDER BY importance DESC LIMIT 10',
-  'SELECT * FROM analyses WHERE list_names_people != ""',
-  'SELECT * FROM analyses WHERE list_names_places != ""',
-  'SELECT * FROM analyses WHERE list_coordinates != ""',
-  'SELECT * FROM sources WHERE type = "website"',
-  'SELECT * FROM sources WHERE type = "person"',
-  'SELECT * FROM sources WHERE type = "organization"',
-  'SELECT * FROM contents WHERE sources_id != ""',
-  'SELECT * FROM analyses WHERE content_id != ""',
-  'SELECT * FROM sources ORDER BY name',
-  'SELECT * FROM contents ORDER BY title',
-  'SELECT * FROM analyses ORDER BY classification',
-  'SELECT name, type, importance, country FROM sources',
-  'SELECT title, importance, date_content FROM contents',
-  'SELECT classification, list_sides, date_analysis FROM analyses',
-  'SELECT * FROM sources WHERE importance > 0.8',
-  'SELECT * FROM sources WHERE importance < 0.3',
-];
+const SAVED_REPORTS_KEY = 'tam.savedReports';
 
 type ChartType = 'bar' | 'line' | 'pie' | 'area' | 'radar' | 'scatter';
 type Aggregation = 'count' | 'sum' | 'avg' | 'min' | 'max';
@@ -61,71 +30,14 @@ const SCHEME_COLORS: Record<ColorScheme, string[]> = {
   mixed: COLORS,
 };
 
-interface QueryResult { columns: string[]; rows: Record<string, unknown>[] }
-
-function runSimpleQuery(sql: string, data: ReturnType<typeof useAppData>['data']): QueryResult {
-  const s = sql.trim().toLowerCase();
-  let table: Record<string, unknown>[] = [];
-  if (s.includes('from sources')) table = data.sources as unknown as Record<string, unknown>[];
-  else if (s.includes('from contents')) table = data.contents as unknown as Record<string, unknown>[];
-  else if (s.includes('from analyses')) table = data.analyses as unknown as Record<string, unknown>[];
-
-  let rows = [...table];
-
-  // Basic WHERE
-  const whereMatch = s.match(/where\s+(\w+)\s*(>|<|=|!=|>=|<=)\s*([^\s]+)/);
-  if (whereMatch) {
-    const [, col, op, rawVal] = whereMatch;
-    const val = rawVal.replace(/['"]/g, '');
-    rows = rows.filter(r => {
-      const rv = String(r[col] ?? '');
-      const numVal = parseFloat(val);
-      if (op === '>' && !isNaN(numVal)) return parseFloat(rv) > numVal;
-      if (op === '<' && !isNaN(numVal)) return parseFloat(rv) < numVal;
-      if (op === '>=') return parseFloat(rv) >= numVal;
-      if (op === '<=') return parseFloat(rv) <= numVal;
-      if (op === '!=') return rv !== val;
-      if (op === '=') return rv === val;
-      return true;
-    });
-  }
-
-  // GROUP BY + COUNT
-  const groupMatch = s.match(/group\s+by\s+(\w+)/);
-  if (groupMatch) {
-    const groupCol = groupMatch[1];
-    const groups: Record<string, number> = {};
-    rows.forEach(r => { const k = String(r[groupCol] ?? '(empty)'); groups[k] = (groups[k] ?? 0) + 1; });
-    rows = Object.entries(groups).map(([key, count]) => ({ [groupCol]: key, count }));
-    return { columns: [groupCol, 'count'], rows };
-  }
-
-  // ORDER BY
-  const orderMatch = s.match(/order\s+by\s+(\w+)(\s+desc)?/);
-  if (orderMatch) {
-    const col = orderMatch[1]; const desc = !!orderMatch[2];
-    rows.sort((a, b) => { const av = String(a[col] ?? ''), bv = String(b[col] ?? ''); return desc ? bv.localeCompare(av) : av.localeCompare(bv); });
-  }
-
-  // LIMIT
-  const limitMatch = s.match(/limit\s+(\d+)/);
-  if (limitMatch) rows = rows.slice(0, parseInt(limitMatch[1]));
-
-  // SELECT columns
-  const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM/i);
-  if (selectMatch && selectMatch[1].trim() !== '*') {
-    const cols = selectMatch[1].split(',').map(c => c.trim().split(/\s+as\s+/i).pop()?.trim() ?? c.trim());
-    const srcCols = selectMatch[1].split(',').map(c => c.trim().split(' ')[0].trim());
-    rows = rows.map(r => {
-      const out: Record<string, unknown> = {};
-      cols.forEach((col, i) => { out[col] = r[srcCols[i]] ?? r[col]; });
-      return out;
-    });
-    return { columns: cols, rows };
-  }
-
-  const cols = rows[0] ? Object.keys(rows[0]) : [];
-  return { columns: cols, rows };
+interface QueryResult {
+  columns: string[];
+  rows: Record<string, unknown>[];
+  elapsedMs: number;
+  plan: string[];
+  scanned: number;
+  grouped: boolean;
+  sql: string;
 }
 
 const FIELDS = ['id','name','type','importance','country','city','description','link_sources','accounts','note','ownership',
@@ -138,11 +50,11 @@ interface VisualFilter { field: string; operator: string; value: string }
 
 export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
   const { t } = useTranslation();
-  const { data } = useAppData();
+  const { sql, printConfig } = useAppData();
   const r = t.sections.reports;
 
   const [queryMode, setQueryMode] = useState<'sql' | 'visual'>('sql');
-  const [sql, setSql] = useState('SELECT * FROM sources');
+  const [sqlText, setSqlText] = useState('SELECT * FROM sources ORDER BY importance DESC');
   const [visTable, setVisTable] = useState('sources');
   const [visFields, setVisFields] = useState('*');
   const [visFilters, setVisFilters] = useState<VisualFilter[]>([]);
@@ -163,36 +75,59 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
   const [reportTitle, setReportTitle] = useState('Untitled Report');
   const [includeChart, setIncludeChart] = useState(true);
 
-  const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
+  const [savedReports, setSavedReports] = useState<SavedReport[]>(() => {
+    try {
+      const raw = localStorage.getItem(SAVED_REPORTS_KEY);
+      return raw ? (JSON.parse(raw) as SavedReport[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [saveName, setSaveName] = useState('');
+  const [queryError, setQueryError] = useState<SqlError | null>(null);
+  const [showPlan, setShowPlan] = useState(false);
+  const [showSchema, setShowSchema] = useState(false);
 
   const printRef = useRef<HTMLDivElement>(null);
 
-  const generatedSQL = useMemo(() => {
-    const cols = visFields.trim() || '*';
-    let q = `SELECT ${cols} FROM ${visTable}`;
-    const whereParts = visFilters.filter(f => f.field && f.operator).map(f => {
-      if (f.operator === 'is_empty') return `${f.field} = ""`;
-      if (f.operator === 'is_not_empty') return `${f.field} != ""`;
-      if (f.operator === 'contains') return `${f.field} LIKE "%${f.value}%"`;
-      if (f.operator === 'starts_with') return `${f.field} LIKE "${f.value}%"`;
-      return `${f.field} ${f.operator} "${f.value}"`;
-    });
-    if (whereParts.length) q += ` WHERE ${whereParts.join(' AND ')}`;
-    if (visOrderBy) q += ` ORDER BY ${visOrderBy} ${visOrderDir}`;
-    if (visLimit) q += ` LIMIT ${visLimit}`;
-    return q;
-  }, [visTable, visFields, visFilters, visOrderBy, visOrderDir, visLimit]);
+  // The visual builder emits real SQL through the shared query compiler.
+  const generatedSQL = useMemo(
+    () =>
+      buildSql({
+        table: visTable,
+        fields: visFields.trim() && visFields.trim() !== '*' ? visFields.split(',').map(f => f.trim()).filter(Boolean) : [],
+        filters: visFilters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
+        orderBy: visOrderBy || undefined,
+        orderDir: visOrderDir,
+        limit: parseInt(visLimit) || undefined,
+      }),
+    [visTable, visFields, visFilters, visOrderBy, visOrderDir, visLimit],
+  );
+
+  const templates = useMemo(() => queryTemplates({ sources: [], contents: [], analyses: [], all_records: [] }), []);
+  const schemaInfo: TableInfo[] = useMemo(() => sql.schemaInfo(), [sql]);
 
   const runQuery = () => {
-    const q = queryMode === 'sql' ? sql : generatedSQL;
-    try {
-      const result = runSimpleQuery(q, data);
-      setQueryResult(result);
-      onToast(`Query returned ${result.rows.length} rows`);
-    } catch (e) {
-      onToast('Query error: ' + String(e));
+    const statement = queryMode === 'sql' ? sqlText : generatedSQL;
+    const outcome = sql.run(statement);
+    if (outcome.error) {
+      setQueryError(outcome.error);
+      setQueryResult(null);
+      onToast(outcome.error.message);
+      return;
     }
+    setQueryError(null);
+    const result = outcome.result!;
+    setQueryResult({
+      columns: result.columns,
+      rows: result.rows,
+      elapsedMs: result.elapsedMs,
+      plan: result.plan,
+      scanned: result.scanned,
+      grouped: result.grouped,
+      sql: statement,
+    });
+    onToast(t.messages.queryExecuted.replace('{n}', String(result.rows.length)));
   };
 
   const generateChart = () => {
@@ -214,15 +149,19 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
   const saveReport = () => {
     const rep: SavedReport = {
       id: generateId('rep'), name: saveName || reportTitle, date_creation: new Date().toISOString(),
-      sql: queryMode === 'sql' ? sql : generatedSQL, chartType, labelField, valueField,
+      sql: queryMode === 'sql' ? sqlText : generatedSQL, chartType, labelField, valueField,
     };
-    setSavedReports(rs => [rep, ...rs]);
+    setSavedReports(rs => {
+      const next = [rep, ...rs.filter(x => x.name !== rep.name)].slice(0, 50);
+      localStorage.setItem(SAVED_REPORTS_KEY, JSON.stringify(next));
+      return next;
+    });
     setSaveName('');
-    onToast('Report saved.');
+    onToast(t.messages.reportSaved);
   };
 
   const loadReport = (rep: SavedReport) => {
-    setSql(rep.sql); setQueryMode('sql');
+    setSqlText(rep.sql); setQueryMode('sql');
     setChartType(rep.chartType as ChartType);
     setLabelField(rep.labelField); setValueField(rep.valueField);
     setReportTitle(rep.name);
@@ -231,24 +170,49 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
 
   const deleteReport = (id: string) => setSavedReports(rs => rs.filter(r => r.id !== id));
 
-  const exportCSV = () => {
+  const exportAs = (format: ExportFormat) => {
     if (!queryResult) { onToast('No results to export.'); return; }
-    const header = queryResult.columns.join(',');
-    const rows = queryResult.rows.map(r => queryResult.columns.map(c => `"${String(r[c] ?? '').replace(/"/g, '""')}"`).join(','));
-    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${reportTitle}.csv`; a.click();
+    const artifact = exportData(queryResult.rows, {
+      columns: queryResult.columns.map(c => ({ key: c, label: c })),
+      format,
+      filename: reportTitle,
+      title: reportTitle,
+      subtitle: queryResult.sql.replace(/\s+/g, ' ').slice(0, 160),
+      headerLines: [printConfig.header1, printConfig.header2, printConfig.header3].filter(Boolean),
+      footerText: printConfig.footerText,
+      orientation: printConfig.orientation,
+      pageSize: printConfig.pageSize,
+    });
+    downloadArtifact(artifact);
+    onToast(`${artifact.filename} exported`);
   };
 
-  const exportJSON = () => {
-    if (!queryResult) { onToast('No results to export.'); return; }
-    const blob = new Blob([JSON.stringify(queryResult.rows, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${reportTitle}.json`; a.click();
+  const exportCSV = () => exportAs('csv');
+  const exportJSON = () => exportAs('json');
+  const exportExcel = () => exportAs('xlsx');
+  const exportPdf = () => exportAs('pdf');
+
+  const printReport = () => {
+    if (!queryResult) { onToast('Run a query first.'); return; }
+    const html = buildPrintDocument({
+      columns: queryResult.columns.map(c => ({ key: c, label: c })),
+      rows: queryResult.rows,
+      config: printConfig,
+      title: reportTitle,
+      subtitle: queryResult.sql.replace(/\s+/g, ' ').slice(0, 200),
+      preamble: `${queryResult.rows.length} rows \u00b7 ${queryResult.elapsedMs.toFixed(1)} ms \u00b7 ${queryResult.scanned} rows scanned`,
+    });
+    if (!printHtml(html)) onToast('Printing is not available in this browser context.');
   };
 
-  const printReport = () => window.print();
-
-  const fieldOpts = [{ value: '', label: '— Field —' }, ...FIELDS.map(f => ({ value: f, label: f }))];
-  const tableOpts = ['sources','contents','analyses'].map(t2 => ({ value: t2, label: t2 }));
+  const fieldOpts = [
+    { value: '', label: '— Field —' },
+    ...sqlColumns(visTable as EntityName).map(f => ({ value: f, label: f })),
+  ];
+  const tableOpts = [
+    ...(['sources', 'contents', 'analyses'] as EntityName[]).map(name => ({ value: name, label: name })),
+    { value: 'all_records', label: 'all_records (view)' },
+  ];
   const operatorOpts = OPERATORS.map(op => ({ value: op, label: op }));
   const chartOpts: { value: ChartType; label: string }[] = [
     { value: 'bar', label: 'Bar' }, { value: 'line', label: 'Line' }, { value: 'pie', label: 'Pie' },
@@ -272,12 +236,17 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center gap-1.5 px-3 py-2 shrink-0" style={{ background: 'var(--card-bg)', borderBottom: '1px solid var(--border)' }}>
-        <Btn size="xs" variant="ghost" onClick={() => { setSql('SELECT * FROM sources'); setQueryResult(null); setHasChart(false); }}>New</Btn>
+        <Btn size="xs" variant="ghost" onClick={() => { setSqlText('SELECT * FROM sources ORDER BY importance DESC'); setQueryResult(null); setHasChart(false); setQueryError(null); }}>New</Btn>
         <Btn size="xs" variant="ghost" onClick={saveReport}>Save</Btn>
         <div className="w-px h-4 mx-1" style={{ background: 'var(--border)' }} />
         <Btn size="xs" variant="ghost" onClick={printReport}>Print</Btn>
-        <Btn size="xs" variant="ghost" onClick={exportCSV}>Export CSV</Btn>
-        <Btn size="xs" variant="ghost" onClick={exportJSON}>Export JSON</Btn>
+        <Btn size="xs" variant="ghost" onClick={exportCSV}>CSV</Btn>
+        <Btn size="xs" variant="ghost" onClick={exportExcel}>Excel</Btn>
+        <Btn size="xs" variant="ghost" onClick={exportJSON}>JSON</Btn>
+        <Btn size="xs" variant="ghost" onClick={exportPdf}>PDF</Btn>
+        <div className="w-px h-4 mx-1" style={{ background: 'var(--border)' }} />
+        <Btn size="xs" variant="ghost" onClick={() => setShowSchema(v => !v)}>{showSchema ? 'Hide schema' : 'Schema'}</Btn>
+        <Btn size="xs" variant="ghost" onClick={() => setShowPlan(v => !v)} disabled={!queryResult}>Plan</Btn>
         <div className="flex-1" />
         {savedReports.length > 0 && (
           <select className="text-xs rounded px-2 py-1" style={{ background: 'var(--secondary-bg)', border: '1px solid var(--border)', color: 'var(--fg)' }}
@@ -304,18 +273,19 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
               {queryMode === 'sql' ? (
                 <>
                   <textarea
-                    value={sql} onChange={e => setSql(e.target.value)}
+                    value={sqlText} onChange={e => setSqlText(e.target.value)}
                     className="w-full h-24 text-xs rounded p-2 resize-none mb-2"
                     style={{ background: 'var(--secondary-bg)', border: '1px solid var(--border)', color: 'var(--fg)', fontFamily: 'var(--font-mono)' }}
                     spellCheck={false}
                   />
                   <div className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-fg)' }}>{r.templates}</div>
-                  <div className="flex flex-wrap gap-1">
-                    {SQL_TEMPLATES.slice(0, 18).map((tpl, i) => (
-                      <button key={i} onClick={() => setSql(tpl)}
-                        className="text-[9px] px-1.5 py-0.5 rounded"
+                  <div className="flex flex-col gap-1">
+                    {templates.map(tpl => (
+                      <button key={tpl.sql} onClick={() => setSqlText(tpl.sql)}
+                        className="text-[10px] px-1.5 py-1 rounded text-start truncate"
+                        title={tpl.sql}
                         style={{ background: 'var(--secondary-bg)', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
-                        {tpl.slice(7, 36).trim()}…
+                        {tpl.label}
                       </button>
                     ))}
                   </div>
@@ -343,7 +313,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                   <Btn size="xs" variant="ghost" onClick={() => setVisFilters(fs => [...fs, { field: '', operator: '=', value: '' }])}>{r.addFilter}</Btn>
                   <div className="flex gap-2 items-center">
                     <span className="text-xs w-12 shrink-0" style={{ color: 'var(--muted-fg)' }}>{r.orderBy}</span>
-                    <Select value={visOrderBy} onChange={e => setVisOrderBy(e.target.value)} options={[{ value: '', label: '—' }, ...FIELDS.map(f2 => ({ value: f2, label: f2 }))]} className="flex-1" />
+                    <Select value={visOrderBy} onChange={e => setVisOrderBy(e.target.value)} options={[{ value: '', label: '—' }, ...sqlColumns(visTable as EntityName).map(f2 => ({ value: f2, label: f2 }))]} className="flex-1" />
                     <Select value={visOrderDir} onChange={e => setVisOrderDir(e.target.value as 'ASC' | 'DESC')} options={[{ value: 'ASC', label: 'ASC' }, { value: 'DESC', label: 'DESC' }]} className="w-16" />
                   </div>
                   <div className="flex gap-2 items-center">
@@ -394,11 +364,54 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
               {queryResult && (
                 <span className="text-xs" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>
                   {queryResult.rows.length} {r.rows} × {queryResult.columns.length} {r.columns}
+                  {' · '}
+                  {queryResult.elapsedMs.toFixed(1)} ms
+                  {queryResult.grouped ? ' · grouped' : ''}
                 </span>
               )}
               <div className="flex-1" />
               {queryResult && <Btn size="xs" variant="ghost" onClick={generateChart}>Create Chart</Btn>}
             </div>
+
+            {/* Engine diagnostics: parse/runtime errors, execution plan, schema */}
+            {queryError && (
+              <div className="px-3 py-2 text-xs shrink-0" style={{ background: '#fef2f2', color: '#b91c1c', borderBottom: '1px solid #fecaca' }}>
+                <div className="font-semibold">{queryError.kind === 'syntax' ? 'SQL syntax error' : 'Query error'}</div>
+                <div style={{ fontFamily: 'var(--font-mono)' }}>{queryError.message}</div>
+                {queryError.hint && <div style={{ color: '#92400e' }}>Hint: {queryError.hint}</div>}
+              </div>
+            )}
+            {showPlan && queryResult && (
+              <div className="px-3 py-2 text-[11px] shrink-0" style={{ background: 'var(--secondary-bg)', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)' }}>
+                <div className="font-semibold mb-1" style={{ fontFamily: 'var(--font-body)', color: 'var(--muted-fg)' }}>
+                  Execution plan · {queryResult.scanned} rows scanned
+                </div>
+                {queryResult.plan.map((line) => (
+                  <div key={line}>{line}</div>
+                ))}
+              </div>
+            )}
+            {showSchema && (
+              <div className="px-3 py-2 text-[11px] shrink-0 overflow-auto" style={{ maxHeight: 160, background: 'var(--secondary-bg)', borderBottom: '1px solid var(--border)' }}>
+                {schemaInfo.map((table) => (
+                  <div key={table.name} className="mb-1.5">
+                    <button
+                      className="font-semibold"
+                      style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}
+                      onClick={() => setSqlText(`SELECT * FROM ${table.name} LIMIT 50`)}
+                      title={table.description}
+                    >
+                      {table.name}
+                    </button>
+                    <span style={{ color: 'var(--muted-fg)' }}>
+                      {' '}({table.rowCount} rows{table.kind === 'view' ? ' · view' : ''}) —{' '}
+                    </span>
+                    <span style={{ color: 'var(--muted-fg)' }}>{table.columns.map((c) => c.name).join(', ')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="flex-1 overflow-auto">
               {!queryResult ? (
                 <div className="flex items-center justify-center h-full text-xs" style={{ color: 'var(--muted-fg)' }}>{r.noResults}</div>

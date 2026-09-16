@@ -10,13 +10,15 @@ const TOPICS = [
 This application helps you collect, organize, and analyze research sources and content.
 
 **Navigation**
-Use the sidebar (or Ctrl+1–6) to switch between the six main workspaces:
+Use the sidebar (or Ctrl+1–8) to switch between the eight main workspaces:
 • Sources — Collect and organize information sources
 • Contents — Manage captured content items  
 • Analysis — Structured analysis records
 • All Data — Unified read-only view across all records
 • Timeline — Chronological view of all events
 • Reports — Advanced query and chart builder
+• Activity — Audit trail of every change, with undo/redo
+• Dictionary — Editable gazetteer, taxonomy and extraction test bed
 
 **Quick Add**
 Click the ＋ button in the header to quickly add a record to the current workspace.
@@ -164,6 +166,46 @@ Multi-condition builder with 10+ operators (=, !=, LIKE, >, <, IS NULL, etc.). R
 • Bulk Import — Append rows from a CSV file
 
 Access from the More (⋯) menu or the selection action bar when rows are selected.`,
+  },
+  {
+    id: 'activity',
+    title: 'Activity & Audit Trail',
+    content: `Every create, update, delete, bulk, import, restore, merge and reset is recorded.
+
+**What is stored**
+• Timestamp, actor, action and entity
+• Record id and title
+• Field-level diffs (before → after) for updates
+
+**Working with the log**
+• Filter by action, entity, date range or free text
+• Expand an entry to read the exact field changes
+• Undo / Redo the most recent workspace mutations
+• Export the filtered log as CSV for reporting
+
+The log is capped at 2,000 entries and travels inside every backup envelope.`,
+  },
+  {
+    id: 'dictionary',
+    title: 'Data Dictionary (extensibility)',
+    content: `The vocabulary behind automated extraction is user-editable — nothing is hardcoded.
+
+**Gazetteer**
+• Places, organizations and keywords used for entity matching
+• Add names with kind, country, coordinates and aliases
+• Adding an existing name extends it instead of replacing it
+• Built-in entries can be extended but not deleted
+
+**Taxonomy**
+• Classification categories and their keyword lists
+• Add, rename, edit keywords or reset to the built-in set
+
+**Extraction test**
+• Paste any document and see people, places, organizations, sides,
+  coordinates, dates and the winning classification with confidence
+
+Everything persists with the workspace and can be exported as JSON to share
+one vocabulary across a team.`,
   },
 ];
 

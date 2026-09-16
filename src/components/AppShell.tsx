@@ -9,6 +9,7 @@ import { HelpDialog } from './HelpDialog';
 import { PerformanceMonitor } from './PerformanceMonitor';
 import { PrintHeaderSettings } from './PrintHeaderSettings';
 import { AttachmentManager } from './AttachmentManager';
+import { ImportWizard } from './ImportWizard';
 import { InfoModal } from './FormModal';
 import { SearchInput } from './ui';
 import type { NavSection } from '../types';
@@ -48,6 +49,18 @@ const NAV_ICONS: Record<NavSection, React.ReactNode> = {
       <path d="M5.5 5v1.5M10.5 9.5V11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     </svg>
   ),
+  activity: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 8h3l1.5-4 2.5 8L11 8h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  dictionary: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 3h4.5A1.5 1.5 0 0 1 9 4.5V13a1.5 1.5 0 0 0-1.5-1.5H3V3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+      <path d="M13 3H8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M13 3v8.5H9" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+    </svg>
+  ),
   reports: (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="2" y="2.5" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
@@ -83,6 +96,8 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
   const [showHelp, setShowHelp] = useState(false);
   const [showPrintHeader, setShowPrintHeader] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [attachmentTarget, setAttachmentTarget] = useState<string | undefined>(undefined);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -115,6 +130,20 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+/**
+   * Views request the attachment manager through this event so the dialog can
+   * stay mounted once in the shell while still opening on a specific record.
+   */
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ contentId?: string }>).detail;
+      setAttachmentTarget(detail?.contentId);
+      setShowAttachments(true);
+    };
+    window.addEventListener('tam:open-attachments', handler);
+    return () => window.removeEventListener('tam:open-attachments', handler);
+  }, []);
+
   useEffect(() => {
     if (!settings.keyboardShortcuts) return;
     const handler = (e: KeyboardEvent) => {
@@ -125,6 +154,8 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
       else if (ctrl && e.key === '4') { e.preventDefault(); onSectionChange('allData'); }
       else if (ctrl && e.key === '5') { e.preventDefault(); onSectionChange('timeline'); }
       else if (ctrl && e.key === '6') { e.preventDefault(); onSectionChange('reports'); }
+      else if (ctrl && e.key === '7') { e.preventDefault(); onSectionChange('activity'); }
+      else if (ctrl && e.key === '8') { e.preventDefault(); onSectionChange('dictionary'); }
       else if (e.key === 'F1') { e.preventDefault(); setShowHelp(true); }
     };
     document.addEventListener('keydown', handler);
@@ -138,12 +169,14 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
     { id: 'allData', label: t.nav.allData, desc: t.nav.allDataDesc },
     { id: 'timeline', label: t.nav.timeline, desc: t.nav.timelineDesc },
     { id: 'reports', label: t.nav.reports, desc: t.nav.reportsDesc },
+    { id: 'activity', label: t.nav.activity, desc: t.nav.activityDesc },
+    { id: 'dictionary', label: t.nav.dictionary, desc: t.nav.dictionaryDesc },
   ];
 
   const opsItems = [
     { icon: '📎', label: t.ops.attachments, onClick: () => setShowAttachments(true) },
     { icon: '💾', label: t.ops.backup, onClick: () => setShowBackup(true) },
-    { icon: '📥', label: t.ops.importData, onClick: () => {} },
+    { icon: '📥', label: t.ops.importData, onClick: () => setShowImport(true) },
     { icon: '⚙', label: t.ops.settings, onClick: () => setShowSettings(true) },
     { icon: '?', label: t.ops.help, onClick: () => setShowShortcuts(true) },
   ];
@@ -242,9 +275,13 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
         <Dropdown open={toolsOpen} toggle={() => { setToolsOpen(o => !o); setHelpOpen(false); }} label={t.menus.tools} dropRef={toolsRef}>
           <DropItem icon="⚙" label={t.menus.settings} onClick={() => setShowSettings(true)} />
           <DropItem icon="💾" label={t.menus.backupRestore} onClick={() => setShowBackup(true)} />
+          <DropItem icon="📥" label={t.menus.importData} onClick={() => setShowImport(true)} />
+          <DropItem icon="📎" label={t.ops.attachments} onClick={() => setShowAttachments(true)} />
           <DropSep />
           <DropItem icon="📊" label={t.actions.loadSample} onClick={() => { loadSampleData(); setToastMsg(t.messages.loadingSample); }} />
-          <DropItem icon="🖨" label="Print Settings…" onClick={() => setShowPrintHeader(true)} />
+          <DropItem icon="🖨" label={t.menus.printSettings} onClick={() => setShowPrintHeader(true)} />
+          <DropItem icon="📚" label={t.nav.dictionary} onClick={() => onSectionChange('dictionary')} />
+          <DropItem icon="📈" label={t.nav.activity} onClick={() => onSectionChange('activity')} />
           <DropItem icon="⚡" label={t.menus.performanceMonitor} onClick={() => setShowPerf(true)} />
           <DropSep />
           <DropItem icon="🗑" label={t.menus.reset} onClick={() => setShowReset(true)} danger />
@@ -577,8 +614,14 @@ export function AppShell({ activeSection, onSectionChange, children, toast, onTo
         onResetAll={() => { clearAllData(); saveSettings({ theme: 'light', language: 'en' }); setToastMsg('Database reset complete.'); }}
       />
       <HelpDialog isOpen={showHelp} onClose={() => setShowHelp(false)} />
-      <PrintHeaderSettings isOpen={showPrintHeader} onClose={() => setShowPrintHeader(false)} />
-      <AttachmentManager isOpen={showAttachments} onClose={() => setShowAttachments(false)} />
+      <PrintHeaderSettings isOpen={showPrintHeader} onClose={() => setShowPrintHeader(false)} onToast={msg => setToastMsg(msg)} />
+      <AttachmentManager
+        isOpen={showAttachments}
+        onClose={() => setShowAttachments(false)}
+        onToast={msg => setToastMsg(msg)}
+        initialContentId={attachmentTarget}
+      />
+      <ImportWizard isOpen={showImport} onClose={() => setShowImport(false)} onToast={msg => setToastMsg(msg)} />
 
       {/* ── Toast notification ── */}
       <div
