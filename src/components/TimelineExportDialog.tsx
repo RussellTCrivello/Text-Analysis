@@ -1,7 +1,15 @@
+/**
+ * Timeline range export. Scope (current page / filtered / all) × any of the 13
+ * core export formats, produced by the same exporter used everywhere else.
+ */
 import React, { useState } from 'react';
 import { InfoModal } from './FormModal';
-import { Btn } from './ui';
-import type { TimelineEvent } from '../types';
+import { Btn, Field, Input, Select } from './ui';
+import { useTranslation } from '../i18n';
+import { useAppData } from '../store/AppContext';
+import { downloadArtifact, exportData, FORMAT_META, type ExportFormat } from '../core/export/exporters';
+import { timelineRows } from '../core/timeline';
+import type { TimelineEvent } from '../core/timeline';
 
 interface Props {
   isOpen: boolean;
@@ -9,91 +17,119 @@ interface Props {
   filteredEvents: TimelineEvent[];
   allEvents: TimelineEvent[];
   pageEvents: TimelineEvent[];
+  onToast?: (message: string) => void;
 }
 
 type Scope = 'filtered' | 'page' | 'all';
-type Format = 'csv' | 'json' | 'jsonl';
 
-export function TimelineExportDialog({ isOpen, onClose, filteredEvents, allEvents, pageEvents }: Props) {
+const COLUMNS = [
+  { key: 'date', label: 'Date' },
+  { key: 'type', label: 'Type' },
+  { key: 'title', label: 'Title' },
+  { key: 'summary', label: 'Summary' },
+  { key: 'source', label: 'Source' },
+  { key: 'people', label: 'People' },
+  { key: 'places', label: 'Places' },
+  { key: 'classification', label: 'Classification' },
+  { key: 'importance', label: 'Importance' },
+  { key: 'recordId', label: 'Record ID' },
+];
+
+export function TimelineExportDialog({ isOpen, onClose, filteredEvents, allEvents, pageEvents, onToast }: Props) {
+  const { t } = useTranslation();
+  const { printConfig } = useAppData();
   const [scope, setScope] = useState<Scope>('filtered');
-  const [format, setFormat] = useState<Format>('csv');
+  const [format, setFormat] = useState<ExportFormat>('csv');
   const [filename, setFilename] = useState('timeline_export');
-  const [includeHeader, setIncludeHeader] = useState(true);
-  const [openAfter, setOpenAfter] = useState(true);
+  const [columns, setColumns] = useState<string[]>(COLUMNS.slice(0, 7).map((c) => c.key));
+  const [bom, setBom] = useState(true);
 
   const events = scope === 'filtered' ? filteredEvents : scope === 'page' ? pageEvents : allEvents;
 
-  const handleExport = () => {
-    let content = '';
-    const ext = format === 'csv' ? '.csv' : format === 'json' ? '.json' : '.jsonl';
-    const fname = filename + ext;
-
-    if (format === 'csv') {
-      const header = 'id,type,date,title,summary,source,classification,people,places';
-      const rows = events.map(e => [e.id, e.type, e.date, `"${(e.title ?? '').replace(/"/g,'""')}"`, `"${(e.summary ?? '').replace(/"/g,'""')}"`, e.source, e.classification, e.list_names_people, e.list_names_places].join(','));
-      content = includeHeader ? [header, ...rows].join('\n') : rows.join('\n');
-    } else if (format === 'json') {
-      content = JSON.stringify({ export_date: new Date().toISOString(), record_count: events.length, records: events }, null, 2);
-    } else {
-      content = events.map(e => JSON.stringify(e)).join('\n');
+  const doExport = () => {
+    if (!events.length) {
+      onToast?.('Nothing to export.');
+      return;
     }
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; a.click();
-    if (openAfter) onClose();
+    const artifact = exportData(timelineRows(events), {
+      columns: COLUMNS.filter((c) => columns.includes(c.key)),
+      format,
+      filename,
+      title: 'Timeline',
+      subtitle: `${events.length} events · scope ${scope}`,
+      headerLines: [printConfig.header1, printConfig.header2, printConfig.header3].filter(Boolean),
+      footerText: printConfig.footerText,
+      bom,
+    });
+    downloadArtifact(artifact);
+    onToast?.(`${artifact.filename} exported`);
+    onClose();
   };
 
-  const radioOption = (label: string, val: Scope, count: number) => (
-    <label className="flex items-center gap-2 cursor-pointer text-sm">
-      <input type="radio" name="scope" value={val} checked={scope === val} onChange={() => setScope(val)} />
-      <span>{label}</span>
-      <span className="text-xs font-mono" style={{ color: 'var(--muted-fg)' }}>({count} events)</span>
-    </label>
-  );
+  const toggleColumn = (key: string) =>
+    setColumns((c) => (c.includes(key) ? c.filter((k) => k !== key) : [...c, key]));
 
   return (
-    <InfoModal isOpen={isOpen} title="Export Timeline" onClose={onClose} size="md">
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>Export Scope</div>
-          {radioOption('Filtered Data', 'filtered', filteredEvents.length)}
-          {radioOption('Current Page', 'page', pageEvents.length)}
-          {radioOption('All Data', 'all', allEvents.length)}
+    <InfoModal isOpen={isOpen} title={t.dialogs.exportDialog.title} onClose={onClose} size="md">
+      <div className="flex flex-col gap-4">
+        <Field label="Scope">
+          <Select
+            value={scope}
+            onChange={(e) => setScope(e.target.value as Scope)}
+            options={[
+              { value: 'page', label: `Current page (${pageEvents.length})` },
+              { value: 'filtered', label: `Filtered (${filteredEvents.length})` },
+              { value: 'all', label: `All events (${allEvents.length})` },
+            ]}
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t.dialogs.exportDialog.format}>
+            <Select
+              value={format}
+              onChange={(e) => setFormat(e.target.value as ExportFormat)}
+              options={Object.entries(FORMAT_META).map(([value, meta]) => ({
+                value,
+                label: meta.label,
+              }))}
+            />
+          </Field>
+          <Field label={t.dialogs.exportDialog.filename} error={filename ? undefined : 'Required'}>
+            <Input value={filename} onChange={(e) => setFilename(e.target.value)} />
+          </Field>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>Export Format</div>
-          {(['csv','json','jsonl'] as Format[]).map(f => (
-            <label key={f} className="flex items-center gap-2 cursor-pointer text-sm">
-              <input type="radio" name="format" value={f} checked={format === f} onChange={() => setFormat(f)} />
-              <span>{f.toUpperCase()} {f === 'csv' ? '.csv' : f === 'json' ? '.json (structured)' : '.jsonl (one object per line)'}</span>
-            </label>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>Options</div>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={includeHeader} onChange={e => setIncludeHeader(e.target.checked)} />
-            Include document header
-          </label>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={openAfter} onChange={e => setOpenAfter(e.target.checked)} />
-            Close dialog after export
-          </label>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <div className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>Filename</div>
-          <div className="flex items-center gap-2">
-            <input value={filename} onChange={e => setFilename(e.target.value)} className="flex-1 text-sm rounded px-2.5 py-1.5" style={{ background: 'var(--secondary-bg)', border: '1px solid var(--border)', color: 'var(--fg)', fontFamily: 'var(--font-mono)' }} />
-            <span className="text-xs" style={{ color: 'var(--muted-fg)' }}>.{format}</span>
+        <Field label={t.dialogs.exportDialog.columns}>
+          <div className="flex flex-wrap gap-2">
+            {COLUMNS.map((c) => (
+              <label
+                key={c.key}
+                className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs cursor-pointer"
+                style={{ background: columns.includes(c.key) ? 'var(--primary)' : 'var(--secondary-bg)', color: columns.includes(c.key) ? 'var(--primary-fg)' : 'var(--fg)' }}
+              >
+                <input type="checkbox" checked={columns.includes(c.key)} onChange={() => toggleColumn(c.key)} className="accent-current" />
+                {c.label}
+              </label>
+            ))}
           </div>
+        </Field>
+
+        <label className="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox" checked={bom} onChange={() => setBom(!bom)} />
+          Include UTF-8 BOM (Arabic/Excel safety)
+        </label>
+
+        <div className="text-xs rounded p-2" style={{ background: 'var(--secondary-bg)', color: 'var(--muted-fg)' }}>
+          {events.length} events will be written as {FORMAT_META[format].label}. Document formats (PDF/DOCX/HTML) use the
+          print header configured in settings.
         </div>
 
-        <div className="flex justify-end gap-2 pt-1">
-          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn onClick={handleExport} disabled={events.length === 0}>Export ({events.length} events)</Btn>
+        <div className="flex justify-end gap-2">
+          <Btn onClick={onClose}>{t.actions.cancel}</Btn>
+          <Btn variant="primary" onClick={doExport} disabled={!events.length || !filename.trim() || !columns.length}>
+            {t.actions.export}
+          </Btn>
         </div>
       </div>
     </InfoModal>

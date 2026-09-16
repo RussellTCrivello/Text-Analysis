@@ -1,266 +1,508 @@
-import React, { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import type { Analysis, AppData, BackupRecord, Content, Source } from '../types';
-import { generateId, sampleData } from '../data/sampleData';
+/**
+ * Application store.
+ *
+ * The React layer is a thin shell over `src/core`: every mutation goes through
+ * the Repository (validation → uniqueness/duplicate checks → cascade rules →
+ * audit entry → persistence), so the UI cannot write an invalid record even if
+ * a view forgets to check.
+ */
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import type { Analysis, AppData as TypedAppData, Content, Source } from '../types';
+import { sampleData } from '../data/sampleData';
+import { AuditLog, type AuditEntry } from '../core/audit';
+import { createAttachmentStore, type AttachmentStore } from '../core/attachments';
+import {
+  APP_VERSION,
+  createBackup,
+  mergeData,
+  verifyBackup,
+  type BackupEnvelope,
+  type MergePolicy,
+  type VerifyResult,
+} from '../core/backup';
+import { DEFAULT_TAXONOMY, extractFromText, type ExtractionResult, type TaxonomyRule } from '../core/extract/engine';
+import { VocabularyStore, type VocabularyEntry } from '../core/vocabulary';
+import { Gazetteer, type GazetteerEntry } from '../core/extract/gazetteer';
+import { createStorage } from '../core/persist';
+import { Repository, type AppData, type RepositoryStats, type Row, type WriteResult } from '../core/repository';
+import { ENTITY_ORDER, type EntityName } from '../core/schema';
+import type { ValidationIssue } from '../core/validation';
+import { normalizeRecord } from '../core/validation';
+import { formatBytes, id as makeId, timestamp } from '../core/text';
+import { LocalSavedSearchStore, type SavedSearch } from '../core/search';
+import { DEFAULT_PRINT_CONFIG, type PrintHeaderConfig } from '../core/print';
+import { exportData, type ExportArtifact } from '../core/export/exporters';
+import { SqlEngine, buildDatabase } from '../core/sql/engine';
 
-const STORAGE_KEY = 'tam_data';
-const BACKUPS_KEY = 'tam_backups';
+const BACKUPS_KEY = 'tam.backups.v3';
+const KNOWLEDGE_KEY = 'tam.knowledge.v3';
+const LEGACY_DATA_KEY = 'tam_data';
 
-function migrateRecord(r: Record<string, unknown>): Record<string, unknown> {
-  // Migrate old field names to current schema
-  const m = { ...r };
-  if ('link' in m && !('link_sources' in m)) { m.link_sources = m.link; delete m.link; }
-  if ('entryDate' in m && !('date_entry' in m)) { m.date_entry = m.entryDate; delete m.entryDate; }
-  if ('createdAt' in m && !('date_creation' in m)) { m.date_creation = m.createdAt; delete m.createdAt; }
-  if ('updatedAt' in m && !('date_modified' in m)) { m.date_modified = m.updatedAt; delete m.updatedAt; }
-  if ('text' in m && !('content_data' in m)) { m.content_data = m.text; delete m.text; }
-  if ('sourceId' in m && !('sources_id' in m)) { m.sources_id = m.sourceId; delete m.sourceId; }
-  if ('contentId' in m && !('content_id' in m)) { m.content_id = m.contentId; delete m.contentId; }
-  if ('people' in m && !('list_names_people' in m)) { m.list_names_people = m.people; delete m.people; }
-  if ('places' in m && !('list_names_places' in m)) { m.list_names_places = m.places; delete m.places; }
-  if ('coordinates' in m && !('list_coordinates' in m)) { m.list_coordinates = m.coordinates; delete m.coordinates; }
-  if ('parties' in m && !('list_sides' in m)) { m.list_sides = m.parties; delete m.parties; }
-  if ('date' in m && !('date_analysis' in m)) { m.date_analysis = m.date; delete m.date; }
-  if ('dateContent' in m && !('date_content' in m)) { m.date_content = m.dateContent; delete m.dateContent; }
-  // Normalize importance: old 1-5 integer scale → 0-1 float
-  if (typeof m.importance === 'number' && m.importance > 1) {
-    m.importance = Math.min(1, m.importance / 5);
+export interface BackupEntry {
+  id: string;
+  name: string;
+  date_creation: string;
+  envelope: BackupEnvelope;
+  data: TypedAppData;
+  sourceCount: number;
+  contentCount: number;
+  analysisCount: number;
+  bytes: number;
+  checksum: string;
+  note?: string;
+}
+
+interface KnowledgeState {
+  gazetteer: GazetteerEntry[];
+  taxonomy: TaxonomyRule[];
+  searches: SavedSearch[];
+  print: PrintHeaderConfig;
+  vocabulary: Record<string, VocabularyEntry[]>;
+}
+
+const EMPTY_KNOWLEDGE: KnowledgeState = {
+  gazetteer: [],
+  taxonomy: DEFAULT_TAXONOMY,
+  searches: [],
+  print: DEFAULT_PRINT_CONFIG,
+  vocabulary: {},
+};
+
+/** Field renames used by earlier builds of this workspace. */
+function migrateLegacyRecord(record: Record<string, unknown>): Record<string, unknown> {
+  const m: Record<string, unknown> = { ...record };
+  const renames: [string, string][] = [
+    ['link', 'link_sources'],
+    ['entryDate', 'date_entry'],
+    ['createdAt', 'date_creation'],
+    ['updatedAt', 'date_modified'],
+    ['text', 'content_data'],
+    ['sourceId', 'sources_id'],
+    ['contentId', 'content_id'],
+    ['people', 'list_names_people'],
+    ['places', 'list_names_places'],
+    ['coordinates', 'list_coordinates'],
+    ['parties', 'list_sides'],
+    ['date', 'date_analysis'],
+    ['dateContent', 'date_content'],
+  ];
+  for (const [from, to] of renames) {
+    if (from in m && !(to in m)) {
+      m[to] = m[from];
+      delete m[from];
+    }
   }
-  // Ensure required string fields exist
-  if (!('content_data' in m)) m.content_data = '';
-  if (!('link_sources' in m)) m.link_sources = '';
-  if (!('date_entry' in m)) m.date_entry = '';
-  if (!('date_creation' in m)) m.date_creation = new Date().toISOString();
-  if (!('date_modified' in m)) m.date_modified = new Date().toISOString();
+  if (typeof m.importance === 'number' && (m.importance as number) > 1) {
+    m.importance = Math.min(1, (m.importance as number) / 5);
+  }
   return m;
 }
 
-function loadData(): AppData {
+function loadLegacyData(): AppData | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
-        return {
-          sources: Array.isArray(parsed.sources) ? parsed.sources.map(migrateRecord) as unknown as Source[] : [],
-          contents: Array.isArray(parsed.contents) ? parsed.contents.map(migrateRecord) as unknown as Content[] : [],
-          analyses: Array.isArray(parsed.analyses) ? parsed.analyses.map(migrateRecord) as unknown as Analysis[] : [],
-        };
-      }
+    const raw = localStorage.getItem(LEGACY_DATA_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AppData>;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      sources: (parsed.sources ?? []).map(migrateLegacyRecord),
+      contents: (parsed.contents ?? []).map(migrateLegacyRecord),
+      analyses: (parsed.analyses ?? []).map(migrateLegacyRecord),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function createRepository(): Repository {
+  const repo = new Repository(createStorage());
+  if (repo.stats().total === 0) {
+    const legacy = loadLegacyData();
+    if (legacy && legacy.sources.length + legacy.contents.length + legacy.analyses.length > 0) {
+      repo.replaceAll(legacy, 'import', 'Migrated workspace data from the previous storage format');
     }
-  } catch {}
-  return { sources: [], contents: [], analyses: [] };
+  }
+  return repo;
 }
 
-function saveData(data: AppData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+function loadKnowledge(): KnowledgeState {
+  try {
+    const raw = localStorage.getItem(KNOWLEDGE_KEY);
+    if (!raw) return { ...EMPTY_KNOWLEDGE };
+    const parsed = JSON.parse(raw) as Partial<KnowledgeState>;
+    return {
+      gazetteer: Array.isArray(parsed.gazetteer) ? parsed.gazetteer : [],
+      taxonomy: Array.isArray(parsed.taxonomy) && parsed.taxonomy.length ? parsed.taxonomy : DEFAULT_TAXONOMY,
+      searches: Array.isArray(parsed.searches) ? parsed.searches : [],
+      print: { ...DEFAULT_PRINT_CONFIG, ...(parsed.print ?? {}) },
+      vocabulary: parsed.vocabulary && typeof parsed.vocabulary === 'object' ? parsed.vocabulary : {},
+    };
+  } catch {
+    return { ...EMPTY_KNOWLEDGE };
+  }
 }
 
-function loadBackups(): BackupRecord[] {
+function loadBackups(): BackupEntry[] {
   try {
     const raw = localStorage.getItem(BACKUPS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return [];
-}
-
-function saveBackups(backups: BackupRecord[]) {
-  localStorage.setItem(BACKUPS_KEY, JSON.stringify(backups));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as BackupEntry[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((b) => b && b.envelope);
+  } catch {
+    return [];
+  }
 }
 
 interface AppCtx {
-  data: AppData;
-  backups: BackupRecord[];
-  addSource: (s: Omit<Source, 'id' | 'date_creation' | 'date_modified'>) => void;
-  updateSource: (s: Source) => void;
-  deleteSource: (id: string) => void;
-  duplicateSource: (id: string) => void;
-  addContent: (c: Omit<Content, 'id' | 'date_creation' | 'date_modified'>) => void;
-  updateContent: (c: Content) => void;
-  deleteContent: (id: string) => void;
-  duplicateContent: (id: string) => void;
-  addAnalysis: (a: Omit<Analysis, 'id' | 'date_creation' | 'date_modified'>) => void;
-  updateAnalysis: (a: Analysis) => void;
-  deleteAnalysis: (id: string) => void;
-  duplicateAnalysis: (id: string) => void;
-  bulkDeleteSources: (ids: string[]) => void;
-  bulkDeleteContents: (ids: string[]) => void;
-  bulkDeleteAnalyses: (ids: string[]) => void;
+  data: TypedAppData;
+  repo: Repository;
+  stats: RepositoryStats;
+  audit: AuditEntry[];
+
+  /* CRUD */
+  addSource: (s: Partial<Source>) => WriteResult;
+  updateSource: (s: Partial<Source> & { id: string }) => WriteResult;
+  deleteSource: (id: string) => WriteResult;
+  duplicateSource: (id: string) => WriteResult;
+  addContent: (c: Partial<Content>) => WriteResult;
+  updateContent: (c: Partial<Content> & { id: string }) => WriteResult;
+  deleteContent: (id: string) => WriteResult;
+  duplicateContent: (id: string) => WriteResult;
+  addAnalysis: (a: Partial<Analysis>) => WriteResult;
+  updateAnalysis: (a: Partial<Analysis> & { id: string }) => WriteResult;
+  deleteAnalysis: (id: string) => WriteResult;
+  duplicateAnalysis: (id: string) => WriteResult;
+  bulkDeleteSources: (ids: string[]) => WriteResult;
+  bulkDeleteContents: (ids: string[]) => WriteResult;
+  bulkDeleteAnalyses: (ids: string[]) => WriteResult;
+  bulkUpdate: (entity: EntityName, ids: string[], patch: Row) => WriteResult;
+  validate: (entity: EntityName, values: Row, editingId?: string) => ValidationIssue[];
+
+  /* history */
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+
+  /* workspace */
   loadSampleData: () => void;
   clearAllData: () => void;
-  createBackup: (name?: string) => void;
+  importRows: (entity: EntityName, rows: Row[]) => { inserted: number; issues: ValidationIssue[] };
+
+  /* backups */
+  backups: BackupEntry[];
+  createBackup: (name?: string, note?: string) => BackupEntry;
   restoreBackup: (id: string) => void;
-  mergeBackup: (id: string) => void;
+  mergeBackup: (id: string, policy?: MergePolicy) => void;
   deleteBackup: (id: string) => void;
-  restoreFromRaw: (data: AppData, merge?: boolean) => void;
-  importData: (data: Partial<AppData>, merge?: boolean) => void;
+  restoreFromRaw: (data: TypedAppData, merge?: boolean, policy?: MergePolicy) => void;
+  verifyBackupFile: (text: string) => VerifyResult;
+  importBackupFile: (text: string, policy: MergePolicy) => VerifyResult;
+  exportBackupFile: (id: string) => ExportArtifact | null;
+  importData: (data: Partial<TypedAppData>, merge?: boolean) => void;
+
+  /* knowledge */
+  gazetteer: Gazetteer;
+  /** User-editable option lists (sources.type, analyses.classification, …). */
+  vocabulary: VocabularyStore;
+  vocabularyTick: number;
+  addVocabularyValue: (key: string, value: string) => { entry: VocabularyEntry; created: boolean; reason?: string };
+  removeVocabularyValue: (key: string, value: string, inUse?: number) => { ok: boolean; reason?: string };
+  renameVocabularyValue: (key: string, from: string, to: string) => { ok: boolean; canonical?: string; reason?: string };
+  taxonomy: TaxonomyRule[];
+  setTaxonomy: (rules: TaxonomyRule[]) => void;
+  addGazetteerEntry: (entry: GazetteerEntry) => void;
+  removeGazetteerEntry: (name: string) => boolean;
+  extract: (text: string) => ExtractionResult;
+
+  /* saved searches + print settings */
+  searches: LocalSavedSearchStore;
+  printConfig: PrintHeaderConfig;
+  setPrintConfig: (patch: Partial<PrintHeaderConfig>) => void;
+
+  /* attachments */
+  attachments: AttachmentStore;
+
+  /* sql */
+  sql: SqlEngine;
 }
 
-const emptyData: AppData = { sources: [], contents: [], analyses: [] };
-const AppContext = createContext<AppCtx>({
-  data: emptyData, backups: [],
-  addSource: () => {}, updateSource: () => {}, deleteSource: () => {}, duplicateSource: () => {},
-  addContent: () => {}, updateContent: () => {}, deleteContent: () => {}, duplicateContent: () => {},
-  addAnalysis: () => {}, updateAnalysis: () => {}, deleteAnalysis: () => {}, duplicateAnalysis: () => {},
-  bulkDeleteSources: () => {}, bulkDeleteContents: () => {}, bulkDeleteAnalyses: () => {},
-  loadSampleData: () => {}, clearAllData: () => {},
-  createBackup: () => {}, restoreBackup: () => {}, mergeBackup: () => {}, deleteBackup: () => {},
-  restoreFromRaw: () => {}, importData: () => {},
-});
+const noopResult: WriteResult = { ok: true, issues: [] };
+
+const AppContext = createContext<AppCtx | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [data, setDataState] = useState<AppData>(loadData);
-  const [backups, setBackupsState] = useState<BackupRecord[]>(loadBackups);
+  const repoRef = useRef<Repository | null>(null);
+  if (!repoRef.current) repoRef.current = createRepository();
+  const repo = repoRef.current;
 
-  const setData = useCallback((fn: (prev: AppData) => AppData) => {
-    setDataState(prev => {
-      const next = fn(prev);
-      saveData(next);
-      return next;
+  const [snapshot, setSnapshot] = useState<AppData>(() => repo.all());
+  const [auditTick, setAuditTick] = useState(0);
+  const [backups, setBackups] = useState<BackupEntry[]>(loadBackups);
+  const [knowledge, setKnowledge] = useState<KnowledgeState>(loadKnowledge);
+  const [searches] = useState(() => new LocalSavedSearchStore('tam.searches', loadKnowledge().searches));
+  const [attachments] = useState<AttachmentStore>(() => createAttachmentStore());
+
+  /* keep React in sync with the repository */
+  useEffect(() => {
+    const unsubscribe = repo.subscribe(() => {
+      setSnapshot(repo.all());
+      setAuditTick((n) => n + 1);
     });
-  }, []);
+    return unsubscribe;
+  }, [repo]);
 
-  const setBackups = useCallback((fn: (prev: BackupRecord[]) => BackupRecord[]) => {
-    setBackupsState(prev => {
-      const next = fn(prev);
-      saveBackups(next);
-      return next;
-    });
-  }, []);
+  const gazetteer = useMemo(() => Gazetteer.fromJSON(knowledge.gazetteer), [knowledge.gazetteer]);
+  const vocabulary = useMemo(() => VocabularyStore.fromJSON(knowledge.vocabulary), [knowledge.vocabulary]);
+  // Bumped whenever a vocabulary changes so consumers re-render their option lists.
+  const [vocabularyTick, setVocabularyTick] = useState(0);
+  useEffect(() => vocabulary.subscribe(() => setVocabularyTick((n) => n + 1)), [vocabulary]);
 
-  const now = () => new Date().toISOString();
+  useEffect(() => {
+    localStorage.setItem(BACKUPS_KEY, JSON.stringify(backups));
+  }, [backups]);
 
-  const addSource = (s: Omit<Source, 'id' | 'date_creation' | 'date_modified'>) =>
-    setData(d => ({ ...d, sources: [...d.sources, { ...s, id: generateId('s'), date_creation: now(), date_modified: now() }] }));
+  useEffect(() => {
+    localStorage.setItem(
+      KNOWLEDGE_KEY,
+      JSON.stringify({
+        gazetteer: knowledge.gazetteer,
+        taxonomy: knowledge.taxonomy,
+        searches: searches.toJSON(),
+        print: knowledge.print,
+        vocabulary: vocabulary.toJSON(),
+      } satisfies KnowledgeState),
+    );
+  }, [knowledge, searches, auditTick, vocabulary, vocabularyTick]);
 
-  const updateSource = (s: Source) =>
-    setData(d => ({ ...d, sources: d.sources.map(x => x.id === s.id ? { ...s, date_modified: now() } : x) }));
-
-  const deleteSource = (id: string) =>
-    setData(d => ({ ...d, sources: d.sources.filter(x => x.id !== id) }));
-
-  const duplicateSource = (id: string) =>
-    setData(d => {
-      const orig = d.sources.find(x => x.id === id);
-      if (!orig) return d;
-      return { ...d, sources: [...d.sources, { ...orig, id: generateId('s'), name: orig.name + ' (Copy)', date_creation: now(), date_modified: now() }] };
-    });
-
-  const addContent = (c: Omit<Content, 'id' | 'date_creation' | 'date_modified'>) =>
-    setData(d => ({ ...d, contents: [...d.contents, { ...c, id: generateId('c'), date_creation: now(), date_modified: now() }] }));
-
-  const updateContent = (c: Content) =>
-    setData(d => ({ ...d, contents: d.contents.map(x => x.id === c.id ? { ...c, date_modified: now() } : x) }));
-
-  const deleteContent = (id: string) =>
-    setData(d => ({ ...d, contents: d.contents.filter(x => x.id !== id) }));
-
-  const duplicateContent = (id: string) =>
-    setData(d => {
-      const orig = d.contents.find(x => x.id === id);
-      if (!orig) return d;
-      return { ...d, contents: [...d.contents, { ...orig, id: generateId('c'), title: orig.title + ' (Copy)', date_creation: now(), date_modified: now() }] };
-    });
-
-  const addAnalysis = (a: Omit<Analysis, 'id' | 'date_creation' | 'date_modified'>) =>
-    setData(d => ({ ...d, analyses: [...d.analyses, { ...a, id: generateId('a'), date_creation: now(), date_modified: now() }] }));
-
-  const updateAnalysis = (a: Analysis) =>
-    setData(d => ({ ...d, analyses: d.analyses.map(x => x.id === a.id ? { ...a, date_modified: now() } : x) }));
-
-  const deleteAnalysis = (id: string) =>
-    setData(d => ({ ...d, analyses: d.analyses.filter(x => x.id !== id) }));
-
-  const duplicateAnalysis = (id: string) =>
-    setData(d => {
-      const orig = d.analyses.find(x => x.id === id);
-      if (!orig) return d;
-      return { ...d, analyses: [...d.analyses, { ...orig, id: generateId('a'), date_creation: now(), date_modified: now() }] };
-    });
-
-  const bulkDeleteSources = (ids: string[]) =>
-    setData(d => ({ ...d, sources: d.sources.filter(x => !ids.includes(x.id)) }));
-
-  const bulkDeleteContents = (ids: string[]) =>
-    setData(d => ({ ...d, contents: d.contents.filter(x => !ids.includes(x.id)) }));
-
-  const bulkDeleteAnalyses = (ids: string[]) =>
-    setData(d => ({ ...d, analyses: d.analyses.filter(x => !ids.includes(x.id)) }));
-
-  const loadSampleData = () => setData(() => ({ ...sampleData }));
-  const clearAllData = () => setData(() => ({ sources: [], contents: [], analyses: [] }));
-
-  const createBackup = (name?: string) => {
-    const rec: BackupRecord = {
-      id: generateId('bk'),
-      name: name ?? `backup_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`,
-      date_creation: now(),
-      data: { ...data },
-      sourceCount: data.sources.length,
-      contentCount: data.contents.length,
-      analysisCount: data.analyses.length,
-    };
-    setBackups(bs => [rec, ...bs]);
-  };
-
-  const restoreBackup = (id: string) => {
-    const bk = backups.find(b => b.id === id);
-    if (bk) setData(() => ({ ...bk.data }));
-  };
-
-  const mergeBackup = (id: string) => {
-    const bk = backups.find(b => b.id === id);
-    if (!bk) return;
-    setData(d => ({
-      sources: [...d.sources, ...bk.data.sources.filter(s => !d.sources.find(x => x.id === s.id))],
-      contents: [...d.contents, ...bk.data.contents.filter(c => !d.contents.find(x => x.id === c.id))],
-      analyses: [...d.analyses, ...bk.data.analyses.filter(a => !d.analyses.find(x => x.id === a.id))],
-    }));
-  };
-
-  const deleteBackup = (id: string) => setBackups(bs => bs.filter(b => b.id !== id));
-
-  const restoreFromRaw = (raw: AppData, merge = false) => {
-    if (merge) {
-      setData(d => ({
-        sources: [...d.sources, ...raw.sources.filter(s => !d.sources.find(x => x.id === s.id))],
-        contents: [...d.contents, ...raw.contents.filter(c => !d.contents.find(x => x.id === c.id))],
-        analyses: [...d.analyses, ...raw.analyses.filter(a => !d.analyses.find(x => x.id === a.id))],
-      }));
-    } else {
-      setData(() => raw);
-    }
-  };
-
-  const importData = (partial: Partial<AppData>, merge = true) => {
-    setData(d => ({
-      sources: merge
-        ? [...d.sources, ...(partial.sources ?? []).filter(s => !d.sources.find(x => x.id === s.id))]
-        : (partial.sources ?? d.sources),
-      contents: merge
-        ? [...d.contents, ...(partial.contents ?? []).filter(c => !d.contents.find(x => x.id === c.id))]
-        : (partial.contents ?? d.contents),
-      analyses: merge
-        ? [...d.analyses, ...(partial.analyses ?? []).filter(a => !d.analyses.find(x => x.id === a.id))]
-        : (partial.analyses ?? d.analyses),
-    }));
-  };
-
-  return (
-    <AppContext.Provider value={{
-      data, backups,
-      addSource, updateSource, deleteSource, duplicateSource,
-      addContent, updateContent, deleteContent, duplicateContent,
-      addAnalysis, updateAnalysis, deleteAnalysis, duplicateAnalysis,
-      bulkDeleteSources, bulkDeleteContents, bulkDeleteAnalyses,
-      loadSampleData, clearAllData,
-      createBackup, restoreBackup, mergeBackup, deleteBackup,
-      restoreFromRaw, importData,
-    }}>
-      {children}
-    </AppContext.Provider>
+  const typedData = useMemo<TypedAppData>(
+    () => ({
+      sources: snapshot.sources as unknown as Source[],
+      contents: snapshot.contents as unknown as Content[],
+      analyses: snapshot.analyses as unknown as Analysis[],
+    }),
+    [snapshot],
   );
+
+  const stats = useMemo(() => repo.stats(), [snapshot, auditTick, repo]);
+  const audit = useMemo(() => repo.audit.list(), [auditTick, repo]);
+
+  const sql = useMemo(
+    () =>
+      new SqlEngine(() =>
+        buildDatabase({
+          sources: snapshot.sources,
+          contents: snapshot.contents,
+          analyses: snapshot.analyses,
+          allRecords: repo.allRecords(),
+        }),
+      ),
+    [snapshot, repo],
+  );
+
+  /* ---------------------------------- CRUD --------------------------------- */
+
+  const add = useCallback((entity: EntityName, values: Row) => repo.insert(entity, values, { detectDuplicates: true }), [repo]);
+  const update = useCallback((entity: EntityName, values: Row) => repo.update(entity, values, { detectDuplicates: true }), [repo]);
+
+  const api = useMemo<AppCtx>(() => {
+    const typedWrite = (result: WriteResult): WriteResult => result;
+
+    const backupToEntry = (envelope: BackupEnvelope, id = makeId('bk')): BackupEntry => ({
+      id,
+      name: envelope.name,
+      date_creation: envelope.createdAt,
+      envelope,
+      data: envelope.data as unknown as TypedAppData,
+      sourceCount: envelope.counts.sources,
+      contentCount: envelope.counts.contents,
+      analysisCount: envelope.counts.analyses,
+      bytes: JSON.stringify(envelope).length,
+      checksum: envelope.checksum,
+      note: envelope.note,
+    });
+
+    return {
+      data: typedData,
+      repo,
+      stats,
+      audit,
+
+      addSource: (s) => typedWrite(add('sources', s as Row)),
+      updateSource: (s) => typedWrite(update('sources', s as Row)),
+      deleteSource: (id) => repo.remove('sources', id),
+      duplicateSource: (id) => repo.duplicate('sources', id),
+      addContent: (c) => typedWrite(add('contents', c as Row)),
+      updateContent: (c) => typedWrite(update('contents', c as Row)),
+      deleteContent: (id) => repo.remove('contents', id),
+      duplicateContent: (id) => repo.duplicate('contents', id),
+      addAnalysis: (a) => typedWrite(add('analyses', a as Row)),
+      updateAnalysis: (a) => typedWrite(update('analyses', a as Row)),
+      deleteAnalysis: (id) => repo.remove('analyses', id),
+      duplicateAnalysis: (id) => repo.duplicate('analyses', id),
+      bulkDeleteSources: (ids) => repo.bulkDelete('sources', ids),
+      bulkDeleteContents: (ids) => repo.bulkDelete('contents', ids),
+      bulkDeleteAnalyses: (ids) => repo.bulkDelete('analyses', ids),
+      bulkUpdate: (entity, ids, patch) => repo.bulkUpdate(entity, ids, patch),
+      validate: (entity, values, editingId) => repo.validate(entity, values, { editingId, detectDuplicates: true }),
+
+      undo: () => repo.undo(),
+      redo: () => repo.redo(),
+      canUndo: repo.canUndo(),
+      canRedo: repo.canRedo(),
+
+      loadSampleData: () => repo.replaceAll(sampleData as unknown as AppData, 'load_sample', 'Loaded the sample dataset'),
+      clearAllData: () => repo.clear(),
+      importRows: (entity, rows) => repo.insertMany(entity, rows, { action: 'import', validate: true }),
+
+      backups,
+      createBackup: (name, note) => {
+        const envelope = createBackup(repo.all(), {
+          name,
+          note,
+          audit: repo.audit as AuditLog,
+          gazetteer: gazetteer.toJSON(),
+          taxonomy: knowledge.taxonomy,
+        });
+        const entry = backupToEntry(envelope);
+        setBackups((prev) => [entry, ...prev]);
+        repo.audit.record({
+          action: 'restore',
+          entity: 'workspace',
+          recordId: entry.id,
+          title: entry.name,
+          summary: `Created backup with ${envelope.counts.sources} sources, ${envelope.counts.contents} contents, ${envelope.counts.analyses} analyses`,
+        });
+        setAuditTick((n) => n + 1);
+        return entry;
+      },
+      restoreBackup: (id) => {
+        const entry = backups.find((b) => b.id === id);
+        if (!entry) return;
+        repo.replaceAll(entry.envelope.data, 'restore', `Restored backup "${entry.name}"`);
+      },
+      mergeBackup: (id, policy = 'skip') => {
+        const entry = backups.find((b) => b.id === id);
+        if (!entry) return;
+        const result = mergeData(repo.all(), entry.envelope.data, policy);
+        repo.replaceAll(result.data, 'merge', `Merged backup "${entry.name}" (${policy})`);
+      },
+      deleteBackup: (id) => setBackups((prev) => prev.filter((b) => b.id !== id)),
+      restoreFromRaw: (raw, merge = false, policy: MergePolicy = 'skip') => {
+        const incoming = {
+          sources: (raw.sources ?? []) as unknown as Row[],
+          contents: (raw.contents ?? []) as unknown as Row[],
+          analyses: (raw.analyses ?? []) as unknown as Row[],
+        };
+        if (merge) {
+          const result = mergeData(repo.all(), incoming, policy);
+          repo.replaceAll(result.data, 'merge', `Merged imported dataset (${policy})`);
+        } else {
+          repo.replaceAll(incoming, 'restore', 'Restored imported dataset');
+        }
+      },
+      verifyBackupFile: (text) => {
+        try {
+          return verifyBackup(JSON.parse(text));
+        } catch (err) {
+          return { ok: false, errors: [`Could not read the file: ${String(err)}`], warnings: [] };
+        }
+      },
+      importBackupFile: (text, policy) => {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(text);
+        } catch (err) {
+          return { ok: false, errors: [`Could not read the file: ${String(err)}`], warnings: [] };
+        }
+        const result = verifyBackup(parsed);
+        if (!result.ok || !result.envelope) return result;
+        const entry = backupToEntry(result.envelope);
+        setBackups((prev) => [entry, ...prev]);
+        if (policy === 'skip' || policy === 'replace' || policy === 'duplicate') {
+          const merged = mergeData(repo.all(), result.envelope.data, policy);
+          repo.replaceAll(merged.data, 'merge', `Imported backup file "${entry.name}" (${policy})`);
+        } else {
+          repo.replaceAll(result.envelope.data, 'restore', `Imported backup file "${entry.name}"`);
+        }
+        return result;
+      },
+      exportBackupFile: (id) => {
+        const entry = backups.find((b) => b.id === id);
+        if (!entry) return null;
+        const json = JSON.stringify(entry.envelope, null, 2);
+        return exportData(
+          [{ backup: json }],
+          { columns: [{ key: 'backup', label: 'backup' }], format: 'json', filename: entry.name },
+        );
+      },
+      importData: (partial, merge = true) => {
+        const incoming = {
+          sources: (partial.sources ?? []) as unknown as Row[],
+          contents: (partial.contents ?? []) as unknown as Row[],
+          analyses: (partial.analyses ?? []) as unknown as Row[],
+        };
+        if (!merge) {
+          repo.replaceAll(incoming, 'import', 'Imported dataset');
+          return;
+        }
+        const result = mergeData(repo.all(), incoming, 'skip');
+        repo.replaceAll(result.data, 'import', 'Merged imported dataset');
+      },
+
+      gazetteer,
+      vocabulary,
+      vocabularyTick,
+      addVocabularyValue: (key, value) => vocabulary.add(key, value),
+      removeVocabularyValue: (key, value, inUse = 0) => vocabulary.remove(key, value, inUse),
+      renameVocabularyValue: (key, from, to) => vocabulary.rename(key, from, to),
+      taxonomy: knowledge.taxonomy,
+      setTaxonomy: (rules) => setKnowledge((k) => ({ ...k, taxonomy: rules })),
+      addGazetteerEntry: (entry) => {
+        gazetteer.upsert(entry);
+        setKnowledge((k) => ({ ...k, gazetteer: gazetteer.toJSON().filter((e) => !e.builtin) }));
+      },
+      removeGazetteerEntry: (name) => {
+        const removed = gazetteer.remove(name);
+        if (removed) setKnowledge((k) => ({ ...k, gazetteer: gazetteer.toJSON().filter((e) => !e.builtin) }));
+        return removed;
+      },
+      extract: (text) => extractFromText(text, { gazetteer, taxonomy: knowledge.taxonomy }),
+
+      searches,
+      printConfig: knowledge.print,
+      setPrintConfig: (patch) => setKnowledge((k) => ({ ...k, print: { ...k.print, ...patch } })),
+
+      attachments,
+      sql,
+    };
+  }, [typedData, stats, audit, backups, knowledge, gazetteer, vocabulary, vocabularyTick, repo, searches, attachments, sql, add, update, auditTick]);
+
+  void noopResult;
+
+  return <AppContext.Provider value={api}>{children}</AppContext.Provider>;
 }
 
-export function useAppData() {
-  return useContext(AppContext);
+export function useAppData(): AppCtx {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useAppData must be used inside <AppProvider>');
+  return ctx;
 }
+
+/** Convenience hook for views that only need the records. */
+export function useRecords(): TypedAppData {
+  return useAppData().data;
+}
+
+export { APP_VERSION, formatBytes, normalizeRecord, timestamp, ENTITY_ORDER };
+export type { BackupEnvelope, MergePolicy, VerifyResult, ValidationIssue, SavedSearch, GazetteerEntry, TaxonomyRule };

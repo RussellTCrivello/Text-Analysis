@@ -3,6 +3,11 @@ import { DataTable, type Column } from '../components/DataTable';
 import { InfoModal } from '../components/FormModal';
 import { Btn, Toolbar, ToolbarSep, SearchInput, DateInput, FilterRow, ResultsStrip, FullTextPreview, PaginationBar, RecordTypeBadge, ImportanceBar, Select, MoreMenu } from '../components/ui';
 import { ExportDialog } from '../components/ExportDialog';
+import { AdvancedSearch } from '../components/AdvancedSearch';
+import { freeTextSearch, applyDateFilter } from '../core/search';
+import { formatDateTime } from '../core/text';
+import { buildPrintDocument, printHtml } from '../core/print';
+import type { Row } from '../core/repository';
 import { useAppData } from '../store/AppContext';
 import { useSettings } from '../store/SettingsContext';
 import { useTranslation } from '../i18n';
@@ -27,7 +32,9 @@ interface UnifiedRecord {
 export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string) => void; onGenerateReport?: (records: UnifiedRecord[]) => void }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
-  const { data } = useAppData();
+  const { data, printConfig } = useAppData();
+  const [showAdvSearch, setShowAdvSearch] = useState(false);
+  const [advancedIds, setAdvancedIds] = useState<string[] | null>(null);
   const [typeFilter, setTypeFilter] = useState<RecordType | 'all'>('all');
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -68,15 +75,11 @@ export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string
   }, [data]);
 
   const filtered = useMemo(() => {
-    return allRecords.filter(r => {
-      if (typeFilter !== 'all' && r.recordType !== typeFilter) return false;
-      const q = search.toLowerCase();
-      if (q && !Object.values(r).some(v => String(v).toLowerCase().includes(q))) return false;
-      if (dateFrom && r.date < dateFrom) return false;
-      if (dateTo && r.date > dateTo) return false;
-      return true;
-    });
-  }, [allRecords, typeFilter, search, dateFrom, dateTo]);
+    const byType = typeFilter === 'all' ? allRecords : allRecords.filter(r => r.recordType === typeFilter);
+    const byAdvanced = advancedIds ? byType.filter(r => advancedIds.includes(r.id)) : byType;
+    const byText = freeTextSearch(byAdvanced as unknown as Row[], search);
+    return applyDateFilter(byText, dateFrom || null, dateTo || null, ['date', 'date_creation']) as unknown as UnifiedRecord[];
+  }, [allRecords, typeFilter, search, dateFrom, dateTo, advancedIds]);
 
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
   const selected = filtered.find(r => r.id === selectedId) ?? null;
@@ -99,8 +102,12 @@ export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string
       render: r => r.classification ? <span className="text-xs">{r.classification}</span> : <span style={{ color: 'var(--muted-fg)' }}>—</span> },
     { key: 'importance', header: t.fields.importance, width: '110px', sortable: true,
       render: r => r.importance > 0 ? <ImportanceBar value={r.importance} /> : <span style={{ color: 'var(--muted-fg)' }}>—</span> },
-    { key: 'date', header: t.fields.date, width: '90px', sortable: true,
-      render: r => <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{r.date || '—'}</span> },
+    { key: 'date', header: t.fields.date, width: '150px', sortable: true,
+      render: r => (
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8em' }} title={formatDateTime(r.date)}>
+          {r.date ? formatDateTime(r.date) : '—'}
+        </span>
+      ) },
   ];
 
   const exportColumns = [
@@ -111,8 +118,31 @@ export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string
   ];
 
   const moreItems = [
+    { label: t.actions.advancedSearch, icon: '🔍', onClick: () => setShowAdvSearch(true) },
     { label: t.actions.generateReport, icon: '📊', onClick: () => { onGenerateReport?.(filtered); onToast('Data sent to Reports.'); } },
   ];
+
+  const advFields = [
+    { value: 'title', label: t.fields.title },
+    { value: 'sourceName', label: t.fields.sourceName },
+    { value: 'recordType', label: t.fields.recordType },
+    { value: 'classification', label: t.fields.classification },
+    { value: 'importance', label: t.fields.importance },
+    { value: 'list_names_people', label: t.fields.list_names_people },
+    { value: 'list_names_places', label: t.fields.list_names_places },
+    { value: 'date', label: t.fields.date },
+  ];
+
+  const handlePrint = () => {
+    const html = buildPrintDocument({
+      columns: exportColumns,
+      rows: filtered as unknown as Record<string, unknown>[],
+      config: printConfig,
+      title: `${t.nav.allData} — ${filtered.length} ${t.messages.records}`,
+      subtitle: [typeFilter !== 'all' ? `type: ${typeFilter}` : '', search ? `search: ${search}` : ''].filter(Boolean).join(' · '),
+    });
+    if (!printHtml(html)) onToast('Printing is not available in this browser context.');
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -121,14 +151,15 @@ export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string
         <SearchInput value={search} onChange={v => { setSearch(v); setPage(1); }} placeholder={t.messages.searchPlaceholder} />
         <DateInput label={t.messages.dateFrom} value={dateFrom} onChange={v => { setDateFrom(v); setPage(1); }} />
         <DateInput label={t.messages.dateTo} value={dateTo} onChange={v => { setDateTo(v); setPage(1); }} />
-        <Btn size="xs" onClick={() => { setSearch(''); setTypeFilter('all'); setDateFrom(''); setDateTo(''); setPage(1); }} variant="ghost">{t.actions.clearFilters}</Btn>
+        <Btn size="xs" onClick={() => { setSearch(''); setTypeFilter('all'); setDateFrom(''); setDateTo(''); setAdvancedIds(null); setPage(1); }} variant="ghost">{t.actions.clearFilters}</Btn>
+        {advancedIds && <Btn size="xs" variant="ghost" onClick={() => setAdvancedIds(null)}>Clear advanced ({advancedIds.length})</Btn>}
       </FilterRow>
 
       <Toolbar>
         <Btn onClick={() => { if (!selectedId) return; setShowPreview(true); }} disabled={!selectedId} icon="👁">{t.actions.quickView}</Btn>
         <ToolbarSep />
         <Btn onClick={() => setShowExport(true)} icon="⬇">{t.actions.export}</Btn>
-        <Btn onClick={() => window.print()} icon="🖨">{t.actions.print}</Btn>
+        <Btn onClick={handlePrint} icon="🖨">{t.actions.print}</Btn>
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
@@ -182,6 +213,14 @@ export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string
       </InfoModal>
 
       <ExportDialog isOpen={showExport} onClose={() => setShowExport(false)} data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns} defaultFilename="all_data" />
+      <AdvancedSearch
+        isOpen={showAdvSearch}
+        onClose={() => setShowAdvSearch(false)}
+        fields={advFields}
+        data={allRecords as unknown as Record<string, unknown>[]}
+        target="workspace"
+        onApply={(rows) => { setAdvancedIds(rows.map(r => String(r.id))); setPage(1); onToast(`Advanced search applied: ${rows.length} rows`); }}
+      />
     </div>
   );
 }

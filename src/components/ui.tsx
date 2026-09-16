@@ -1,4 +1,5 @@
 import React, { type ReactNode, useState, useRef, useEffect } from 'react';
+import { formatDateTime, fromDateTimeLocal, nowIso, toDateTimeLocal } from '../core/text';
 import type { RecordType, Source, Content, Analysis } from '../types';
 
 // ─── Button ───────────────────────────────────────────────────────────
@@ -236,14 +237,93 @@ export function SearchInput({ value, onChange, placeholder = 'Search…' }: { va
 }
 
 // ─── Date input ───────────────────────────────────────────────────────
+/**
+ * Date + time field. Every date in this application carries a time component,
+ * so the picker is `datetime-local` with a "now" shortcut, and the value handed
+ * to callers is a full ISO instant.
+ */
+export function DateTimeInput({
+  label,
+  value,
+  onChange,
+  required,
+  error,
+  hint,
+  showNow = true,
+  className = '',
+}: {
+  label?: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  error?: boolean;
+  hint?: string;
+  showNow?: boolean;
+  className?: string;
+}) {
+  const local = toDateTimeLocal(value);
+  return (
+    <div className={`flex flex-col gap-1 ${className}`}>
+      {label && (
+        <span
+          className="text-[11px] font-semibold uppercase tracking-[0.07em] whitespace-nowrap"
+          style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-display)' }}
+        >
+          {label}
+          {required && <span className="ms-1" style={{ color: 'var(--error)' }}>*</span>}
+        </span>
+      )}
+      <div className="flex items-center gap-1">
+        <input
+          type="datetime-local"
+          value={local}
+          onChange={(e) => onChange(fromDateTimeLocal(e.target.value) ?? '')}
+          className="px-2 py-1.5 text-xs outline-none transition-all duration-150 w-full"
+          style={{
+            background: 'var(--card-bg)',
+            color: 'var(--fg)',
+            border: `1px solid ${error ? 'var(--error)' : 'var(--border)'}`,
+            borderRadius: 'var(--radius)',
+            fontFamily: 'var(--font-mono)',
+            minWidth: 0,
+          }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ring)'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = error ? 'var(--error)' : 'var(--border)'; }}
+        />
+        {showNow && (
+          <button
+            type="button"
+            onClick={() => onChange(nowIso())}
+            title="Set to now"
+            className="px-2 py-1.5 text-xs rounded shrink-0 transition-colors"
+            style={{ background: 'var(--secondary-bg)', color: 'var(--muted-fg)', border: '1px solid var(--border)' }}
+          >
+            now
+          </button>
+        )}
+      </div>
+      {hint && <span className="text-[11px]" style={{ color: 'var(--muted-fg)' }}>{hint}</span>}
+      {value && (
+        <span className="text-[10px]" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>
+          {formatDateTime(value)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Compact date-and-time range bound used in filter rows. Emits a full ISO
+ * instant; an empty value clears the bound.
+ */
 export function DateInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-[11px] font-medium shrink-0 whitespace-nowrap" style={{ color: 'var(--muted-fg)', fontFamily: 'var(--font-display)' }}>{label}</span>
       <input
-        type="date"
-        value={value}
-        onChange={e => onChange(e.target.value)}
+        type="datetime-local"
+        value={toDateTimeLocal(value)}
+        onChange={e => onChange(fromDateTimeLocal(e.target.value) ?? '')}
         className="px-2 py-1.5 text-xs outline-none transition-all duration-150"
         style={{
           background: 'var(--card-bg)',

@@ -1,26 +1,35 @@
 import React, { useMemo, useState } from 'react';
 import { DataTable, type Column } from '../components/DataTable';
 import { FormModal, ConfirmDialog } from '../components/FormModal';
-import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, ImportanceBar, RecordTypeBadge, MoreMenu, Badge } from '../components/ui';
+import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, DateTimeInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, ImportanceBar, RecordTypeBadge, MoreMenu, Badge, StatCard } from '../components/ui';
 import { ExportDialog } from '../components/ExportDialog';
 import { AdvancedSearch } from '../components/AdvancedSearch';
+import { ComboField, usageMap } from '../components/ComboField';
+import { formatDateTime, nowIso } from '../core/text';
 import { BulkOperations } from '../components/BulkOperations';
 import { ImportWizard } from '../components/ImportWizard';
 import { useAppData } from '../store/AppContext';
 import { useSettings } from '../store/SettingsContext';
 import { useTranslation } from '../i18n';
 import type { Source } from '../types';
+import { applyDateFilter, freeTextSearch } from '../core/search';
+import { computeEntityStats } from '../core/stats';
+import { buildPrintDocument, printHtml } from '../core/print';
+import { hasErrors, type ValidationIssue } from '../core/validation';
 
-const SOURCE_TYPES = ['website', 'person', 'organization', 'publication', 'social_media', 'document', 'other'];
+const TYPE_VOCABULARY = 'sources.type';
 
 function emptySource(): Omit<Source, 'id' | 'date_creation' | 'date_modified'> {
-  return { name: '', type: 'website', link_sources: '', importance: 0.75, country: '', city: '', description: '', accounts: '', note: '', ownership: '', date_entry: new Date().toISOString().split('T')[0] };
+  return { name: '', type: 'website', link_sources: '', importance: 0.75, country: '', city: '', description: '', accounts: '', note: '', ownership: '', date_entry: nowIso() };
 }
 
 export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
-  const { data, addSource, updateSource, deleteSource, duplicateSource, bulkDeleteSources, importData } = useAppData();
+  const {
+    data, addSource, updateSource, deleteSource, duplicateSource, bulkDeleteSources, printConfig, validate,
+    vocabulary, vocabularyTick, addVocabularyValue, removeVocabularyValue,
+  } = useAppData();
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -41,19 +50,17 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
   const [form, setForm] = useState(emptySource());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [importancePct, setImportancePct] = useState('75.00');
+  const [advancedIds, setAdvancedIds] = useState<string[] | null>(null);
 
   const selected = data.sources.find(s => s.id === selectedId) ?? null;
 
   const filtered = useMemo(() => {
-    return data.sources.filter(s => {
-      const q = search.toLowerCase();
-      if (q && !Object.values(s).some(v => String(v).toLowerCase().includes(q))) return false;
-      if (typeFilter && s.type !== typeFilter) return false;
-      if (dateFrom && s.date_entry < dateFrom) return false;
-      if (dateTo && s.date_entry > dateTo) return false;
-      return true;
-    });
-  }, [data.sources, search, typeFilter, dateFrom, dateTo]);
+    const rows = data.sources as unknown as Record<string, unknown>[];
+    const typed = typeFilter ? rows.filter(s => String(s.type) === typeFilter) : rows;
+    const byText = freeTextSearch(typed, search);
+    const byAdvanced = advancedIds ? byText.filter(r => advancedIds.includes(String(r.id))) : byText;
+    return applyDateFilter(byAdvanced, dateFrom || null, dateTo || null, ['date_entry', 'date_creation']) as unknown as Source[];
+  }, [data.sources, search, typeFilter, dateFrom, dateTo, advancedIds]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -67,7 +74,7 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
     setShowEdit(true);
   };
 
-  const validate = (f: typeof form): Record<string, string> => {
+  const validateForm = (f: typeof form): Record<string, string> => {
     const errs: Record<string, string> = {};
     if (!f.name.trim()) errs.name = t.messages.required;
     if (f.link_sources && !/^https?:\/\//.test(f.link_sources)) errs.link_sources = t.messages.urlInvalid;
@@ -79,12 +86,32 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
   const handleSave = () => {
     const imp = parseFloat(importancePct) / 100;
     const payload = { ...form, importance: imp };
-    const errs = validate(payload);
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    if (showAdd) addSource(payload);
-    else updateSource({ ...payload, id: selectedId!, date_creation: selected!.date_creation, date_modified: '' });
+    const localErrors = validateForm(payload);
+    if (Object.keys(localErrors).length > 0) { setErrors(localErrors); return; }
+
+    // The repository is the authority: it re-checks required fields, URL shape,
+    // uniqueness and whole-record duplicates.
+    const issues = validate('sources', payload as unknown as Record<string, unknown>, showEdit ? (selectedId ?? undefined) : undefined);
+    const fieldErrors: Record<string, string> = {};
+    const warnings: string[] = [];
+    for (const issue of issues) {
+      if (issue.level === 'warning') warnings.push(issue.message);
+      else fieldErrors[issue.field] = issue.message;
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      setErrors(fieldErrors);
+      onToast(Object.values(fieldErrors)[0]);
+      return;
+    }
+
+    const result = showAdd ? addSource(payload) : updateSource({ ...payload, id: selectedId! });
+    if (!result.ok || hasErrors(result.issues)) {
+      const messages = result.issues.filter((i: ValidationIssue) => i.level === 'error').map((i: ValidationIssue) => i.message);
+      onToast(messages[0] ?? t.messages.saved);
+      return;
+    }
     setShowAdd(false); setShowEdit(false);
-    onToast(t.messages.saved);
+    onToast(warnings.length ? `${t.messages.saved} — ${warnings[0]}` : t.messages.saved);
   };
 
   const handleDelete = () => {
@@ -108,8 +135,25 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
     onToast(t.messages.bulkDeleted.replace('{n}', String(ids.length)));
   };
 
-  const typeOpts = [{ value: '', label: `— All types —` }, ...SOURCE_TYPES.map(t2 => ({ value: t2, label: t2 }))];
-  const formTypeOpts = SOURCE_TYPES.map(t2 => ({ value: t2, label: t2 }));
+  const handlePrint = () => {
+    const html = buildPrintDocument({
+      columns: exportColumns.map(c => ({ key: c.key, label: c.label, format: c.key === 'importance' ? 'percent' : c.key.startsWith('date') ? 'datetime' : undefined })),
+      rows: filtered as unknown as Record<string, unknown>[],
+      config: printConfig,
+      title: `${t.sections.sources.title} — ${filtered.length} ${t.messages.records}`,
+      subtitle: [search ? `search: ${search}` : '', typeFilter ? `type: ${typeFilter}` : ''].filter(Boolean).join(' · '),
+    });
+    if (!printHtml(html)) onToast('Printing is not available in this browser context.');
+  };
+
+  const typeOptions = useMemo(() => vocabulary.list(TYPE_VOCABULARY), [vocabulary, vocabularyTick]);
+  const typeUsage = useMemo(() => usageMap(data.sources as unknown as Record<string, unknown>[], 'type'), [data.sources]);
+  const typeOpts = [{ value: '', label: `— All types —` }, ...typeOptions.map(o => ({ value: o.value, label: o.value }))];
+  // Values stored on records but missing from the vocabulary are still offered.
+  const orphanTypes = useMemo(
+    () => vocabulary.orphans(TYPE_VOCABULARY, data.sources as unknown as Record<string, unknown>[], 'type'),
+    [vocabulary, vocabularyTick, data.sources],
+  );
 
   const columns: Column<Source>[] = [
     { key: 'name', header: t.fields.name, width: '22%', sortable: true },
@@ -122,7 +166,7 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
     { key: 'country', header: t.fields.country, width: '14%', sortable: true,
       render: s => <span>{[s.city, s.country].filter(Boolean).join(', ') || '—'}</span> },
     { key: 'date_entry', header: t.fields.date_entry, width: '90px', sortable: true,
-      render: s => <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{s.date_entry || '—'}</span> },
+      render: s => <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{s.date_entry ? formatDateTime(s.date_entry) : '—'}</span> },
   ];
 
   const exportColumns = [
@@ -147,11 +191,15 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
   ];
 
   const statsInfo = useMemo(() => {
-    const total = data.sources.length;
-    const byType = SOURCE_TYPES.map(ty => ({ type: ty, count: data.sources.filter(s => s.type === ty).length })).filter(x => x.count > 0);
-    const avgImp = total > 0 ? (data.sources.reduce((a, s) => a + s.importance, 0) / total * 100).toFixed(1) : '0';
-    const byCountry = [...new Set(data.sources.map(s => s.country))].filter(Boolean).map(c => ({ country: c, count: data.sources.filter(s => s.country === c).length })).sort((a, b) => b.count - a.count).slice(0, 5);
-    return { total, byType, avgImp, byCountry };
+    const stats = computeEntityStats('sources', data.sources as unknown as Record<string, unknown>[]);
+    return {
+      total: stats.total,
+      avgImp: (stats.avgImportance * 100).toFixed(1),
+      byType: stats.fields.find(f => f.field === 'type')?.top.slice(0, 8).map(b => ({ type: b.label, count: b.count })) ?? [],
+      byCountry: stats.fields.find(f => f.field === 'country')?.top.slice(0, 5).map(b => ({ country: b.label, count: b.count })) ?? [],
+      dateRange: stats.dateRange,
+      filled: stats.fields,
+    };
   }, [data.sources]);
 
   const FormContent = () => (
@@ -161,7 +209,23 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
           <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} error={!!errors.name} />
         </Field>
         <Field label={t.fields.type} required>
-          <Select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} options={formTypeOpts} />
+          <ComboField
+            id="source-type"
+            value={form.type}
+            onChange={next => setForm(f => ({ ...f, type: next }))}
+            options={typeOptions}
+            usage={typeUsage}
+            placeholder="Type or pick a type…"
+            error={!!errors.type}
+            onCreate={value => {
+              addVocabularyValue(TYPE_VOCABULARY, value);
+              onToast(t.sections.dictionary.vocabAdded.replace('{v}', value).replace('{k}', TYPE_VOCABULARY));
+            }}
+            onRemove={value => {
+              const result = removeVocabularyValue(TYPE_VOCABULARY, value, typeUsage[value.toLowerCase()] ?? 0);
+              onToast(result.ok ? `Removed “${value}”` : `Cannot remove “${value}”: ${result.reason ?? 'in use'}`);
+            }}
+          />
         </Field>
         <Field label={t.fields.link_sources} error={errors.link_sources}>
           <Input value={form.link_sources} onChange={e => setForm(f => ({ ...f, link_sources: e.target.value }))} placeholder="https://" error={!!errors.link_sources} />
@@ -186,7 +250,7 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
           <Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
         </Field>
         <Field label={t.fields.date_entry} required>
-          <Input type="date" value={form.date_entry} onChange={e => setForm(f => ({ ...f, date_entry: e.target.value }))} />
+          <DateTimeInput value={form.date_entry} onChange={v => setForm(f => ({ ...f, date_entry: v }))} hint="Date and time of entry" />
         </Field>
         <Field label={t.fields.ownership}>
           <Input value={form.ownership} onChange={e => setForm(f => ({ ...f, ownership: e.target.value }))} />
@@ -212,7 +276,8 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
         <Select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }} options={typeOpts} className="!w-32" />
         <DateInput label={t.messages.dateFrom} value={dateFrom} onChange={v => { setDateFrom(v); setPage(1); }} />
         <DateInput label={t.messages.dateTo} value={dateTo} onChange={v => { setDateTo(v); setPage(1); }} />
-        <Btn size="xs" onClick={() => { setSearch(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }} variant="ghost">{t.actions.clearFilters}</Btn>
+        <Btn size="xs" onClick={() => { setSearch(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); setAdvancedIds(null); setPage(1); }} variant="ghost">{t.actions.clearFilters}</Btn>
+        {advancedIds && <Btn size="xs" variant="ghost" onClick={() => setAdvancedIds(null)}>Clear advanced ({advancedIds.length})</Btn>}
       </FilterRow>
 
       {/* Action row */}
@@ -226,10 +291,32 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
         <Btn onClick={handleDuplicate} disabled={!selected} icon="⎘">{t.actions.duplicate}</Btn>
         <ToolbarSep />
         <Btn onClick={() => setShowExport(true)} icon="⬇">{t.actions.export}</Btn>
-        <Btn onClick={() => window.print()} icon="🖨">{t.actions.print}</Btn>
+        <Btn onClick={handlePrint} icon="🖨">{t.actions.print}</Btn>
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
+
+      {orphanTypes.length > 0 && (
+        <div
+          className="px-3 py-1.5 flex items-center gap-2 flex-wrap shrink-0 text-xs"
+          style={{ background: '#fffbeb', borderBottom: '1px solid #fde68a', color: '#b45309' }}
+        >
+          <span className="font-semibold">{t.sections.dictionary.vocabDrift}</span>
+          <span>{t.sections.dictionary.vocabDriftHint}</span>
+          {orphanTypes.slice(0, 4).map(o => (
+            <button
+              key={o.value}
+              className="underline"
+              onClick={() => {
+                addVocabularyValue(TYPE_VOCABULARY, o.value);
+                onToast(t.sections.dictionary.vocabAdded.replace('{v}', o.value).replace('{k}', TYPE_VOCABULARY));
+              }}
+            >
+              {t.sections.dictionary.vocabAdopt} “{o.value}” ({o.count})
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Results strip */}
       <ResultsStrip
@@ -300,13 +387,20 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
       <ExportDialog isOpen={showExport} onClose={() => setShowExport(false)} data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns} defaultFilename="sources" />
 
       {/* Advanced Search */}
-      <AdvancedSearch isOpen={showAdvSearch} onClose={() => setShowAdvSearch(false)} fields={searchFields} data={data.sources as unknown as Record<string, unknown>[]} onApply={() => {}} />
+      <AdvancedSearch
+        isOpen={showAdvSearch}
+        onClose={() => setShowAdvSearch(false)}
+        fields={searchFields}
+        data={data.sources as unknown as Record<string, unknown>[]}
+        target="sources"
+        onApply={(rows) => { setAdvancedIds(rows.map(r => String(r.id))); setPage(1); onToast(`Advanced search applied: ${rows.length} rows`); }}
+      />
 
       {/* Bulk Operations */}
-      <BulkOperations isOpen={showBulkOps} onClose={() => setShowBulkOps(false)} selectedIds={selectedIds} data={data.sources.map(s => ({ id: s.id, label: s.name }))} onBulkDelete={handleBulkDelete} />
+      <BulkOperations isOpen={showBulkOps} onClose={() => setShowBulkOps(false)} selectedIds={selectedIds} entity="sources" data={data.sources.map(s => ({ id: s.id, label: s.name }))} onToast={onToast} onBulkDelete={handleBulkDelete} />
 
       {/* Import Wizard */}
-      <ImportWizard isOpen={showImport} onClose={() => setShowImport(false)} targetType="source" onImport={(records) => { importData({ sources: records as unknown as Source[] }, true); onToast(t.messages.importSuccess); }} />
+      <ImportWizard isOpen={showImport} onClose={() => setShowImport(false)} targetType="source" onToast={onToast} />
 
       {/* Statistics */}
       {showStats && (
@@ -322,6 +416,24 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
                 <div className="text-xs" style={{ color: 'var(--muted-fg)' }}>{t.dialogs.statistics.avgImportance}</div>
                 <div className="text-2xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>{statsInfo.avgImp}%</div>
               </div>
+            </div>
+            <div className="mb-3">
+              <div className="text-xs font-semibold mb-2" style={{ color: 'var(--muted-fg)' }}>{t.dialogs.statistics.byCountry}</div>
+              {statsInfo.byCountry.length === 0 && <div className="text-xs" style={{ color: 'var(--muted-fg)' }}>—</div>}
+              {statsInfo.byCountry.map(bc => (
+                <div key={bc.country} className="flex items-center gap-2 py-1">
+                  <span className="text-xs w-24 truncate">{bc.country}</span>
+                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${statsInfo.total ? (bc.count / statsInfo.total) * 100 : 0}%`, background: '#1d4ed8' }} />
+                  </div>
+                  <span className="text-xs" style={{ fontFamily: 'var(--font-mono)' }}>{bc.count}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mb-3 text-[11px]" style={{ color: 'var(--muted-fg)' }}>
+              {t.dialogs.statistics.dateRange}: {statsInfo.dateRange.from ?? '—'} → {statsInfo.dateRange.to ?? '—'}
+              <br />
+              Field coverage: {statsInfo.filled.map(f => `${f.field} ${f.filled}/${statsInfo.total}`).join(' · ')}
             </div>
             <div className="mb-3">
               <div className="text-xs font-semibold mb-2" style={{ color: 'var(--muted-fg)' }}>{t.dialogs.statistics.byType}</div>
