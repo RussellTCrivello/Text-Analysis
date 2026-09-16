@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
   AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, ScatterChart, Scatter,
 } from 'recharts';
-import { Btn, Select, Input, InlineTabs } from '../components/ui';
+import { Btn, Select, Input, InlineTabs, EmptyState } from '../components/ui';
 import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
 import type { SavedReport } from '../types';
@@ -414,7 +414,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
 
             <div className="flex-1 overflow-auto">
               {!queryResult ? (
-                <div className="flex items-center justify-center h-full text-xs" style={{ color: 'var(--muted-fg)' }}>{r.noResults}</div>
+                <EmptyState variant="noResults" title={r.noResults} compact />
               ) : (
                 <table className="w-full text-xs border-collapse">
                   <thead style={{ position: 'sticky', top: 0, background: 'var(--card-bg)', zIndex: 1 }}>
@@ -451,7 +451,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
             </div>
             <div ref={printRef} className="flex-1 overflow-y-auto p-4">
               {!queryResult && !hasChart ? (
-                <div className="flex items-center justify-center h-full text-xs" style={{ color: 'var(--muted-fg)' }}>{r.noPreview}</div>
+                <EmptyState variant="noResults" title={r.noPreview} compact />
               ) : (
                 <div className="max-w-3xl mx-auto">
                   <div className="mb-3">

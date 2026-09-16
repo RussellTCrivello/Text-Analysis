@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { DataTable, type Column } from '../components/DataTable';
 import { FormModal, ConfirmDialog } from '../components/FormModal';
-import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, DateTimeInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, ImportanceBar, RecordTypeBadge, MoreMenu, Badge, StatCard } from '../components/ui';
+import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, DateTimeInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, ImportanceBar, RecordTypeBadge, MoreMenu, Badge, StatCard, PageHeader, EmptyState } from '../components/ui';
 import { ExportDialog } from '../components/ExportDialog';
 import { AdvancedSearch } from '../components/AdvancedSearch';
 import { ComboField, usageMap } from '../components/ComboField';
@@ -270,6 +270,14 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <PageHeader
+        eyebrow={t.nav.sourcesDesc}
+        title={t.sections.sources.title}
+        count={{ value: data.sources.length, label: t.messages.records }}
+        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" /><path d="M8 4v4l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
+        actions={<Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.sources.add}</Btn>}
+      />
+
       {/* Filter row */}
       <FilterRow>
         <SearchInput value={search} onChange={v => { setSearch(v); setPage(1); }} placeholder={t.messages.searchPlaceholder} />
@@ -282,7 +290,6 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
 
       {/* Action row */}
       <Toolbar>
-        <Btn variant="success" onClick={openAdd} icon="＋">{t.sections.sources.add}</Btn>
         <Btn onClick={openEdit} disabled={!selected}>{t.actions.edit}</Btn>
         <Btn variant="danger" onClick={() => setShowDelete(true)} disabled={!selected}>{t.actions.delete}</Btn>
         <Btn onClick={() => { setSelectedId(null); setSelectedIds([]); }} variant="ghost" icon="↺">{t.actions.refresh}</Btn>
@@ -330,6 +337,15 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
 
       {/* Table */}
       <div className="flex-1 overflow-hidden">
+        {filtered.length === 0 ? (
+          <EmptyState
+            variant={advancedIds || search || typeFilter || dateFrom || dateTo ? 'noResults' : 'empty'}
+            title={advancedIds || search || typeFilter || dateFrom || dateTo ? `No matching ${t.sections.sources.title}` : t.sections.sources.noData}
+            action={advancedIds || search || typeFilter || dateFrom || dateTo ? undefined : (
+              <Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.sources.add}</Btn>
+            )}
+          />
+        ) : (
         <DataTable
           columns={columns}
           data={paged}
@@ -342,6 +358,7 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
           rowNumberOffset={(page - 1) * pageSize}
           density={settings.density === 'compact' ? 'compact' : settings.density === 'expansive' ? 'expansive' : 'comfortable'}
         />
+        )}
       </div>
 
       {/* Selection bar */}
@@ -358,6 +375,7 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
       <FullTextPreview record={selected} recordType={selected ? 'source' : null} sources={data.sources} />
 
       {/* Pagination */}
+      {filtered.length > 0 && (
       <PaginationBar
         total={filtered.length}
         page={page}
@@ -369,6 +387,7 @@ export function SourcesView({ onToast }: { onToast: (m: string) => void }) {
         ofLabel={t.messages.of}
         showingLabel={t.messages.showing}
       />
+      )}
 
       {/* Add dialog */}
       <FormModal isOpen={showAdd} title={t.sections.sources.add} onClose={() => setShowAdd(false)} onSave={handleSave} saveLabel={t.actions.save} size="lg">

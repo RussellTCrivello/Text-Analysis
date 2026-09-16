@@ -5,7 +5,7 @@
  * as JSON so a team can share a vocabulary.
  */
 import React, { useMemo, useState } from 'react';
-import { Btn, Field, Input, Select, Badge, InlineTabs, SearchInput, Toolbar, ToolbarSep } from '../components/ui';
+import { Btn, Field, Input, Select, Badge, InlineTabs, SearchInput, Toolbar, ToolbarSep, PageHeader } from '../components/ui';
 import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
 import { DEFAULT_TAXONOMY, type TaxonomyRule } from '../core/extract/engine';
@@ -102,6 +102,12 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <PageHeader
+        eyebrow={t.nav.dictionaryDesc}
+        title={d.title}
+        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 3h4.5A1.5 1.5 0 0 1 9 4.5V13a1.5 1.5 0 0 0-1.5-1.5H3V3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /><path d="M13 3H8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><path d="M13 3v8.5H9" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>}
+      />
+
       <Toolbar>
         <InlineTabs
           tabs={[

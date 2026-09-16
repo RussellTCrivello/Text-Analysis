@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DataTable, type Column } from '../components/DataTable';
 import { InfoModal } from '../components/FormModal';
-import { Btn, Toolbar, ToolbarSep, SearchInput, DateInput, FilterRow, ResultsStrip, FullTextPreview, PaginationBar, RecordTypeBadge, ImportanceBar, Select, MoreMenu } from '../components/ui';
+import { Btn, Toolbar, ToolbarSep, SearchInput, DateInput, FilterRow, ResultsStrip, FullTextPreview, PaginationBar, RecordTypeBadge, ImportanceBar, Select, MoreMenu, PageHeader, EmptyState } from '../components/ui';
 import { ExportDialog } from '../components/ExportDialog';
 import { AdvancedSearch } from '../components/AdvancedSearch';
 import { freeTextSearch, applyDateFilter } from '../core/search';
@@ -29,7 +29,7 @@ interface UnifiedRecord {
   list_sides: string;
 }
 
-export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string) => void; onGenerateReport?: (records: UnifiedRecord[]) => void }) {
+export function AllDataView({ onToast, onGenerateReport, initialSearch = '' }: { onToast: (m: string) => void; onGenerateReport?: (records: UnifiedRecord[]) => void; initialSearch?: string }) {
   const { t } = useTranslation();
   const { settings } = useSettings();
   const { data, printConfig } = useAppData();
@@ -44,6 +44,8 @@ export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showExport, setShowExport] = useState(false);
+
+  useEffect(() => { setSearch(initialSearch); setPage(1); }, [initialSearch]);
 
   const sourceName = (id: string) => data.sources.find(s => s.id === id)?.name ?? '—';
   const contentTitle = (id: string) => data.contents.find(c => c.id === id)?.title ?? '—';
@@ -146,6 +148,13 @@ export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <PageHeader
+        eyebrow={t.nav.allDataDesc}
+        title={t.sections.allData.title}
+        count={{ value: allRecords.length, label: t.messages.records }}
+        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" /></svg>}
+      />
+
       <FilterRow>
         <Select value={typeFilter} onChange={e => { setTypeFilter(e.target.value as RecordType | 'all'); setPage(1); }} options={typeOpts} className="!w-32" />
         <SearchInput value={search} onChange={v => { setSearch(v); setPage(1); }} placeholder={t.messages.searchPlaceholder} />
@@ -167,6 +176,12 @@ export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string
       <ResultsStrip total={allRecords.length} filtered={filtered.length} selected={0} recordsLabel={t.messages.records} totalLabel={t.messages.total} selectedLabel={t.messages.selected} />
 
       <div className="flex-1 overflow-hidden">
+        {filtered.length === 0 ? (
+          <EmptyState
+            variant={advancedIds || search || typeFilter !== 'all' ? 'noResults' : 'empty'}
+            title={advancedIds || search || typeFilter !== 'all' ? `No matching ${t.sections.allData.title}` : t.sections.allData.noData}
+          />
+        ) : (
         <DataTable
           columns={columns}
           data={paged}
@@ -177,10 +192,11 @@ export function AllDataView({ onToast, onGenerateReport }: { onToast: (m: string
           rowNumberOffset={(page - 1) * pageSize}
           density={settings.density === 'compact' ? 'compact' : 'comfortable'}
         />
+        )}
       </div>
 
       <FullTextPreview record={null} recordType={null} />
-      <PaginationBar total={filtered.length} page={page} pageSize={pageSize} onPage={p => setPage(p)} onPageSize={s => { setPageSize(s); setPage(1); }} perPageLabel={t.messages.perPage} pageLabel={t.messages.page} ofLabel={t.messages.of} showingLabel={t.messages.showing} />
+      {filtered.length > 0 && <PaginationBar total={filtered.length} page={page} pageSize={pageSize} onPage={p => setPage(p)} onPageSize={s => { setPageSize(s); setPage(1); }} perPageLabel={t.messages.perPage} pageLabel={t.messages.page} ofLabel={t.messages.of} showingLabel={t.messages.showing} />}
 
       {/* Quick View dialog */}
       <InfoModal isOpen={showPreview && !!selected} title={t.actions.quickView} onClose={() => setShowPreview(false)} size="lg">

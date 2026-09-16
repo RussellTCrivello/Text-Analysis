@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { DataTable, type Column } from '../components/DataTable';
 import { FormModal, ConfirmDialog, InfoModal } from '../components/FormModal';
-import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, DateTimeInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, MoreMenu, Badge, StatCard } from '../components/ui';
+import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, DateTimeInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, MoreMenu, Badge, StatCard, PageHeader, EmptyState } from '../components/ui';
 import { ExportDialog } from '../components/ExportDialog';
 import { ImportWizard } from '../components/ImportWizard';
 import { AdvancedSearch } from '../components/AdvancedSearch';
@@ -328,6 +328,14 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <PageHeader
+        eyebrow={t.nav.analysisDesc}
+        title={t.sections.analysis.title}
+        count={{ value: data.analyses.length, label: t.messages.records }}
+        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 12L6 7l3 3 2.5-4L14 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+        actions={<Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.analysis.add}</Btn>}
+      />
+
       <FilterRow>
         <SearchInput value={search} onChange={v => { setSearch(v); setPage(1); }} placeholder={t.messages.searchPlaceholder} />
         <Select value={classFilter} onChange={e => { setClassFilter(e.target.value); setPage(1); }} options={classOpts} className="!w-44" />
@@ -338,7 +346,6 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
       </FilterRow>
 
       <Toolbar>
-        <Btn variant="success" onClick={openAdd} icon="＋">{t.sections.analysis.add}</Btn>
         <Btn onClick={openEdit} disabled={!selected}>{t.actions.edit}</Btn>
         <Btn variant="danger" onClick={() => setShowDelete(true)} disabled={!selected}>{t.actions.delete}</Btn>
         <Btn onClick={() => { if (selectedId) duplicateAnalysis(selectedId); }} disabled={!selected} icon="⎘">{t.actions.duplicate}</Btn>
@@ -373,16 +380,26 @@ export function AnalysisView({ onToast, initialContentId }: { onToast: (m: strin
       <ResultsStrip total={data.analyses.length} filtered={filtered.length} selected={selectedIds.length} recordsLabel={t.messages.records} totalLabel={t.messages.total} selectedLabel={t.messages.selected} />
 
       <div className="flex-1 overflow-hidden">
+        {filtered.length === 0 ? (
+          <EmptyState
+            variant={advancedIds || search || classFilter || dateFrom || dateTo ? 'noResults' : 'empty'}
+            title={advancedIds || search || classFilter || dateFrom || dateTo ? `No matching ${t.sections.analysis.title}` : t.sections.analysis.noData}
+            action={advancedIds || search || classFilter || dateFrom || dateTo ? undefined : (
+              <Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.analysis.add}</Btn>
+            )}
+          />
+        ) : (
         <DataTable columns={columns} data={paged} selectedId={selectedId ?? undefined} selectedIds={selectedIds}
           onSelect={r => setSelectedId(r?.id ?? null)}
           onSelectionChange={ids => { setSelectedIds(ids); if (ids.length === 1) setSelectedId(ids[0]); }}
           onDoubleClick={() => openEdit()} emptyText={t.sections.analysis.noData}
           rowNumberOffset={(page - 1) * pageSize} density={settings.density === 'compact' ? 'compact' : 'comfortable'} />
+        )}
       </div>
 
       {selectedIds.length > 0 && <SelectionBar count={selectedIds.length} onClear={() => setSelectedIds([])} onBulkDelete={() => setShowBulkOps(true)} label={t.messages.selected} />}
       <FullTextPreview record={selected} recordType={selected ? 'analysis' : null} sources={data.sources} contents={data.contents} />
-      <PaginationBar total={filtered.length} page={page} pageSize={pageSize} onPage={p => setPage(p)} onPageSize={s => { setPageSize(s); setPage(1); }} perPageLabel={t.messages.perPage} pageLabel={t.messages.page} ofLabel={t.messages.of} showingLabel={t.messages.showing} />
+      {filtered.length > 0 && <PaginationBar total={filtered.length} page={page} pageSize={pageSize} onPage={p => setPage(p)} onPageSize={s => { setPageSize(s); setPage(1); }} perPageLabel={t.messages.perPage} pageLabel={t.messages.page} ofLabel={t.messages.of} showingLabel={t.messages.showing} />}
 
       <FormModal isOpen={showAdd} title={t.sections.analysis.add} onClose={() => setShowAdd(false)} onSave={handleSave} saveLabel={t.actions.save} size="lg"><FormContent /></FormModal>
       <FormModal isOpen={showEdit} title={t.sections.analysis.edit} onClose={() => setShowEdit(false)} onSave={handleSave} saveLabel={t.actions.save} size="lg"><FormContent /></FormModal>

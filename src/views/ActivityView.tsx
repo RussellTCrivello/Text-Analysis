@@ -4,7 +4,7 @@
  * exported through the shared exporter.
  */
 import React, { useMemo, useState } from 'react';
-import { Btn, Badge, DateInput, FilterRow, SearchInput, Select, StatCard } from '../components/ui';
+import { Btn, Badge, DateInput, FilterRow, SearchInput, Select, StatCard, PageHeader } from '../components/ui';
 import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
 import { downloadArtifact, exportData } from '../core/export/exporters';
@@ -79,6 +79,13 @@ export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <PageHeader
+        eyebrow={t.nav.activityDesc}
+        title={a.title}
+        count={{ value: audit.length, label: a.entriesShown }}
+        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 8h3l1.5-4 2.5 8L11 8h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+      />
+
       <FilterRow>
         <SearchInput value={search} onChange={setSearch} placeholder={t.messages.searchPlaceholder} />
         <Select value={action} onChange={(e) => setAction(e.target.value as AuditAction | 'all')} options={actionOpts} className="!w-44" />

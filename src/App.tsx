@@ -18,6 +18,7 @@ function Inner() {
   const [section, setSection] = useState<NavSection>('sources');
   const [toast, setToast] = useState('');
   const [linkedContentId, setLinkedContentId] = useState<string | undefined>();
+  const [globalSearch, setGlobalSearch] = useState('');
 
   const handleToast = useCallback((msg: string) => setToast(msg), []);
   const clearToast = useCallback(() => setToast(''), []);
@@ -32,12 +33,17 @@ function Inner() {
     handleToast('Data sent to Reports workspace.');
   };
 
+  const handleGlobalSearch = useCallback((v: string) => {
+    setGlobalSearch(v);
+    if (v && section !== 'allData') setSection('allData');
+  }, [section]);
+
   const renderSection = () => {
     switch (section) {
       case 'sources': return <SourcesView onToast={handleToast} />;
       case 'contents': return <ContentsView onToast={handleToast} onLinkToAnalysis={handleLinkToAnalysis} />;
       case 'analysis': return <AnalysisView key={linkedContentId} onToast={handleToast} initialContentId={linkedContentId} />;
-      case 'allData': return <AllDataView onToast={handleToast} onGenerateReport={handleGenerateReport} />;
+      case 'allData': return <AllDataView onToast={handleToast} onGenerateReport={handleGenerateReport} initialSearch={globalSearch} />;
       case 'timeline': return <TimelineView onToast={handleToast} />;
       case 'reports': return <ReportsView onToast={handleToast} />;
       case 'activity': return <ActivityView onToast={handleToast} />;
@@ -52,6 +58,8 @@ function Inner() {
         onSectionChange={s => { setSection(s); if (s !== 'analysis') setLinkedContentId(undefined); }}
         toast={toast}
         onToastClear={clearToast}
+        globalSearch={globalSearch}
+        onGlobalSearch={handleGlobalSearch}
       >
         {renderSection()}
       </AppShell>

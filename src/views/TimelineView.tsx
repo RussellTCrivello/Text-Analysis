@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from 'recharts';
-import { Btn, FilterRow, SearchInput, Select, Badge, RecordTypeBadge, DateInput } from '../components/ui';
+import { Btn, FilterRow, SearchInput, Select, Badge, RecordTypeBadge, DateInput, PageHeader, EmptyState } from '../components/ui';
 import { TimelineExportDialog } from '../components/TimelineExportDialog';
 import { useAppData } from '../store/AppContext';
 import { useTranslation } from '../i18n';
@@ -118,6 +118,13 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <PageHeader
+        eyebrow={t.nav.timelineDesc}
+        title={t.sections.timeline.title}
+        count={{ value: stats.total, label: t.sections.timeline.totalEvents }}
+        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><circle cx="5.5" cy="8" r="1.5" fill="currentColor" /><circle cx="10.5" cy="8" r="1.5" fill="currentColor" /><path d="M5.5 5v1.5M10.5 9.5V11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
+      />
+
       {/* Filter row */}
       <FilterRow>
         <SearchInput value={search} onChange={setSearch} placeholder={t.messages.searchPlaceholder} />
@@ -134,8 +141,9 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
               onClick={() => toggleType(type)}
               className="px-2 py-1 rounded text-[10px] font-semibold uppercase tracking-wide transition-colors"
               style={{
-                background: types.includes(type) ? 'var(--primary)' : 'var(--secondary-bg)',
+                background: types.includes(type) ? 'var(--primary)' : 'var(--surface-2)',
                 color: types.includes(type) ? 'var(--primary-fg)' : 'var(--muted-fg)',
+                border: `1px solid ${types.includes(type) ? 'var(--primary)' : 'var(--border)'}`,
               }}
             >
               {type}
@@ -202,7 +210,7 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
 
           {/* Event cards */}
           {filtered.length === 0 ? (
-            <div className="flex items-center justify-center py-20 text-xs" style={{ color: 'var(--muted-fg)' }}>{t.sections.timeline.noData}</div>
+            <EmptyState variant="noResults" title={t.sections.timeline.noData} compact />
           ) : (
             <div className="relative">
               {/* Axis line */}

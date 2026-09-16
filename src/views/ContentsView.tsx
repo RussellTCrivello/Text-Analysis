@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { DataTable, type Column } from '../components/DataTable';
 import { FormModal, ConfirmDialog, InfoModal } from '../components/FormModal';
-import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, DateTimeInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, ImportanceBar, MoreMenu, Badge, StatCard } from '../components/ui';
+import { Btn, Field, Input, Textarea, Select, Toolbar, ToolbarSep, SearchInput, DateInput, DateTimeInput, FilterRow, ResultsStrip, SelectionBar, FullTextPreview, PaginationBar, ImportanceBar, MoreMenu, Badge, StatCard, PageHeader, EmptyState } from '../components/ui';
 import { ExportDialog } from '../components/ExportDialog';
 import { ImportWizard } from '../components/ImportWizard';
 import { AdvancedSearch } from '../components/AdvancedSearch';
@@ -230,6 +230,14 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <PageHeader
+        eyebrow={t.nav.contentsDesc}
+        title={t.sections.contents.title}
+        count={{ value: data.contents.length, label: t.messages.records }}
+        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3" /><path d="M5 6h6M5 8.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
+        actions={<Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.contents.add}</Btn>}
+      />
+
       <FilterRow>
         <SearchInput value={search} onChange={v => { setSearch(v); setPage(1); }} placeholder={t.messages.searchPlaceholder} />
         <Select value={srcFilter} onChange={e => { setSrcFilter(e.target.value); setPage(1); }} options={srcOpts} className="!w-36" />
@@ -240,7 +248,6 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
       </FilterRow>
 
       <Toolbar>
-        <Btn variant="success" onClick={openAdd} icon="＋">{t.sections.contents.add}</Btn>
         <Btn onClick={openEdit} disabled={!selected}>{t.actions.edit}</Btn>
         <Btn variant="danger" onClick={() => setShowDelete(true)} disabled={!selected}>{t.actions.delete}</Btn>
         <Btn onClick={() => { if (selected) duplicateContent(selectedId!); }} disabled={!selected} icon="⎘">{t.actions.duplicate}</Btn>
@@ -265,20 +272,30 @@ export function ContentsView({ onToast, onLinkToAnalysis }: { onToast: (m: strin
       <ResultsStrip total={data.contents.length} filtered={filtered.length} selected={selectedIds.length} recordsLabel={t.messages.records} totalLabel={t.messages.total} selectedLabel={t.messages.selected} />
 
       <div className="flex-1 overflow-hidden">
+        {filtered.length === 0 ? (
+          <EmptyState
+            variant={advancedIds || search || srcFilter || dateFrom || dateTo ? 'noResults' : 'empty'}
+            title={advancedIds || search || srcFilter || dateFrom || dateTo ? `No matching ${t.sections.contents.title}` : t.sections.contents.noData}
+            action={advancedIds || search || srcFilter || dateFrom || dateTo ? undefined : (
+              <Btn variant="primary" onClick={openAdd} icon={<svg width="12" height="12" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>}>{t.sections.contents.add}</Btn>
+            )}
+          />
+        ) : (
         <DataTable columns={columns} data={paged} selectedId={selectedId ?? undefined} selectedIds={selectedIds}
           onSelect={r => setSelectedId(r?.id ?? null)}
           onSelectionChange={ids => { setSelectedIds(ids); if (ids.length === 1) setSelectedId(ids[0]); }}
           onDoubleClick={() => openEdit()} emptyText={t.sections.contents.noData}
           rowNumberOffset={(page - 1) * pageSize} density={settings.density === 'compact' ? 'compact' : 'comfortable'} />
+        )}
       </div>
 
       {selectedIds.length > 0 && <SelectionBar count={selectedIds.length} onClear={() => setSelectedIds([])} onBulkDelete={() => setShowBulkOps(true)} label={t.messages.selected} />}
 
       <FullTextPreview record={selected} recordType={selected ? 'content' : null} sources={data.sources} />
 
-      <PaginationBar total={filtered.length} page={page} pageSize={pageSize}
+      {filtered.length > 0 && <PaginationBar total={filtered.length} page={page} pageSize={pageSize}
         onPage={p => setPage(p)} onPageSize={s => { setPageSize(s); setPage(1); }}
-        perPageLabel={t.messages.perPage} pageLabel={t.messages.page} ofLabel={t.messages.of} showingLabel={t.messages.showing} />
+        perPageLabel={t.messages.perPage} pageLabel={t.messages.page} ofLabel={t.messages.of} showingLabel={t.messages.showing} />}
 
       <FormModal isOpen={showAdd} title={t.sections.contents.add} onClose={() => setShowAdd(false)} onSave={handleSave} saveLabel={t.actions.save} size="lg"><FormContent /></FormModal>
       <FormModal isOpen={showEdit} title={t.sections.contents.edit} onClose={() => setShowEdit(false)} onSave={handleSave} saveLabel={t.actions.save} size="lg"><FormContent /></FormModal>
