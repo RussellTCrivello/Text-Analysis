@@ -38,6 +38,8 @@ import {
   TableIcon,
   EyeIcon,
   FileSheet,
+  LayoutGridIcon,
+  RowsIcon,
 } from "./icons"
 import { useTranslation } from "../i18n"
 import { useAppData } from "../store/AppContext"
@@ -47,6 +49,7 @@ import {
   FORMAT_META,
   type ExportArtifact,
   type ExportFormat,
+  type WordLayout,
 } from "../core/export/exporters"
 import { formatBytes } from "../core/text"
 import { nextDocumentNumber } from "../core/print"
@@ -112,6 +115,7 @@ export function ExportDialog({
   const [includeHeaders, setIncludeHeaders] = useState(true)
   const [includeId, setIncludeId] = useState(false)
   const [bom, setBom] = useState(true)
+  const [wordLayout, setWordLayout] = useState<WordLayout>("report")
   const [phase, setPhase] = useState<Phase>("idle")
   const [result, setResult] = useState<ExportArtifact | null>(null)
   const [failure, setFailure] = useState("")
@@ -159,6 +163,10 @@ export function ExportDialog({
     docNumber: nextDocumentNumber(printConfig),
     pageSize: printConfig.pageSize,
     orientation: printConfig.orientation,
+    scopeLabel,
+    ...(format === "docx"
+      ? { docxLayout: wordLayout, docxStats: true, docxGroupSize: 0 }
+      : {}),
   })
 
   const estimated = useMemo(() => {
@@ -179,6 +187,8 @@ export function ExportDialog({
     includeHeaders,
     includeId,
     bom,
+    wordLayout,
+    scopeLabel,
     printConfig,
   ])
 
@@ -435,6 +445,68 @@ export function ExportDialog({
             label={ed.includeBom}
             disabled={!["csv", "tsv", "txt"].includes(format)}
           />
+          {format === "docx" && (
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span style={{ color: "var(--primary)" }}>
+                  <LayoutGridIcon size="sm" />
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em]">
+                  {ed.wordLayoutHeading}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1" role="radiogroup" aria-label={ed.wordLayoutHeading}>
+                {(
+                  [
+                    { value: "report", Icon: LayoutGridIcon },
+                    { value: "table", Icon: RowsIcon },
+                  ] as const
+                ).map(({ value, Icon }) => {
+                  const selected = wordLayout === value
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      title={
+                        value === "report" ? ed.wordLayoutReportDesc : ed.wordLayoutTableDesc
+                      }
+                      onClick={() => {
+                        setWordLayout(value)
+                        if (phase !== "idle") reset()
+                      }}
+                      className="flex flex-col gap-0.5 px-2 py-1.5 rounded-[var(--radius-sm)] text-start transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                      style={{
+                        background: selected
+                          ? "var(--primary-soft)"
+                          : "var(--surface)",
+                        border: `1px solid ${
+                          selected ? "var(--primary)" : "var(--border-strong)"
+                        }`,
+                        color: selected ? "var(--primary)" : "var(--fg-soft)",
+                      }}
+                    >
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
+                        <Icon size="xs" />
+                        {value === "report" ? ed.wordLayoutReport : ed.wordLayoutTable}
+                        {selected && (
+                          <span className="ms-auto">
+                            <Check size="xs" />
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[10px] leading-snug" style={{ color: "var(--muted-fg)" }}>
+                        {value === "report"
+                          ? ed.wordLayoutReportDesc
+                          : ed.wordLayoutTableDesc}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {isDocument && (
             <Callout variant="info" title={ed.metadataHeading}>
               {printConfig.header1

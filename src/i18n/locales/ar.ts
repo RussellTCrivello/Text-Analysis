@@ -594,6 +594,13 @@ const ar: TranslationShape = {
         "اسم الملف لا يمكن أن يكون فارغًا أو يحتوي فواصل مسارات.",
       warningsNote: "نجح التصدير مع ملاحظة:",
       includeBom: "BOM لترميز UTF-8",
+      wordLayoutHeading: "تخطيط مستند Word",
+      wordLayoutReport: "تقرير",
+      wordLayoutReportDesc:
+        "مستند منظَّم — عناوين مرقّمة، حقل فهرس محتويات، ملفات الحقول، وتفاصيل محاذاة بتبويب. بلا جداول.",
+      wordLayoutTable: "جدولي",
+      wordLayoutTableDesc:
+        "الشبكة التقليدية — جدول واحد بحدود مع صف رؤوس مكرر.",
       includeMeta: "تضمين بيانات التصدير",
       includeMetaDesc:
         "تُكتب الطابع الزمني وإصدار التطبيق وعدد السجلات كتلة بيانات وصفية حيثما دعم التنسيق ذلك.",

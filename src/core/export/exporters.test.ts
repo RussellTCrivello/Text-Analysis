@@ -82,15 +82,38 @@ test('xlsx is a real OOXML package with a worksheet and inline strings', () => {
   assert.equal(artifact.content[1], 0x4b);
 });
 
-test('docx is a real OOXML document', () => {
-  const artifact = exportData(rows, { columns, format: 'docx', title: 'Source list' });
+test('docx report is a table-free OOXML document with headings, TOC and page furniture', () => {
+  const artifact = exportData(rows, { columns, format: 'docx', title: 'Source list', subtitle: 'Register of sources', docNumber: 'DOC-42', footerText: 'Internal use only' });
   const entries = readZip(artifact.content as Uint8Array);
   const names = entries.map((e) => e.name);
-  assert.ok(names.includes('word/document.xml'), names.join(','));
+  for (const part of ['word/document.xml', 'word/styles.xml', 'word/numbering.xml', 'word/header1.xml', 'word/footer1.xml', 'docProps/core.xml']) {
+    assert.ok(names.includes(part), `missing ${part}: ${names.join(',')}`);
+  }
   const doc = new TextDecoder().decode(entries.find((e) => e.name === 'word/document.xml')!.data);
-  assert.match(doc, /<w:tbl>/);
+  assert.ok(!doc.includes('<w:tbl>'), 'the report layout must not contain tables');
   assert.match(doc, /Source list/);
-  assert.equal((doc.match(/<w:tr>/g) ?? []).length, 3); // header + 2 rows
+  assert.ok(doc.includes('TOC \\o "1-2"'), 'refreshable contents field');
+  assert.ok(doc.includes('w:style="Heading1"') || doc.includes(`w:val="Heading1"`), 'uses real heading styles');
+  assert.ok((doc.match(/Heading3/g) ?? []).length >= rows.length, 'each record is a heading');
+  assert.ok(doc.includes('<w:tabs>') && doc.includes('w:leader="dot"'), 'tab-aligned layout (definitions + dot-leader contents)');
+  assert.ok(doc.includes('Overview') && doc.includes('Field guide') && doc.includes('Document number'), 'structured sections');
+  const footer = new TextDecoder().decode(entries.find((e) => e.name === 'word/footer1.xml')!.data);
+  assert.ok(footer.includes('PAGE') && footer.includes('NUMPAGES'), 'Page X of Y fields');
+  assert.ok(footer.includes('Internal use only'), 'footer text honoured');
+  const header = new TextDecoder().decode(entries.find((e) => e.name === 'word/header1.xml')!.data);
+  assert.ok(header.includes('DOC-42'), 'document number appears in the page header');
+});
+
+test('docx report mirrors Arabic content to right-to-left and still keeps the grid on demand', () => {
+  const arabic = exportData([{ name: 'مصدر عربي' }], { columns: [{ key: 'name', label: 'الاسم' }], format: 'docx', title: 'Sources' });
+  const doc = new TextDecoder().decode(readZip(arabic.content as Uint8Array).find((e) => e.name === 'word/document.xml')!.data);
+  assert.ok(doc.includes('<w:bidi/>'), 'RTL paragraphs for Arabic data');
+  assert.ok(arabic.warnings.some((w) => /right-to-left/i.test(w)), 'user-facing note about RTL');
+
+  const grid = exportData(rows, { columns, format: 'docx', title: 'Source list', docxLayout: 'table' });
+  const gridDoc = new TextDecoder().decode(readZip(grid.content as Uint8Array).find((e) => e.name === 'word/document.xml')!.data);
+  assert.match(gridDoc, /<w:tbl>/);
+  assert.equal((gridDoc.match(/<w:tr>/g) ?? []).length, 3); // header + 2 rows
 });
 
 test('xls SpreadsheetML and doc HTML declare their applications', () => {

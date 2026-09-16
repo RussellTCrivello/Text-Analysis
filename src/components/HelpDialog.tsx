@@ -131,9 +131,9 @@ Live HTML preview of the report document. Set a title, toggle chart inclusion, s
 • JSON — Structured JSON with metadata
 • JSON Lines — One object per line
 • XML — XML with record elements
-• Excel (.xlsx) — Spreadsheet (planned)
-• Word (.docx) — Document (planned)
-• PDF — Print-formatted PDF (planned)
+• Excel (.xlsx) — Native spreadsheet
+• Word (.docx) — Structured report (headings, contents, no tables) or classic grid
+• PDF — Print-formatted PDF
 
 **Options**
 • Select which columns to include

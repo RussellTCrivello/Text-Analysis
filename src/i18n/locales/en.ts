@@ -599,6 +599,13 @@ const en = {
         "Filename cannot be empty or contain path separators.",
       warningsNote: "The export succeeded with a note:",
       includeBom: "UTF-8 BOM for Excel",
+      wordLayoutHeading: "Word document layout",
+      wordLayoutReport: "Report",
+      wordLayoutReportDesc:
+        "Structured document — numbered headings, contents field, field profiles and tab-aligned details. No tables.",
+      wordLayoutTable: "Tabular",
+      wordLayoutTableDesc:
+        "Classic grid — one bordered table with a repeating header row.",
       includeMeta: "Include export metadata",
       includeMetaDesc:
         "Timestamp, app version and record counts are written as a metadata block where the format supports it.",
