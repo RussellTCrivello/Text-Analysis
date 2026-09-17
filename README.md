@@ -19,6 +19,10 @@ A local-first workspace for structured text analysis: track **Sources**, capture
 
 Export includes a structured, table-free **Word (.docx)** report, CSV and JSON; the whole workspace round-trips through a JSON **backup file**.
 
+## Desktop app (Windows installer)
+
+The app can be packaged as a native desktop application with Electron — `npm run dist:win` produces an NSIS `.exe` installer, and the `Desktop (Windows installer)` GitHub Actions workflow builds one for every `v*` tag. See [docs/DESKTOP.md](docs/DESKTOP.md).
+
 ## Getting started
 
 ```bash
