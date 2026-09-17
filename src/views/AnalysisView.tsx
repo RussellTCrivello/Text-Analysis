@@ -25,6 +25,8 @@ import {
   EmptyState,
 } from "../components/ui"
 import {
+  TriangleAlert,
+  Close,
   NavAnalysis,
   Plus,
   Pencil,
@@ -777,6 +779,7 @@ export function AnalysisView({
         }
       />
 
+      <div className="work-card mx-3 mb-3">
       <FilterRow>
         <SearchInput
           value={search}
@@ -812,7 +815,12 @@ export function AnalysisView({
           }}
         />
         <Btn
-          size="xs"
+          size="sm"
+          variant="subtle"
+          icon={<Close size="xs" />}
+          disabled={
+            !search && !classFilter && !dateFrom && !dateTo && !advancedIds && Object.keys(colFilters).length === 0
+          }
           onClick={() => {
             setSearch("")
             setColFilters({})
@@ -822,13 +830,17 @@ export function AnalysisView({
             setAdvancedIds(null)
             setPage(1)
           }}
-          variant="ghost"
         >
           {t.actions.clearFilters}
         </Btn>
         {advancedIds && (
-          <Btn size="xs" variant="ghost" onClick={() => setAdvancedIds(null)}>
-            Clear advanced ({advancedIds.length})
+          <Btn
+            size="sm"
+            variant="subtle"
+            icon={<Close size="xs" />}
+            onClick={() => setAdvancedIds(null)}
+          >
+            {t.messages.clearAdvanced} ({advancedIds.length})
           </Btn>
         )}
       </FilterRow>
@@ -884,11 +896,12 @@ export function AnalysisView({
         <div
           className="px-3 py-1.5 flex items-center gap-2 flex-wrap shrink-0 text-xs"
           style={{
-            background: "#fffbeb",
-            borderBottom: "1px solid #fde68a",
-            color: "#b45309",
+            background: "color-mix(in srgb, var(--warning) 8%, var(--surface))",
+            borderBottom: "1px solid color-mix(in srgb, var(--warning) 26%, transparent)",
+            color: "color-mix(in srgb, var(--warning) 80%, var(--fg))",
           }}
         >
+          <TriangleAlert size="sm" style={{ flex: "none" }} />
           <span className="font-semibold">
             {t.sections.dictionary.vocabDrift}
           </span>
@@ -921,7 +934,7 @@ export function AnalysisView({
         selectedLabel={t.messages.selected}
       />
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {filtered.length === 0 ? (
           <EmptyState
             variant={
@@ -1011,6 +1024,7 @@ export function AnalysisView({
           showingLabel={t.messages.showing}
         />
       )}
+      </div>
 
       <FormModal
         isOpen={showAdd}

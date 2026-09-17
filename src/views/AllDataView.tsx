@@ -19,6 +19,7 @@ import {
   EmptyState,
 } from "../components/ui"
 import {
+  Close,
   NavAllData,
   EyeIcon,
   ExportArrow,
@@ -438,6 +439,7 @@ export function AllDataView({
 
       <OverviewBand />
 
+      <div className="work-card mx-3 mb-3">
       <FilterRow>
         <Select
           value={typeFilter}
@@ -473,7 +475,12 @@ export function AllDataView({
           }}
         />
         <Btn
-          size="xs"
+          size="sm"
+          variant="subtle"
+          icon={<Close size="xs" />}
+          disabled={
+            !search && typeFilter === "all" && !dateFrom && !dateTo && !advancedIds
+          }
           onClick={() => {
             setSearch("")
             setTypeFilter("all")
@@ -482,13 +489,17 @@ export function AllDataView({
             setAdvancedIds(null)
             setPage(1)
           }}
-          variant="ghost"
         >
           {t.actions.clearFilters}
         </Btn>
         {advancedIds && (
-          <Btn size="xs" variant="ghost" onClick={() => setAdvancedIds(null)}>
-            Clear advanced ({advancedIds.length})
+          <Btn
+            size="sm"
+            variant="subtle"
+            icon={<Close size="xs" />}
+            onClick={() => setAdvancedIds(null)}
+          >
+            {t.messages.clearAdvanced} ({advancedIds.length})
           </Btn>
         )}
       </FilterRow>
@@ -527,7 +538,7 @@ export function AllDataView({
         selectedLabel={t.messages.selected}
       />
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {filtered.length === 0 ? (
           <EmptyState
             variant={
@@ -586,6 +597,8 @@ export function AllDataView({
       )}
 
       {/* Quick View dialog */}
+      </div>
+
       <InfoModal
         isOpen={showPreview && !!selected}
         title={t.actions.quickView}

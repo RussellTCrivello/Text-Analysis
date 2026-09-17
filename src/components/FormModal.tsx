@@ -99,7 +99,7 @@ export function ConfirmDialog({
             {t.actions.cancel}
           </Btn>
           <Btn
-            variant={danger ? "danger" : "primary"}
+            variant={danger ? "danger-solid" : "primary"}
             onClick={onConfirm}
             icon={danger ? <Trash size="sm" /> : undefined}
           >

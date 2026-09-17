@@ -25,6 +25,7 @@ import {
   EmptyState,
 } from "../components/ui"
 import {
+  TriangleAlert,
   NavSources,
   Plus,
   Pencil,
@@ -744,11 +745,12 @@ export function SourcesView({
         <div
           className="px-3 py-1.5 flex items-center gap-2 flex-wrap shrink-0 text-xs"
           style={{
-            background: "#fffbeb",
-            borderBottom: "1px solid #fde68a",
-            color: "#b45309",
+            background: "color-mix(in srgb, var(--warning) 8%, var(--surface))",
+            borderBottom: "1px solid color-mix(in srgb, var(--warning) 26%, transparent)",
+            color: "color-mix(in srgb, var(--warning) 80%, var(--fg))",
           }}
         >
+          <TriangleAlert size="sm" style={{ flex: "none" }} />
           <span className="font-semibold">
             {t.sections.dictionary.vocabDrift}
           </span>

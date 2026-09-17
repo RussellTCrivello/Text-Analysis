@@ -26,6 +26,7 @@ import {
   EmptyState,
 } from "../components/ui"
 import {
+  Close,
   NavContents,
   Plus,
   Pencil,
@@ -610,6 +611,7 @@ export function ContentsView({
         }
       />
 
+      <div className="work-card mx-3 mb-3">
       <FilterRow>
         <SearchInput
           value={search}
@@ -645,7 +647,12 @@ export function ContentsView({
           }}
         />
         <Btn
-          size="xs"
+          size="sm"
+          variant="subtle"
+          icon={<Close size="xs" />}
+          disabled={
+            !search && !srcFilter && !dateFrom && !dateTo && !advancedIds && Object.keys(colFilters).length === 0
+          }
           onClick={() => {
             setSearch("")
             setSrcFilter("")
@@ -655,13 +662,17 @@ export function ContentsView({
             setAdvancedIds(null)
             setPage(1)
           }}
-          variant="ghost"
         >
           {t.actions.clearFilters}
         </Btn>
         {advancedIds && (
-          <Btn size="xs" variant="ghost" onClick={() => setAdvancedIds(null)}>
-            Clear advanced ({advancedIds.length})
+          <Btn
+            size="sm"
+            variant="subtle"
+            icon={<Close size="xs" />}
+            onClick={() => setAdvancedIds(null)}
+          >
+            {t.messages.clearAdvanced} ({advancedIds.length})
           </Btn>
         )}
       </FilterRow>
@@ -737,7 +748,7 @@ export function ContentsView({
         selectedLabel={t.messages.selected}
       />
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {filtered.length === 0 ? (
           <EmptyState
             variant={
@@ -834,6 +845,7 @@ export function ContentsView({
           showingLabel={t.messages.showing}
         />
       )}
+      </div>
 
       <FormModal
         isOpen={showAdd}

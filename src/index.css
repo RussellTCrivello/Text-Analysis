@@ -886,3 +886,36 @@ button, a, [role='button'], input, select, summary {
     background: var(--border);
   }
 }
+
+
+/* ── Premium global touches: thin overlay-style scrollbars, brand
+      selection, primary caret. Presentation only. ─────────────────────── */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted-fg) 26%, transparent);
+  border-radius: 999px;
+  border: 2.5px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted-fg) 48%, transparent);
+  background-clip: padding-box;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted-fg) 30%, transparent)
+    transparent;
+}
+::selection {
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+input,
+textarea {
+  caret-color: var(--primary);
+}

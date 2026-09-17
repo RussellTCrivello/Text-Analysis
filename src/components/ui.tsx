@@ -39,7 +39,14 @@ import {
    for the button, regardless of the size prop it was passed.
    ========================================================================== */
 interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "danger" | "success" | "subtle"
+  variant?:
+    | "primary"
+    | "secondary"
+    | "ghost"
+    | "danger"
+    | "danger-solid"
+    | "success"
+    | "subtle"
   size?: "xs" | "sm" | "md"
   icon?: ReactNode
   loading?: boolean
@@ -77,6 +84,8 @@ export function Btn({
     subtle:
       "bg-[var(--surface-2)] text-[var(--fg-soft)] border border-[var(--border)] hover:bg-[var(--surface-3)]",
     danger:
+      "border border-[color-mix(in_srgb,var(--error)_26%,transparent)] bg-[color-mix(in_srgb,var(--error)_8%,transparent)] text-[var(--error)] hover:bg-[color-mix(in_srgb,var(--error)_15%,transparent)] active:brightness-95",
+    "danger-solid":
       "bg-[var(--error)] text-white hover:brightness-110 active:brightness-95 shadow-sm",
     success:
       "bg-[var(--success)] text-[var(--primary-fg)] hover:brightness-110 active:brightness-95 shadow-sm",
@@ -787,9 +796,13 @@ export function SelectionBar({
     <div
       className="flex items-center gap-2 px-3 py-1.5 shrink-0"
       style={{
-        background: "var(--primary-soft)",
-        borderTop: "1px solid var(--primary-soft-2)",
-        borderBottom: "1px solid var(--primary-soft-2)",
+        background:
+          "color-mix(in srgb, var(--primary-soft) 55%, var(--surface))",
+        border: "1px solid color-mix(in srgb, var(--primary) 24%, transparent)",
+        borderRadius: "var(--radius-lg)",
+        boxShadow: "var(--shadow-2)",
+        margin: "8px 12px",
+        padding: "5px 8px 5px 12px",
       }}
     >
       <span
