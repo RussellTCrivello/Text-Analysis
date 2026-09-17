@@ -10,7 +10,7 @@ with **electron-builder** into an NSIS installer (`Text Analysis-Setup-<version>
 | `electron/main.cjs` | Main process: creates the window, serves `dist/` over a secure `app://` origin (stable localStorage / IndexedDB), opens external links in the system browser, single-instance lock. |
 | `electron/preload.cjs` | Sandboxed bridge exposing only `window.desktop = { isDesktop, platform, versions }`. |
 | `scripts/electron-dev.mjs` | Starts Vite, waits for the port, launches Electron against it with DevTools. |
-| `build/` | Installer assets (`icon.ico`, `icon.png`). |
+| `build/` | Installer assets (`icon.ico`, `icon.png`), generated from `public/favicon.svg`. |
 | `package.json → "build"` | electron-builder config (appId, NSIS options, targets). Output goes to `release/` (git-ignored). |
 | `.github/workflows/desktop-windows.yml` | Builds the installer on `windows-latest`; uploads it as an artifact and attaches it to the GitHub Release for `v*` tags. |
 
@@ -50,22 +50,72 @@ tab (`workflow_dispatch`) — the artifact is then available on the run page.
 
 ## Icon
 
-Add `build/icon.ico` (multi-size, include 256×256) and `build/icon.png` (512×512).
-Quick way to make them from `public/favicon.svg`:
+`build/icon.ico` (16–256 px) and `build/icon.png` (512 px) are rendered from
+`public/favicon.svg`. To regenerate after changing the SVG:
 
 ```bash
-npx --yes svg2png-cli public/favicon.svg -w 512 -h 512 -o build/icon.png   # or any SVG rasterizer
-npx --yes png-to-ico build/icon.png > build/icon.ico
+npm i -D @resvg/resvg-js png-to-ico   # one-off, not kept in package.json
+node -e "const {Resvg}=require('@resvg/resvg-js'),ico=require('png-to-ico'),fs=require('fs');const svg=fs.readFileSync('public/favicon.svg');const r=w=>new Resvg(svg,{fitTo:{mode:'width',value:w}}).render().asPng();fs.writeFileSync('build/icon.png',r(512));ico([16,24,32,48,64,128,256].map(r)).then(b=>fs.writeFileSync('build/icon.ico',b))"
 ```
-
-Without them the build still succeeds and uses the default Electron icon.
 
 ## Code signing (optional, recommended for distribution)
 
-Unsigned installers trigger the Windows SmartScreen "unknown publisher" prompt.
-To sign, provide a certificate to electron-builder via the `CSC_LINK` /
-`CSC_KEY_PASSWORD` secrets in the workflow (or `win.signtoolOptions` /
-Azure Trusted Signing in the `build` config) — no code changes required.
+The installer is **unsigned** by default. Windows SmartScreen will show
+"Windows protected your PC / Unknown publisher" on first run; users must click
+*More info → Run anyway*. Some corporate AV policies block unsigned installers
+outright.
+
+The workflow already passes `CSC_LINK` and `CSC_KEY_PASSWORD` through to
+electron-builder. To sign, add those two repository secrets (`CSC_LINK` =
+base64-encoded `.pfx`, `CSC_KEY_PASSWORD` = its password) — no code or config
+change is needed. For Azure Trusted Signing or an HSM-backed EV cert, set
+`build.win.signtoolOptions` / `azureSignOptions` in `package.json` instead.
+
+## Security model
+
+- Renderer: `sandbox: true`, `contextIsolation: true`, `nodeIntegration: false`
+  (also in workers/subframes), `webviewTag: false`, DevTools disabled when packaged.
+- No IPC channels. Preload exposes only `window.desktop = { isDesktop, platform, versions }`.
+- `app://app/*` handler only serves files inside `dist/` (host check + normalised
+  path clamp) and attaches a Content-Security-Policy to HTML responses. The only
+  remote origin allowed by the CSP is Google Fonts (from `src/index.css`).
+- Navigation is locked to the app origin. `window.open`:
+  `http(s)` → system browser; `blob:` from the app origin and `about:blank`
+  (attachment preview, print preview) → sandboxed child window with navigation
+  denied; anything else → denied.
+- All permission requests are denied except `clipboard-sanitized-write`
+  (used by "Copy query").
+
+## What CI verifies on a real Windows runner
+
+`.github/workflows/desktop-windows.yml` (runs on PRs touching desktop files,
+`v*` tags and manual dispatch):
+
+1. `typecheck`, `test`, `smoke`, `dist:win` (installer produced).
+2. Launches the unpacked app with `--smoke-test` twice: checks `app://` origin,
+   React mounted, CSS applied, secure context, no Node globals in the renderer,
+   preload surface is exactly `isDesktop,platform,versions`, localStorage and
+   IndexedDB writable, and that both **persist across restart**.
+3. Silent-installs the NSIS `.exe`, checks install dir
+   (`%LOCALAPPDATA%\Programs\Text Analysis`, per-user), Desktop + Start Menu
+   shortcuts, HKCU uninstall entry and version, launches the installed app
+   (same `%APPDATA%\Text Analysis` user data).
+4. Single-instance lock (second process exits, first keeps running).
+5. Silent uninstall: binaries and shortcuts removed, user data **preserved**.
+6. Uploads the installer artifact; attaches to the release only on tag pushes.
+
+`--smoke-test` / `--smoke-out=<file>` are diagnostic flags and are a no-op in
+normal launches.
+
+## Data locations (per-user install)
+
+| What | Where |
+|---|---|
+| Program files | `%LOCALAPPDATA%\Programs\Text Analysis\` |
+| User data (localStorage, IndexedDB, caches) | `%APPDATA%\Text Analysis\` |
+| Uninstall entry | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\` |
+
+Uninstalling never deletes `%APPDATA%\Text Analysis` (`deleteAppDataOnUninstall: false`).
 
 ## Bump the version
 
