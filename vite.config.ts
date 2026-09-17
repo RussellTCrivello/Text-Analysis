@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
-import siteConfiguration from './.figma/make/site.json'
+import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -15,6 +15,25 @@ export default defineConfig(({ mode }) => {
     build: {
       sourcemap: emitSourcemaps ? 'inline' : false,
       minify: !emitSourcemaps,
+      rolldownOptions: {
+        output: {
+          // Split the tree into cacheable chunks instead of one ~1.2 MB monolith.
+          // Recharts drags in the d3 + victory-vendor layers, so it gets its own
+          // chunk and app edits no longer invalidate it; the framework-free domain
+          // layer and the two large UI layers follow. Nothing here is lazy-loaded —
+          // every chunk is statically imported, so the app still boots in one pass,
+          // the browser just fetches the pieces in parallel.
+          codeSplitting: {
+            groups: [
+              { name: 'charts', test: /[\\/]node_modules[\\/](?:recharts|victory-vendor|d3-)[\\/]/, priority: 5 },
+              { name: 'vendor', test: /[\\/]node_modules[\\/]/, priority: 4 },
+              { name: 'core', test: /[\\/]src[\\/]core[\\/]/, priority: 3 },
+              { name: 'views', test: /[\\/]src[\\/]views[\\/]/, priority: 2 },
+              { name: 'components', test: /[\\/]src[\\/]components[\\/]/, priority: 1 },
+            ],
+          },
+        },
+      },
     },
     plugins: [
       react(),
@@ -26,7 +45,7 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        '@': path.resolve(import.meta.dirname, './src'),
       },
     },
     optimizeDeps: {
