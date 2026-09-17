@@ -3,14 +3,29 @@ name: Desktop (Windows installer)
 on:
   push:
     tags: ['v*']
+  pull_request:
+    paths:
+      - 'electron/**'
+      - 'build/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - '.github/workflows/desktop-windows.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: desktop-windows-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: Build, verify and (on tag) release
     runs-on: windows-latest
+    permissions:
+      contents: write # needed only for the release step, gated by the tag condition below
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,10 +35,110 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run test
+      - run: npm run smoke
+
       - name: Build installer
         run: npm run dist:win
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Code signing: set CSC_LINK (base64 .pfx) and CSC_KEY_PASSWORD as
+          # repository secrets to sign; leave unset to build unsigned.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: List release output
+        shell: pwsh
+        run: Get-ChildItem release | Format-Table Name, Length
+
+      # ---- Verify the *unpacked* app: renders over app://, sandbox, storage ----
+      - name: Smoke-test packaged app (launch 1 - fresh profile)
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem 'release\win-unpacked\*.exe' | Select-Object -First 1
+          $out = "$env:RUNNER_TEMP\smoke1.json"
+          $p = Start-Process -FilePath $exe.FullName -ArgumentList '--smoke-test',"--smoke-out=$out" -PassThru -Wait
+          Get-Content $out
+          if ($p.ExitCode -ne 0) { throw "smoke run 1 failed with exit code $($p.ExitCode)" }
+
+      - name: Smoke-test packaged app (launch 2 - data must persist across restart)
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem 'release\win-unpacked\*.exe' | Select-Object -First 1
+          $out = "$env:RUNNER_TEMP\smoke2.json"
+          $p = Start-Process -FilePath $exe.FullName -ArgumentList '--smoke-test',"--smoke-out=$out" -PassThru -Wait
+          $r = Get-Content $out | ConvertFrom-Json
+          $r | ConvertTo-Json -Depth 5
+          if ($p.ExitCode -ne 0) { throw "smoke run 2 failed" }
+          if (-not $r.checks.lsPrevious) { throw "localStorage did not persist across restart" }
+          if (-not $r.checks.idb.previous) { throw "IndexedDB did not persist across restart" }
+          if (-not $r.userData.StartsWith($env:APPDATA)) { throw "userData is not under %APPDATA%: $($r.userData)" }
+          Write-Host "userData: $($r.userData)"
+
+      # ---- Verify the NSIS installer end to end ----
+      - name: Install silently
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem 'release\*Setup*.exe' | Select-Object -First 1
+          Write-Host "Installer: $($setup.Name) ($([math]::Round($setup.Length/1MB,1)) MB)"
+          $p = Start-Process -FilePath $setup.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "installer exit code $($p.ExitCode)" }
+
+      - name: Verify install location, shortcuts, registry, launch
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:LOCALAPPDATA 'Programs\Text Analysis'
+          if (-not (Test-Path "$installDir\Text Analysis.exe")) { throw "app exe missing in $installDir" }
+          Write-Host "Installed to: $installDir (per-user)"
+          $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Text Analysis.lnk'
+          $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Text Analysis.lnk'
+          if (-not (Test-Path $desktop)) { throw "desktop shortcut missing: $desktop" }
+          if (-not (Test-Path $startMenu)) { throw "start menu shortcut missing: $startMenu" }
+          $sh = New-Object -ComObject WScript.Shell
+          Write-Host "Desktop shortcut ->" $sh.CreateShortcut($desktop).TargetPath
+          Write-Host "Start Menu shortcut ->" $sh.CreateShortcut($startMenu).TargetPath
+          $reg = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' |
+                 Get-ItemProperty | Where-Object { $_.DisplayName -eq 'Text Analysis' }
+          if (-not $reg) { throw 'Add/Remove Programs entry missing (HKCU)' }
+          Write-Host "Uninstall entry: $($reg.DisplayName) $($reg.DisplayVersion) -> $($reg.UninstallString)"
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          if ($reg.DisplayVersion -ne $pkg.version) { throw "version mismatch: registry $($reg.DisplayVersion) vs package.json $($pkg.version)" }
+          # Launch the *installed* app once more; it shares the same userData so
+          # the markers written by the unpacked runs must still be visible.
+          $out = "$env:RUNNER_TEMP\smoke3.json"
+          $p = Start-Process -FilePath "$installDir\Text Analysis.exe" -ArgumentList '--smoke-test',"--smoke-out=$out" -PassThru -Wait
+          $r = Get-Content $out | ConvertFrom-Json
+          if ($p.ExitCode -ne 0) { throw 'installed app smoke failed' }
+          if (-not $r.isPackaged) { throw 'installed app does not report isPackaged' }
+          if (-not $r.checks.lsPrevious) { throw 'installed app lost localStorage' }
+          Write-Host "Installed app OK; userData=$($r.userData)"
+
+      - name: Single-instance check
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Text Analysis\Text Analysis.exe'
+          $first = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 6
+          $second = Start-Process -FilePath $exe -PassThru
+          $second.WaitForExit(15000) | Out-Null
+          if (-not $second.HasExited) { Stop-Process -Id $second.Id -Force; throw 'second instance did not exit (single-instance lock failed)' }
+          if ($first.HasExited) { throw 'first instance died unexpectedly' }
+          Write-Host 'Second instance exited immediately; first instance still running.'
+          Stop-Process -Id $first.Id -Force
+
+      - name: Uninstall silently and verify user data survives
+        shell: pwsh
+        run: |
+          $userData = Join-Path $env:APPDATA 'Text Analysis'
+          if (-not (Test-Path $userData)) { throw "expected userData dir $userData to exist before uninstall" }
+          $installDir = Join-Path $env:LOCALAPPDATA 'Programs\Text Analysis'
+          $p = Start-Process -FilePath "$installDir\Uninstall Text Analysis.exe" -ArgumentList '/S' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "uninstaller exit code $($p.ExitCode)" }
+          Start-Sleep -Seconds 5 # NSIS uninstaller copies itself to temp and finishes async
+          if (Test-Path "$installDir\Text Analysis.exe") { throw 'app exe still present after uninstall' }
+          $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Text Analysis.lnk'
+          if (Test-Path $desktop) { throw 'desktop shortcut still present after uninstall' }
+          if (-not (Test-Path $userData)) { throw 'uninstall deleted user data (should be preserved)' }
+          Write-Host "Uninstalled cleanly; user data preserved at $userData"
+
       - uses: actions/upload-artifact@v4
         with:
           name: TextAnalysis-windows-installer
@@ -31,8 +146,10 @@ jobs:
             release/*.exe
             release/*.blockmap
             release/latest.yml
+          if-no-files-found: error
+
       - name: Attach to GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: |

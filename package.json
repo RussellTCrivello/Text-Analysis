@@ -51,6 +51,7 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "build/icon.png",
       "package.json"
     ],
     "asar": true,
@@ -63,7 +64,8 @@
           ]
         }
       ],
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -71,7 +73,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Text Analysis"
+      "shortcutName": "Text Analysis",
+      "deleteAppDataOnUninstall": false,
+      "uninstallDisplayName": "${productName}"
     },
     "mac": {
       "target": [
