@@ -4,11 +4,14 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ============================================================================
-   DESIGN TOKENS — "Graphite & Iris"
+   DESIGN TOKENS — "Graphite & Iris" (deepened)
    A single source of truth for the entire interface. Every colour, surface,
    radius, shadow and spacing step below is referenced from components; no
    view hard-codes a colour. Light is the default canvas; .dark overrides the
-   same names so the whole product inverts from one switch.
+   same names so the whole product inverts from one switch. The dark theme is
+   an intentional "abyss navy": layered blue-black surfaces, cool white text,
+   and an iris→sky brand duo that carries through focus, selection and
+   active states.
    ========================================================================== */
 @theme inline {
   --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -19,23 +22,23 @@
 /* ─── Light theme ────────────────────────────────────────────────────────── */
 :root {
   /* Canvas + layered surfaces */
-  --bg: #EBEEF4;
+  --bg: #E9ECF4;
   --surface: #FFFFFF;
-  --surface-2: #F7F8FB;
-  --surface-3: #EEF1F6;
-  --surface-inset: #F1F3F8;
+  --surface-2: #F6F8FC;
+  --surface-3: #EDF0F7;
+  --surface-inset: #F0F2F8;
   --card-bg: #FFFFFF; /* kept for backward compatibility with existing components */
 
   /* Text */
-  --fg: #131A24;
-  --fg-soft: #3A4250;
-  --muted-fg: #66707F;
-  --muted-fg-2: #97A0AE;
+  --fg: #10182B;
+  --fg-soft: #38415A;
+  --muted-fg: #646E86;
+  --muted-fg-2: #96A0B6;
 
   /* Lines */
-  --border: #E3E8EF;
-  --border-strong: #D2D9E4;
-  --border-faint: #EEF1F6;
+  --border: #DFE4EE;
+  --border-strong: #C9D1E0;
+  --border-faint: #EAEEF6;
 
   /* Brand + accent */
   --primary: #4F46E5;
@@ -48,16 +51,32 @@
   --accent-violet: #7C3AED;
   --accent-fg: #FFFFFF;
 
+  /* Brand gradient — the product signature */
+  --brand-grad: linear-gradient(135deg, #4F46E5 0%, #6D5BD0 55%, #0EA5E9 130%);
+  --brand-grad-soft: linear-gradient(135deg, rgba(79, 70, 229, 0.14), rgba(14, 165, 233, 0.1));
+  --glow-brand: 0 4px 16px -4px rgba(79, 70, 229, 0.45);
+  --glow-brand-sm: 0 2px 8px -2px rgba(79, 70, 229, 0.4);
+
+  /* Ambient page light (two fixed radial washes behind the app) */
+  --ambient-a: rgba(79, 70, 229, 0.07);
+  --ambient-b: rgba(14, 165, 233, 0.055);
+  --ambient-c: rgba(124, 58, 237, 0.05);
+
+  /* Table micro-tokens */
+  --row-tint: rgba(16, 24, 43, 0.018);
+  --row-hover: rgba(79, 70, 229, 0.05);
+  --thead-glass: rgba(255, 255, 255, 0.82);
+
   /* Kept for backward-compatibility with existing components */
   --secondary-bg: #EEF1F6;
   --secondary-fg: #414B5C;
   --muted-bg: #F6F8FB;
 
   /* Semantic status */
-  --success: #16A34A;
-  --success-soft: rgba(22, 163, 74, 0.12);
-  --warning: #D97706;
-  --warning-soft: rgba(217, 119, 6, 0.13);
+  --success: #15803D;
+  --success-soft: rgba(21, 128, 61, 0.12);
+  --warning: #B45309;
+  --warning-soft: rgba(180, 83, 9, 0.13);
   --error: #DC2626;
   --error-soft: rgba(220, 38, 38, 0.12);
   --info: #2563EB;
@@ -71,17 +90,17 @@
   --ring: #4F46E5;
 
   /* Application shell */
-  --sidebar-bg: #0F1525;
-  --sidebar-fg: #8B97A8;
+  --sidebar-bg: #0B1120;
+  --sidebar-fg: #8A96AB;
   --sidebar-active: rgba(99, 102, 241, 0.18);
-  --sidebar-active-fg: #C7D2FE;
+  --sidebar-active-fg: #D6DEFF;
   --sidebar-hover: rgba(255, 255, 255, 0.05);
   --sidebar-border: rgba(255, 255, 255, 0.06);
-  --topbar-bg: #FFFFFF;
-  --topbar-fg: #131A24;
+  --topbar-bg: rgba(255, 255, 255, 0.88);
+  --topbar-fg: #10182B;
 
   /* Record-type brand colours */
-  --color-source: #16A34A;
+  --color-source: #15803D;
   --color-content: #EA580C;
   --color-analysis: #2563EB;
 
@@ -98,6 +117,13 @@
   --shadow-3: 0 14px 40px rgba(16, 24, 40, 0.14), 0 4px 12px rgba(16, 24, 40, 0.08);
   --shadow-pop: 0 18px 50px rgba(16, 24, 40, 0.2), 0 6px 16px rgba(16, 24, 40, 0.1);
 
+  /* Motion — one cadence everywhere */
+  --t-fast: 120ms;
+  --t-med: 200ms;
+  --t-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
+
   /* Layout metrics */
   --topbar-h: 54px;
   --breadcrumb-h: 46px;
@@ -109,40 +135,53 @@
   --app-font-scale: 1;
 }
 
-/* ─── Dark theme ─────────────────────────────────────────────────────────── */
+/* ─── Dark theme — "abyss navy" ──────────────────────────────────────────── */
 .dark {
-  --bg: #090D16;
-  --surface: #121826;
-  --surface-2: #0E1320;
-  --surface-3: #1A2132;
-  --surface-inset: #0B0F1A;
-  --card-bg: #121826;
+  --bg: #070B15;
+  --surface: #0E1524;
+  --surface-2: #0B111E;
+  --surface-3: #182136;
+  --surface-inset: #080D18;
+  --card-bg: #0E1524;
 
-  --fg: #E6E9F0;
-  --fg-soft: #C2C9D6;
-  --muted-fg: #8B96A8;
-  --muted-fg-2: #5E6779;
+  --fg: #E8ECF6;
+  --fg-soft: #C3CBE0;
+  --muted-fg: #8894AC;
+  --muted-fg-2: #5B6880;
 
-  --border: #1E2636;
-  --border-strong: #2B3548;
-  --border-faint: #161D2C;
+  --border: #1C2740;
+  --border-strong: #2A3855;
+  --border-faint: #141D31;
 
   --primary: #818CF8;
   --primary-600: #6366F1;
   --primary-700: #6366F1;
-  --primary-fg: #0A0E17;
+  --primary-fg: #0A0F1C;
   --primary-soft: rgba(129, 140, 248, 0.14);
   --primary-soft-2: rgba(129, 140, 248, 0.22);
   --accent: #38BDF8;
   --accent-violet: #A78BFA;
-  --accent-fg: #0A0E17;
+  --accent-fg: #0A0F1C;
 
-  --secondary-bg: #161D2C;
-  --secondary-fg: #AAB3C5;
-  --muted-bg: #0E1320;
+  --brand-grad: linear-gradient(135deg, #6366F1 0%, #818CF8 55%, #38BDF8 130%);
+  --brand-grad-soft: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(56, 189, 248, 0.12));
+  --glow-brand: 0 6px 22px -6px rgba(129, 140, 248, 0.55);
+  --glow-brand-sm: 0 2px 10px -2px rgba(129, 140, 248, 0.5);
 
-  --success: #22C55E;
-  --success-soft: rgba(34, 197, 94, 0.14);
+  --ambient-a: rgba(56, 89, 189, 0.16);
+  --ambient-b: rgba(35, 120, 160, 0.08);
+  --ambient-c: rgba(120, 80, 220, 0.09);
+
+  --row-tint: rgba(140, 165, 220, 0.025);
+  --row-hover: rgba(129, 140, 248, 0.07);
+  --thead-glass: rgba(11, 17, 30, 0.82);
+
+  --secondary-bg: #141D31;
+  --secondary-fg: #A9B4C9;
+  --muted-bg: #0B111E;
+
+  --success: #34D399;
+  --success-soft: rgba(52, 211, 153, 0.14);
   --warning: #FBBF24;
   --warning-soft: rgba(251, 191, 36, 0.15);
   --error: #F87171;
@@ -156,23 +195,23 @@
 
   --ring: #818CF8;
 
-  --sidebar-bg: #070A12;
-  --sidebar-fg: #7A879B;
-  --sidebar-active: rgba(129, 140, 248, 0.16);
-  --sidebar-active-fg: #C7D2FE;
-  --sidebar-hover: rgba(255, 255, 255, 0.04);
-  --sidebar-border: rgba(255, 255, 255, 0.05);
-  --topbar-bg: #0E1320;
-  --topbar-fg: #E6E9F0;
+  --sidebar-bg: #060A13;
+  --sidebar-fg: #7A89A6;
+  --sidebar-active: rgba(129, 140, 248, 0.14);
+  --sidebar-active-fg: #D6DEFF;
+  --sidebar-hover: rgba(255, 255, 255, 0.045);
+  --sidebar-border: rgba(255, 255, 255, 0.055);
+  --topbar-bg: rgba(11, 17, 30, 0.84);
+  --topbar-fg: #E8ECF6;
 
-  --color-source: #22C55E;
+  --color-source: #34D399;
   --color-content: #FB923C;
   --color-analysis: #60A5FA;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.45);
-  --shadow-3: 0 18px 48px rgba(0, 0, 0, 0.55);
-  --shadow-pop: 0 22px 60px rgba(0, 0, 0, 0.6);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 18px 48px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 22px 60px rgba(0, 0, 0, 0.65);
 }
 
 /* ─── High-contrast refinement ───────────────────────────────────────────── */
@@ -190,32 +229,12 @@
   --fg: #FFFFFF;
 }
 
-/* ─── Colour-blind safe palettes (set on <html data-color-blind>). ─────────
-   Replaces the red/green semantic pair (the most common deficit) with pairs
-   that stay distinguishable across each deficiency type. Record-type colours
-   are swapped at the same time so timelines, badges and legends follow. ──── */
-[data-color-blind='deuteranopia'],
-[data-color-blind='protanopia'] {
-  --success: #1F6FB2;
-  --error: #E08A1E;
-  --color-source: #1F6FB2;
-  --color-content: #E08A1E;
-  --color-analysis: #6D5BD0;
-}
-[data-color-blind='tritanopia'] {
-  --success: #C2410C;
-  --error: #1F6FB2;
-  --color-source: #C2410C;
-  --color-content: #1F6FB2;
-  --color-analysis: #7C3AED;
-}
-
 /* ============================================================================
    BASE
    ========================================================================== */
 *, *::before, *::after { box-sizing: border-box; }
 
-html { font-size: 13px; }
+html { font-size: 13.5px; }
 
 body {
   background-color: var(--bg);
@@ -227,16 +246,32 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv11' 1, 'ss01' 1; /* Inter alternates: sharper a/g */
 }
+
+/* Ambient page light — two fixed washes give flat layouts a sense of depth.
+   Decorative only; never intercepts pointer events. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(52rem 30rem at 12% -8%, var(--ambient-a), transparent 62%),
+    radial-gradient(46rem 26rem at 96% 4%, var(--ambient-b), transparent 60%),
+    radial-gradient(60rem 40rem at 70% 110%, var(--ambient-c), transparent 65%);
+}
+#root { position: relative; z-index: 1; }
 
 /* The workspace font scale multiplies the root so dense analytical tables
    stay calm while remaining fully adjustable (Settings → Accessibility). */
-#root { font-size: calc(0.92rem * var(--app-font-scale)); }
+#root { font-size: calc(0.93rem * var(--app-font-scale)); }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   color: var(--fg);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.022em;
   margin: 0;
 }
 
@@ -255,17 +290,28 @@ h1, h2, h3, h4, h5, h6 {
 ::selection { background: var(--primary); color: var(--primary-fg); }
 
 /* Focus visibility. Settings → "Enhanced focus indicator" switches between a
-   crisp 2px ring and a heavier halo for keyboard users who need it; turning
-   it off keeps the default ring (never no indication). */
+   crisp ring with a soft glow and a heavier halo for keyboard users who need
+   it; turning it off keeps the default ring (never no indication). */
 *:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 4px var(--primary-soft);
 }
 html[data-focus-indicator='enhanced'] *:focus-visible {
   outline-width: 3px;
   outline-offset: 3px;
-  box-shadow: 0 0 0 6px var(--primary-soft);
+  box-shadow: 0 0 0 6px var(--primary-soft-2);
+}
+
+/* Shared interactive cadence — every control feels part of one machine. */
+button, a, [role='button'], input, select, summary {
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out),
+    box-shadow var(--t-med) var(--ease-out),
+    transform var(--t-fast) var(--ease-spring);
 }
 
 /* ============================================================================
@@ -300,6 +346,126 @@ html[data-focus-indicator='enhanced'] *:focus-visible {
     -webkit-text-fill-color: transparent;
     color: transparent;
   }
+
+  /* Cards that respond to the cursor — used by the overview metrics. */
+  .card-lift {
+    transition:
+      transform var(--t-med) var(--ease-out),
+      box-shadow var(--t-med) var(--ease-out),
+      border-color var(--t-med) var(--ease-out);
+  }
+  .card-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
+    border-color: var(--border-strong);
+  }
+
+  /* Metric cards for the dashboard band. */
+  .metric-card {
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  }
+  .metric-card::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 2px;
+    background: var(--brand-grad);
+    opacity: 0;
+    transition: opacity var(--t-med) var(--ease-out);
+  }
+  .metric-card:hover::after { opacity: 1; }
+
+  /* Recessed well behind sparklines/minicharts. */
+  .spark-well {
+    background:
+      linear-gradient(180deg, transparent, var(--surface-inset) 240%),
+      var(--surface-inset);
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius);
+  }
+
+  /* The product mark. */
+  .brand-mark {
+    background: var(--brand-grad);
+    box-shadow: var(--glow-brand-sm), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+
+  /* Gradient hairline used under page headers and section rules. */
+  .rule-grad { position: relative; }
+  .rule-grad::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary-soft-2) 30%, var(--primary-soft-2) 70%, transparent);
+    pointer-events: none;
+  }
+
+  /* Sidebar nav items: animated active rail + hover lift, driven by state
+     attributes so no JS timers are needed. */
+  .nav-item { overflow: hidden; }
+  .nav-item::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: 0;
+    top: 18%;
+    bottom: 18%;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--brand-grad);
+    box-shadow: var(--glow-brand-sm);
+    transform: scaleY(0.4);
+    opacity: 0;
+    transition:
+      transform var(--t-med) var(--ease-spring),
+      opacity var(--t-med) var(--ease-out);
+  }
+  .nav-item[data-active='true']::before { transform: scaleY(1); opacity: 1; }
+  .nav-item[data-active='true'] {
+    background: var(--sidebar-active);
+    box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.16);
+  }
+
+  /* Coloured status dots (source types, record kinds). */
+  .type-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 0%, transparent);
+  }
+
+  /* Skeleton shimmer for honest loading affordances. */
+  .skeleton {
+    background:
+      linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 45%, var(--surface-2) 65%);
+    background-size: 480px 100%;
+    animation: shimmer 1.4s linear infinite;
+    border-radius: var(--radius);
+  }
+
+  /* Keyboard hint chips in the command bar etc. */
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding-inline: 5px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted-fg);
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+  }
 }
 
 /* ============================================================================
@@ -324,18 +490,28 @@ html[data-focus-indicator='enhanced'] *:focus-visible {
 @keyframes spin360 {
   to { transform: rotate(360deg); }
 }
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes drawLine {
+  from { stroke-dashoffset: var(--spark-len, 240); }
+  to   { stroke-dashoffset: 0; }
+}
 .animate-spin-slow { animation: spin360 0.9s linear infinite; }
+.animate-pulse-dot { animation: pulseDot 2.4s var(--ease-out) infinite; }
 
 /* RTL: directional chevrons flip to follow reading order. Lucide applies
    stable class names (lucide-chevron-left / lucide-chevron-right), so the
    icons themselves stay layout-agnostic. */
 [dir="rtl"] .lucide-chevron-left,
 [dir="rtl"] .lucide-chevron-right,
-[dir="rtl"] .lucide-chevron-left,
 [dir="rtl"] .lucide-arrow-right,
 [dir="rtl"] .lucide-arrow-left {
   transform: scaleX(-1);
 }
+/* Rails and sparklines mirror with the layout. */
+[dir="rtl"] .nav-item::before { border-radius: 0 3px 3px 0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -366,4 +542,5 @@ html[data-focus-indicator='enhanced'] *:focus-visible {
 @media print {
   nav, header, footer { display: none !important; }
   body { background: white; color: black; font-size: 11pt; }
+  body::before { display: none; }
 }

@@ -48,6 +48,7 @@ import { ImportWizard } from "../components/ImportWizard"
 import { useAppData } from "../store/AppContext"
 import { useSettings } from "../store/SettingsContext"
 import { useTranslation } from "../i18n"
+import { paletteFor } from "../core/charts"
 import type { Source } from "../types"
 import { applyDateFilter, freeTextSearch } from "../core/search"
 import { computeEntityStats } from "../core/stats"
@@ -299,7 +300,15 @@ export function SourcesView({
       header: t.fields.type,
       width: "90px",
       sortable: true,
-      render: (s) => <Badge>{s.type}</Badge>,
+      render: (s) => (
+        <Badge>
+          <span
+            className="type-dot"
+            style={{ background: paletteFor(s.type ?? ""), color: s.type ?? "" }}
+          />
+          {s.type}
+        </Badge>
+      ),
     },
     {
       key: "link_sources",

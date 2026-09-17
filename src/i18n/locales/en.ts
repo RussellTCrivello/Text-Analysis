@@ -220,6 +220,12 @@ const en = {
       filterContents: "Contents",
       filterAnalysis: "Analysis",
       noData: "No records found matching current filters.",
+      overview: "Workspace overview",
+      last14: "last 14 days",
+      newThisWeek: "+{n} this week",
+      quietWeek: "quiet this week",
+      other: "Other",
+      sourceMix: "Source mix",
     },
     timeline: {
       title: "Timeline",

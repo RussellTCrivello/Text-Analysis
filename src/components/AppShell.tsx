@@ -305,6 +305,8 @@ export function AppShell({
         className="flex items-center gap-3 px-3 shrink-0"
         style={{
           background: "var(--topbar-bg)",
+          backdropFilter: "blur(12px) saturate(1.5)",
+          WebkitBackdropFilter: "blur(12px) saturate(1.5)",
           height: "var(--topbar-h)",
           color: "var(--topbar-fg)",
           borderBottom: "1px solid var(--border)",
@@ -326,13 +328,8 @@ export function AppShell({
             and Lucide has no equivalent. Everything else in the UI uses Lucide.
           */}
           <div
-            className="w-7 h-7 flex items-center justify-center rounded-[var(--radius)]"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--primary), var(--accent-violet))",
-              color: "#fff",
-              boxShadow: "var(--shadow-1)",
-            }}
+            className="w-7 h-7 flex items-center justify-center rounded-[var(--radius)] brand-mark"
+            style={{ color: "#fff" }}
             aria-hidden="true"
           >
             <svg
@@ -673,7 +670,8 @@ export function AppShell({
             width: sidebarCollapsed
               ? "var(--sidebar-w-collapsed)"
               : "var(--sidebar-w)",
-            background: "var(--sidebar-bg)",
+            background:
+              "linear-gradient(180deg, rgba(148,163,255,0.05), transparent 16%), var(--sidebar-bg)",
             color: "var(--sidebar-fg)",
             transition: "width 0.18s cubic-bezier(0.4,0,0.2,1)",
             borderInlineEnd: "1px solid var(--sidebar-border)",
@@ -706,13 +704,14 @@ export function AppShell({
                       key={item.id}
                       onClick={() => onSectionChange(item.id)}
                       aria-current={active ? "page" : undefined}
+                      data-active={active}
                       aria-label={
                         sidebarCollapsed ? t.nav[item.labelKey] : undefined
                       }
                       title={
                         sidebarCollapsed ? t.nav[item.labelKey] : undefined
                       }
-                      className="w-full flex items-center gap-2.5 py-2 text-sm transition-all duration-100 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgba(255,255,255,0.3)]"
+                      className="nav-item w-full flex items-center gap-2.5 py-2 text-sm transition-all duration-150 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgba(255,255,255,0.3)]"
                       style={{
                         paddingInlineStart: sidebarCollapsed ? 0 : 12,
                         paddingInlineEnd: sidebarCollapsed ? 0 : 12,
@@ -736,13 +735,6 @@ export function AppShell({
                           e.currentTarget.style.background = "transparent"
                       }}
                     >
-                      {active && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute start-0 top-1.5 bottom-1.5 w-0.5 rounded-full"
-                          style={{ background: "var(--primary)" }}
-                        />
-                      )}
                       <span
                         className="shrink-0 opacity-85 flex items-center justify-center"
                         style={{ width: 18 }}
@@ -993,16 +985,19 @@ export function AppShell({
         </span>
         <div className="flex items-center gap-3">
           <span className="tnum">
+            <span className="type-dot" style={{ background: "var(--color-source)", color: "var(--color-source)" }} />{" "}
             <span style={{ color: "var(--color-source)" }}>S</span>:
             {data.sources.length}
             <span className="mx-1" style={{ opacity: 0.3 }}>
               ·
             </span>
+            <span className="type-dot" style={{ background: "var(--color-content)", color: "var(--color-content)" }} />{" "}
             <span style={{ color: "var(--color-content)" }}>C</span>:
             {data.contents.length}
             <span className="mx-1" style={{ opacity: 0.3 }}>
               ·
             </span>
+            <span className="type-dot" style={{ background: "var(--color-analysis)", color: "var(--color-analysis)" }} />{" "}
             <span style={{ color: "var(--color-analysis)" }}>A</span>:
             {data.analyses.length}
             <span className="mx-1 ms-2" style={{ opacity: 0.3 }}>
@@ -1145,7 +1140,8 @@ export function AppShell({
           <div
             className="flex items-start gap-2 px-4 py-2.5 text-sm font-medium animate-[fadeInUp_0.2s_ease-out]"
             style={{
-              background: "var(--sidebar-bg)",
+              background:
+              "linear-gradient(180deg, rgba(148,163,255,0.05), transparent 16%), var(--sidebar-bg)",
               color: "#fff",
               border: "1px solid rgba(255,255,255,0.12)",
               borderRadius: "var(--radius-lg)",

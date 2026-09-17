@@ -53,7 +53,7 @@ export function Btn({
   ...rest
 }: BtnProps) {
   const base =
-    "inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-150 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-1"
+    "inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-150 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-1 hover:-translate-y-px active:translate-y-0 active:scale-[0.985] disabled:hover:translate-y-0 disabled:active:scale-100"
   const radii = {
     xs: "rounded-[var(--radius-sm)]",
     sm: "rounded-[var(--radius)]",
@@ -66,9 +66,9 @@ export function Btn({
   }
   const vars: Record<string, string> = {
     primary:
-      "bg-[var(--primary)] text-[var(--primary-fg)] hover:brightness-110 active:brightness-95 shadow-sm shadow-[var(--primary-soft)]",
+      "bg-[image:var(--brand-grad)] text-[var(--primary-fg)] shadow-[var(--glow-brand-sm)] hover:brightness-110 hover:shadow-[var(--glow-brand)] active:brightness-95",
     secondary:
-      "border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--fg)] hover:bg-[var(--surface-3)] hover:border-[var(--primary)] active:bg-[var(--surface-2)]",
+      "border border-[var(--border-strong)] bg-[linear-gradient(180deg,var(--surface),var(--surface-2))] text-[var(--fg)] hover:bg-[var(--surface-3)] hover:border-[color-mix(in_srgb,var(--primary)_45%,var(--border-strong))] active:bg-[var(--surface-2)]",
     ghost:
       "text-[var(--fg-soft)] hover:bg-[var(--surface-3)] active:bg-[var(--surface-2)]",
     subtle:
@@ -756,7 +756,9 @@ export function ResultsStrip({
     <div
       className="flex items-center gap-2 px-3 shrink-0"
       style={{
-        background: "var(--surface-2)",
+        background: "var(--thead-glass)",
+        backdropFilter: "blur(8px) saturate(1.3)",
+        WebkitBackdropFilter: "blur(8px) saturate(1.3)",
         borderBottom: "1px solid var(--border)",
         height: 26,
         color: "var(--muted-fg)",
@@ -1786,6 +1788,7 @@ export function ProgressBar({
             : `${Math.round(Math.min(1, Math.max(0, value ?? 0)) * 100)}%`,
           background:
             "linear-gradient(90deg, var(--primary), var(--accent-violet))",
+          boxShadow: "0 0 8px var(--primary-soft-2)",
           ...(indeterminate
             ? { animation: "indeterminateSlide 1.1s ease-in-out infinite" }
             : {}),
@@ -1899,7 +1902,16 @@ export function EmptyState({
         compact ? "py-10" : "py-20"
       } px-6 gap-3 animate-[fadeIn_0.2s_ease-out]`}
     >
-      <div className="opacity-70" style={{ color }}>
+      <div
+        className="w-16 h-16 rounded-[var(--radius-xl)] flex items-center justify-center"
+        style={{
+          color,
+          background: "var(--brand-grad-soft)",
+          border: "1px solid var(--border)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35), var(--shadow-1)",
+          animation: "popIn 0.45s var(--ease-spring) both",
+        }}
+      >
         {icon ?? autoIcon}
       </div>
       <div
@@ -2053,9 +2065,10 @@ export function PageHeader({
 }) {
   return (
     <header
-      className="flex items-center gap-3 px-4 shrink-0"
+      className="flex items-center gap-3 px-4 shrink-0 rule-grad"
       style={{
-        background: "var(--surface)",
+        background:
+          "linear-gradient(180deg, var(--surface) 60%, var(--surface-2))",
         borderBottom: "1px solid var(--border)",
         minHeight: 56,
         paddingTop: 10,
@@ -2066,9 +2079,9 @@ export function PageHeader({
         <div
           className="w-9 h-9 shrink-0 rounded-[var(--radius)] flex items-center justify-center"
           style={{
-            background: "var(--primary-soft)",
-            color: "var(--primary)",
-            border: "1px solid var(--primary-soft-2)",
+            background: "var(--brand-grad)",
+            color: "var(--primary-fg)",
+            boxShadow: "var(--glow-brand-sm), inset 0 1px 0 rgba(255,255,255,0.25)",
           }}
         >
           {icon}

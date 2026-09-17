@@ -29,6 +29,8 @@ import {
 import { ExportDialog } from "../components/ExportDialog"
 import { AdvancedSearch } from "../components/AdvancedSearch"
 import { freeTextSearch, applyDateFilter } from "../core/search"
+import { categoryCounts, countPerDay, createdWithin, paletteFor } from "../core/charts"
+import { MiniDonut, Sparkline } from "../components/Charts"
 import { formatDateTime } from "../core/text"
 import { buildPrintDocument, printHtml } from "../core/print"
 import type { Row } from "../core/repository"
@@ -51,6 +53,143 @@ interface UnifiedRecord {
   list_names_places: string
   note: string
   list_sides: string
+}
+
+/**
+ * Glanceable workspace pulse: real record counts, 14-day creation
+ * sparklines per kind, the week's delta, and the source-type mix.
+ */
+function OverviewBand() {
+  const { t } = useTranslation()
+  const { data } = useAppData()
+  const metrics = useMemo(() => {
+    const mk = (
+      key: string,
+      label: string,
+      color: string,
+      rows: { date_creation?: string }[],
+    ) => {
+      const dates = rows.map((r) => r.date_creation)
+      return {
+        key,
+        label,
+        color,
+        value: rows.length,
+        series: countPerDay(dates, 14),
+        week: createdWithin(dates, 7),
+      }
+    }
+    return [
+      mk("sources", t.nav.sources, "var(--color-source)", data.sources),
+      mk("contents", t.nav.contents, "var(--color-content)", data.contents),
+      mk("analyses", t.nav.analysis, "var(--color-analysis)", data.analyses),
+    ]
+  }, [data, t])
+
+  const mix = useMemo(
+    () =>
+      categoryCounts(
+        data.sources.map((sr) => sr.type),
+        4,
+        t.sections.allData.other,
+      ).map((sl) => ({ ...sl, color: paletteFor(sl.label) })),
+    [data.sources, t],
+  )
+
+  return (
+    <section
+      aria-label={t.sections.allData.overview}
+      className="grid gap-2 px-3 pt-3 shrink-0"
+      style={{
+        gridTemplateColumns: "repeat(auto-fit, minmax(196px, 1fr))",
+      }}
+    >
+      {metrics.map((m) => (
+        <div
+          key={m.key}
+          className="surface-card card-lift metric-card p-2.5 flex flex-col gap-1"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className="text-[9.5px] font-bold uppercase tracking-[0.12em] inline-flex items-center gap-1.5"
+              style={{ color: "var(--muted-fg)" }}
+            >
+              <span
+                className="type-dot"
+                style={{ background: m.color, color: m.color }}
+              />
+              {m.label}
+            </span>
+            <span
+              className="rounded-full px-1.5 py-px text-[9px] font-bold tnum"
+              style={
+                m.week > 0
+                  ? { background: "var(--success-soft)", color: "var(--success)" }
+                  : { color: "var(--muted-fg-2)" }
+              }
+            >
+              {m.week > 0
+                ? t.sections.allData.newThisWeek.replace("{n}", String(m.week))
+                : t.sections.allData.quietWeek}
+            </span>
+          </div>
+          <div className="flex items-end justify-between gap-2">
+            <span
+              className="text-[22px] font-extrabold leading-none tnum"
+              style={{
+                color: "var(--fg)",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "-0.03em",
+              }}
+            >
+              {m.value}
+            </span>
+            <span
+              className="text-[9px] uppercase tracking-wide"
+              style={{ color: "var(--muted-fg-2)" }}
+            >
+              {t.sections.allData.last14}
+            </span>
+          </div>
+          <div className="spark-well px-1 pt-1 mt-0.5">
+            <Sparkline values={m.series} color={m.color} height={26} />
+          </div>
+        </div>
+      ))}
+      {mix.length > 0 && (
+        <div className="surface-card card-lift p-2.5 flex items-center gap-3">
+          <MiniDonut slices={mix} size={62} thickness={8} />
+          <div className="min-w-0 flex-1 flex flex-col gap-1">
+            <span
+              className="text-[9.5px] font-bold uppercase tracking-[0.12em]"
+              style={{ color: "var(--muted-fg)" }}
+            >
+              {t.sections.allData.sourceMix}
+            </span>
+            {mix.slice(0, 4).map((sl) => (
+              <div
+                key={sl.label}
+                className="flex items-center gap-1.5 text-[10.5px] leading-tight"
+                style={{ color: "var(--fg-soft)" }}
+              >
+                <span
+                  className="type-dot"
+                  style={{ background: sl.color, color: sl.color }}
+                />
+                <span className="truncate flex-1">{sl.label}</span>
+                <span
+                  className="tnum"
+                  style={{ color: "var(--muted-fg-2)" }}
+                >
+                  {sl.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  )
 }
 
 export function AllDataView({
@@ -286,6 +425,7 @@ export function AllDataView({
     if (!printHtml(html)) onToast(t.messages.printUnavailable)
   }
 
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <PageHeader
@@ -295,6 +435,8 @@ export function AllDataView({
         icon={<NavAllData size="md" />}
         count={{ value: allRecords.length, label: t.messages.records }}
       />
+
+      <OverviewBand />
 
       <FilterRow>
         <Select

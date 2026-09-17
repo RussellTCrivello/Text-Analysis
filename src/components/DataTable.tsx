@@ -129,13 +129,13 @@ export function DataTable<T extends { id: string }>({
         </colgroup>
 
         <thead>
-          <tr style={{ position: "sticky", top: 0, zIndex: 2 }}>
+          <tr style={{ position: "sticky", top: 0, zIndex: 2, backdropFilter: "blur(8px) saturate(1.3)", WebkitBackdropFilter: "blur(8px) saturate(1.3)" }}>
             {onSelectionChange && (
               <th
                 scope="col"
                 className="px-2 text-center"
                 style={{
-                  background: "var(--surface-2)",
+                  background: "var(--thead-glass)",
                   borderBottom: "2px solid var(--border)",
                   height: 32,
                 }}
@@ -165,7 +165,7 @@ export function DataTable<T extends { id: string }>({
               className="text-center"
               aria-label="Row number"
               style={{
-                background: "var(--surface-2)",
+                background: "var(--thead-glass)",
                 borderBottom: "2px solid var(--border)",
                 height: 32,
                 color: "var(--muted-fg)",
@@ -191,7 +191,7 @@ export function DataTable<T extends { id: string }>({
                 }
                 className="px-3 text-start"
                 style={{
-                  background: "var(--surface-2)",
+                  background: "var(--thead-glass)",
                   borderBottom: "2px solid var(--border)",
                   height: 32,
                   color: "var(--muted-fg)",
@@ -230,15 +230,15 @@ export function DataTable<T extends { id: string }>({
           {columns.some((col) => col.filter) && (
             <tr aria-label="Column filters">
               {onSelectionChange && (
-                <th style={{ background: "var(--surface-2)" }} aria-hidden="true" />
+                <th style={{ background: "var(--thead-glass)" }} aria-hidden="true" />
               )}
-              <th style={{ background: "var(--surface-2)" }} aria-hidden="true" />
+              <th style={{ background: "var(--thead-glass)" }} aria-hidden="true" />
               {columns.map((col) => (
                 <th
                   key={`filter-${String(col.key)}`}
                   className="px-1 pb-1.5 align-top"
                   style={{
-                    background: "var(--surface-2)",
+                    background: "var(--thead-glass)",
                     borderTop: "1px solid var(--border)",
                   }}
                 >
@@ -279,13 +279,13 @@ export function DataTable<T extends { id: string }>({
                   onClick={(e) => handleRowClick(row, e)}
                   onDoubleClick={() => onDoubleClick?.(row)}
                   aria-selected={sel}
-                  className={`cursor-pointer transition-all duration-75 ${rowPy}`}
+                  className={`cursor-pointer transition-all duration-150 ${rowPy}`}
                   style={{
                     background: sel
-                      ? "var(--primary-soft)"
+                      ? "linear-gradient(90deg, var(--primary-soft-2), var(--primary-soft) 45%, var(--surface) 160px)"
                       : idx % 2 === 0
                         ? "var(--surface)"
-                        : "var(--surface-2)",
+                        : "var(--row-tint)",
                     color: "var(--fg)",
                     borderInlineStart: sel
                       ? "2px solid var(--primary)"
@@ -293,12 +293,12 @@ export function DataTable<T extends { id: string }>({
                   }}
                   onMouseEnter={(e) => {
                     if (!sel)
-                      e.currentTarget.style.background = "var(--surface-3)"
+                      e.currentTarget.style.background = "var(--row-hover)"
                   }}
                   onMouseLeave={(e) => {
                     if (!sel)
                       e.currentTarget.style.background =
-                        idx % 2 === 0 ? "var(--surface)" : "var(--surface-2)"
+                        idx % 2 === 0 ? "var(--surface)" : "var(--row-tint)"
                   }}
                 >
                   {onSelectionChange && (
