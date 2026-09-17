@@ -5,6 +5,26 @@
 import { fold, isBlank, parseDate, toNumber } from './text';
 import type { Row } from './repository';
 
+/**
+ * Per-column list filtering (the small search fields in table headers).
+ * `valueOf` decides what a column's *filterable text* is, so display values
+ * (a source's name, a content's title) match rather than stored ids.
+ * Empty filter strings are ignored; a row must satisfy every active filter.
+ */
+export function applyColumnFilters<T>(
+  rows: T[],
+  filters: Record<string, string>,
+  valueOf: (row: T, key: string) => string,
+): T[] {
+  const active = Object.entries(filters).filter(([, v]) => String(v ?? '').trim());
+  if (!active.length) return rows;
+  return rows.filter((row) =>
+    active.every(([key, needle]) =>
+      valueOf(row, key).toLowerCase().includes(String(needle).trim().toLowerCase()),
+    ),
+  );
+}
+
 export type SearchOperator =
   | 'contains'
   | 'not_contains'

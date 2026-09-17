@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { InfoModal } from './FormModal';
+import React, { useState } from "react"
+import { InfoModal } from "./FormModal"
 
 const TOPICS = [
   {
-    id: 'getting-started',
-    title: 'Getting Started',
+    id: "getting-started",
+    title: "Getting Started",
     content: `Welcome to Text Analysis Management System v2.1.0.
 
 This application helps you collect, organize, and analyze research sources and content.
@@ -21,14 +21,14 @@ Use the sidebar (or Ctrl+1–8) to switch between the eight main workspaces:
 • Dictionary — Editable gazetteer, taxonomy and extraction test bed
 
 **Quick Add**
-Click the ＋ button in the header to quickly add a record to the current workspace.
+Click **Quick add** in the command bar (or press Ctrl+N) to create a record in the current workspace.
 
 **Settings**
-Access Settings from the sidebar Operations group or the gear icon in the header.`,
+Access Settings from the sidebar Operations group or the Settings button in the command bar.`,
   },
   {
-    id: 'sources',
-    title: 'Sources Management',
+    id: "sources",
+    title: "Sources Management",
     content: `The Sources workspace manages the research sources that ground your work.
 
 **Fields**
@@ -49,8 +49,8 @@ Access Settings from the sidebar Operations group or the gear icon in the header
 • Bulk Operations — Delete or edit many records at once`,
   },
   {
-    id: 'contents',
-    title: 'Contents Management',
+    id: "contents",
+    title: "Contents Management",
     content: `The Contents workspace manages documents and extracts belonging to sources.
 
 **Fields**
@@ -68,8 +68,8 @@ Access Settings from the sidebar Operations group or the gear icon in the header
 • View Attachments — Manage attached files`,
   },
   {
-    id: 'analysis',
-    title: 'Content Analysis',
+    id: "analysis",
+    title: "Content Analysis",
     content: `The Analysis workspace holds structured analysis records linked to content.
 
 **Fields**
@@ -87,8 +87,8 @@ Access Settings from the sidebar Operations group or the gear icon in the header
 • Summary — Aggregate statistics over filtered records`,
   },
   {
-    id: 'timeline',
-    title: 'Timeline',
+    id: "timeline",
+    title: "Timeline",
     content: `The Timeline workspace shows all records that have a date in chronological order.
 
 **Event Cards**
@@ -104,8 +104,8 @@ Switch between By Type, Monthly, Day of Week, and By Classification chart views.
 Combine date range, full-text search, people, places, and classification filters.`,
   },
   {
-    id: 'reports',
-    title: 'Reports',
+    id: "reports",
+    title: "Reports",
     content: `The Reports workspace provides a full query builder and chart designer.
 
 **Query Builder**
@@ -122,8 +122,8 @@ Paginated table showing query output. Click "Create Chart" to feed results to th
 Live HTML preview of the report document. Set a title, toggle chart inclusion, save/load reports.`,
   },
   {
-    id: 'export',
-    title: 'Export',
+    id: "export",
+    title: "Export",
     content: `The unified Export dialog is available from every table workspace.
 
 **Formats**
@@ -131,9 +131,9 @@ Live HTML preview of the report document. Set a title, toggle chart inclusion, s
 • JSON — Structured JSON with metadata
 • JSON Lines — One object per line
 • XML — XML with record elements
-• Excel (.xlsx) — Spreadsheet (planned)
-• Word (.docx) — Document (planned)
-• PDF — Print-formatted PDF (planned)
+• Excel (.xlsx) — Native spreadsheet
+• Word (.docx) — Structured report (headings, contents, no tables) or classic grid
+• PDF — Print-formatted PDF
 
 **Options**
 • Select which columns to include
@@ -142,8 +142,8 @@ Live HTML preview of the report document. Set a title, toggle chart inclusion, s
 • Live preview of the first N rows`,
   },
   {
-    id: 'search',
-    title: 'Search & Filter',
+    id: "search",
+    title: "Search & Filter",
     content: `Every table workspace supports combined text and date filtering.
 
 **Text Search**
@@ -156,8 +156,8 @@ Default: today − 1 year → today. Rows without any date are always kept.
 Multi-condition builder with 10+ operators (=, !=, LIKE, >, <, IS NULL, etc.). Results replace the table view until the next Refresh. Save searches for re-use.`,
   },
   {
-    id: 'bulk',
-    title: 'Bulk Operations',
+    id: "bulk",
+    title: "Bulk Operations",
     content: `Bulk Operations allows acting on many records at once.
 
 **Modes**
@@ -165,11 +165,11 @@ Multi-condition builder with 10+ operators (=, !=, LIKE, >, <, IS NULL, etc.). R
 • Bulk Edit — Set field values across all selected records
 • Bulk Import — Append rows from a CSV file
 
-Access from the More (⋯) menu or the selection action bar when rows are selected.`,
+Access from the More menu in a table toolbar or from the selection action bar when rows are selected.`,
   },
   {
-    id: 'activity',
-    title: 'Activity & Audit Trail',
+    id: "activity",
+    title: "Activity & Audit Trail",
     content: `Every create, update, delete, bulk, import, restore, merge and reset is recorded.
 
 **What is stored**
@@ -186,8 +186,8 @@ Access from the More (⋯) menu or the selection action bar when rows are select
 The log is capped at 2,000 entries and travels inside every backup envelope.`,
   },
   {
-    id: 'dictionary',
-    title: 'Data Dictionary (extensibility)',
+    id: "dictionary",
+    title: "Data Dictionary (extensibility)",
     content: `The vocabulary behind automated extraction is user-editable — nothing is hardcoded.
 
 **Gazetteer**
@@ -207,44 +207,97 @@ The log is capped at 2,000 entries and travels inside every backup envelope.`,
 Everything persists with the workspace and can be exported as JSON to share
 one vocabulary across a team.`,
   },
-];
+]
 
-export function HelpDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [activeId, setActiveId] = useState('getting-started');
-  const topic = TOPICS.find(t => t.id === activeId) ?? TOPICS[0];
+export function HelpDialog({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean
+  onClose: () => void
+}) {
+  const [activeId, setActiveId] = useState("getting-started")
+  const topic = TOPICS.find((t) => t.id === activeId) ?? TOPICS[0]
 
   return (
-    <InfoModal isOpen={isOpen} title="Help — Text Analysis Management System" onClose={onClose} size="xl">
+    <InfoModal
+      isOpen={isOpen}
+      title="Help — Text Analysis Management System"
+      onClose={onClose}
+      size="xl"
+    >
       <div className="flex gap-0 h-96">
         {/* Topics tree */}
-        <div className="w-52 shrink-0 overflow-y-auto" style={{ borderInlineEnd: '1px solid var(--border)' }}>
-          {TOPICS.map(t2 => (
-            <button key={t2.id} onClick={() => setActiveId(t2.id)}
+        <div
+          className="w-52 shrink-0 overflow-y-auto"
+          style={{ borderInlineEnd: "1px solid var(--border)" }}
+        >
+          {TOPICS.map((t2) => (
+            <button
+              key={t2.id}
+              onClick={() => setActiveId(t2.id)}
               className="w-full text-start px-3 py-2 text-xs transition-colors"
-              style={{ background: activeId === t2.id ? 'var(--secondary-bg)' : 'transparent', color: activeId === t2.id ? 'var(--fg)' : 'var(--muted-fg)', borderInlineStart: activeId === t2.id ? '3px solid var(--primary)' : '3px solid transparent' }}>
+              style={{
+                background:
+                  activeId === t2.id ? "var(--secondary-bg)" : "transparent",
+                color: activeId === t2.id ? "var(--fg)" : "var(--muted-fg)",
+                borderInlineStart:
+                  activeId === t2.id
+                    ? "3px solid var(--primary)"
+                    : "3px solid transparent",
+              }}
+            >
               {t2.title}
             </button>
           ))}
         </div>
         {/* Content pane */}
         <div className="flex-1 overflow-y-auto px-4 py-2">
-          <h3 className="text-base font-bold mb-3" style={{ fontFamily: 'var(--font-display)' }}>{topic.title}</h3>
-          <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--fg)' }}>
-            {topic.content.split('\n').map((line, i) => {
-              if (line.startsWith('**') && line.endsWith('**')) {
-                return <p key={i} className="font-bold mt-3 mb-1">{line.slice(2, -2)}</p>;
+          <h3
+            className="text-base font-bold mb-3"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {topic.title}
+          </h3>
+          <div
+            className="text-sm leading-relaxed whitespace-pre-wrap"
+            style={{ color: "var(--fg)" }}
+          >
+            {topic.content.split("\n").map((line, i) => {
+              if (line.startsWith("**") && line.endsWith("**")) {
+                return (
+                  <p key={i} className="font-bold mt-3 mb-1">
+                    {line.slice(2, -2)}
+                  </p>
+                )
               }
-              if (line.startsWith('• ')) {
-                return <p key={i} className="ml-3 text-xs" style={{ color: 'var(--muted-fg)' }}>{line}</p>;
+              if (line.startsWith("• ")) {
+                return (
+                  <p
+                    key={i}
+                    className="ml-3 text-xs"
+                    style={{ color: "var(--muted-fg)" }}
+                  >
+                    {line}
+                  </p>
+                )
               }
-              return <p key={i} className={line ? '' : 'h-2'}>{line}</p>;
+              return (
+                <p key={i} className={line ? "" : "h-2"}>
+                  {line}
+                </p>
+              )
             })}
           </div>
         </div>
       </div>
-      <div className="pt-3 text-xs text-center" style={{ color: 'var(--muted-fg)' }}>
-        Text Analysis Management System v2.1.0 — Press F1 to open Help at any time
+      <div
+        className="pt-3 text-xs text-center"
+        style={{ color: "var(--muted-fg)" }}
+      >
+        Text Analysis Management System v2.1.0 — Press F1 to open Help at any
+        time
       </div>
     </InfoModal>
-  );
+  )
 }

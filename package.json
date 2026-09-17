@@ -11,9 +11,11 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --import ./scripts/ts-resolve-hooks.mjs --test \"src/core/**/*.test.ts\"",
     "check": "npm run typecheck && npm run test && npm run smoke",
-    "smoke": "vite build --ssr scripts/smoke.tsx --outDir .smoke --logLevel error && node .smoke/smoke.js"
+    "smoke": "vite build --ssr scripts/smoke.tsx --outDir .smoke --logLevel error && node .smoke/smoke.js",
+    "smoke:dom": "vite build --ssr scripts/dom-check.tsx --outDir .domcheck --logLevel error && node .domcheck/dom-check.js"
   },
   "dependencies": {
+    "lucide-react": "^1.46.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.10.1"
@@ -27,6 +29,7 @@
     "oxfmt": "^0.2.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
-    "vite": "^8.0.5"
+    "vite": "^8.0.5",
+    "jsdom": "^26.1.0"
   }
 }

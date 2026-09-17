@@ -10,12 +10,17 @@
  *   html / md      printable HTML table and Markdown table
  *   xlsx           genuine OOXML workbook (zip written by core/export/zip)
  *   xls            SpreadsheetML 2003 (Excel 2003 XML)
- *   docx           genuine OOXML document
+ *   docx           structured OOXML report — headings, TOC field, page
+ *                  furniture and tab-aligned definitions instead of tables
+ *                  (see core/export/docx; a legacy grid layout remains)
  *   doc            Word-compatible HTML
  *   pdf            hand-built PDF 1.4 with paginated table, header and footer
  */
 import { byteLength, formatDate, sanitizeFilename, timestamp, utf8Bytes } from '../text';
 import { createZip } from './zip';
+import { buildWordDocument, type WordLayout } from './docx';
+
+export type { WordLayout };
 
 export type ExportFormat =
   | 'csv'
@@ -58,6 +63,14 @@ export interface ExportOptions {
   orientation?: 'portrait' | 'landscape';
   /** Maximum rows written (0/undefined = all). */
   maxRows?: number;
+  /** Human description of the scope, used by the Word report overview. */
+  scopeLabel?: string;
+  /** Word only: 'report' (default) is the structured no-table layout. */
+  docxLayout?: 'report' | 'table';
+  /** Word report: include the per-field coverage/statistics block. */
+  docxStats?: boolean;
+  /** Word report: records per numbered sub-block (0 = default of 25). */
+  docxGroupSize?: number;
 }
 
 export interface ExportArtifact {
@@ -348,54 +361,11 @@ ${rows}
 }
 
 /* ----------------------------------- docx ----------------------------------- */
-
-function buildDocx(matrix: string[][], columns: ExportColumn[], meta: { title?: string; subtitle?: string }): Uint8Array {
-  const esc = escapeXml;
-  const paragraph = (text: string, opts: { bold?: boolean; size?: number } = {}) =>
-    `<w:p><w:pPr>${opts.bold ? '<w:rPr><w:b/></w:rPr>' : ''}</w:pPr><w:r><w:rPr>${opts.bold ? '<w:b/>' : ''}<w:sz w:val="${(opts.size ?? 22) * 2}"/></w:rPr><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
-
-  const tableRows = [
-    `<w:tr><w:trPr><w:tblHeader/></w:trPr>${columns
-      .map(
-        (c) =>
-          `<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="0F766E"/></w:tcPr>${paragraph(c.label, { bold: true, size: 10 })}</w:tc>`,
-      )
-      .join('')}</w:tr>`,
-    ...matrix.map(
-      (row) =>
-        `<w:tr>${row.map((cell) => `<w:tc>${paragraph(cell, { size: 10 })}</w:tc>`).join('')}</w:tr>`,
-    ),
-  ];
-
-  const grid = columns.map(() => '<w:gridCol w:w="1800"/>').join('');
-  const body = [
-    meta.title ? paragraph(meta.title, { bold: true, size: 16 }) : '',
-    meta.subtitle ? paragraph(meta.subtitle, { size: 11 }) : '',
-    `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="0" w:type="auto"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="CBD5E1"/><w:left w:val="single" w:sz="4" w:color="CBD5E1"/><w:bottom w:val="single" w:sz="4" w:color="CBD5E1"/><w:right w:val="single" w:sz="4" w:color="CBD5E1"/><w:insideH w:val="single" w:sz="4" w:color="CBD5E1"/><w:insideV w:val="single" w:sz="4" w:color="CBD5E1"/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${tableRows.join('')}</w:tbl>`,
-    paragraph(`Generated ${meta.subtitle ? '' : ''}${new Date().toISOString().slice(0, 19).replace('T', ' ')} · ${matrix.length} records`, { size: 9 }),
-  ].join('');
-
-  const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/></w:sectPr></w:body></w:document>`;
-
-  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-<Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-</Types>`;
-
-  const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`;
-
-  return createZip([
-    { name: '[Content_Types].xml', data: contentTypes },
-    { name: '_rels/.rels', data: rootRels },
-    { name: 'word/document.xml', data: document },
-  ]);
-}
+// Word documents are built by core/export/docx: the default "report" layout
+// is a structured, table-free document (real headings, outline levels, a
+// refreshable TOC field, tab-aligned definition lines, page header/footer,
+// RTL-aware paragraphs). The legacy grid remains selectable via docxLayout:
+// 'table'. See buildWordDocument.
 
 function buildWordHtml(html: string): string {
   return html.replace(
@@ -692,9 +662,26 @@ export function exportData(rows: Row[], options: ExportOptions): ExportArtifact 
     case 'xls':
       content = buildSpreadsheetMl(matrix, columns, options.sheetName ?? options.title ?? 'Export');
       break;
-    case 'docx':
-      content = buildDocx(matrix, columns, { title: options.title, subtitle: options.subtitle });
+    case 'docx': {
+      const doc = buildWordDocument(matrix, columns, {
+        title: options.title,
+        subtitle: options.subtitle,
+        headerLines: options.headerLines,
+        footerText: options.footerText,
+        docNumber: options.docNumber,
+        generatedAt,
+        scopeLabel: options.scopeLabel,
+      }, {
+        layout: (options.docxLayout ?? 'report') as WordLayout,
+        pageSize: options.pageSize ?? 'a4',
+        orientation: options.orientation ?? 'portrait',
+        stats: options.docxStats ?? true,
+        groupSize: options.docxGroupSize ?? 0,
+      });
+      content = doc.bytes;
+      warnings.push(...doc.warnings);
       break;
+    }
     case 'doc':
       content = buildWordHtml(
         buildHtmlTable(matrix, columns, {
