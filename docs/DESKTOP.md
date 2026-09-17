@@ -31,6 +31,26 @@ npm run dist:dir       # unpacked app only (fast sanity check, no installer)
 
 Notes:
 - First run downloads the Electron binary (~100 MB) into the npm cache.
+- If `npm install` ends with `npm warn install-scripts … electron@… postinstall`,
+  npm skipped that postinstall, so `node_modules/electron` has no binary and
+  `electron:dev` / `dist:win` fail with *"Electron failed to install correctly"*.
+  Approve the two scripts and re-run the install:
+
+  ```powershell
+  npm install-scripts approve electron
+  npm install-scripts approve electron-winstaller
+  npm install
+  npx electron --version   # prints a version once the binary is really there
+  ```
+
+  (`node node_modules/electron/install.js` re-downloads just the binary if you
+  don't want to reinstall everything.)
+- `ReadError: The server aborted pending request` inside `node install.js` is a
+  truncated download from GitHub, not a project problem — retry, or point
+  `ELECTRON_MIRROR` at a mirror your network handles better.
+- `build/` (installer icons: `icon.ico`, `icon.png`) is git-ignored, so a fresh
+  clone falls back to Electron's default icon. Regenerate it from
+  `public/favicon.svg` before shipping a branded installer.
 - If symlink errors appear during `dist:win`, enable Developer Mode in Windows
   or run the terminal as Administrator (electron-builder's code-sign tooling
   extracts symlinks).
