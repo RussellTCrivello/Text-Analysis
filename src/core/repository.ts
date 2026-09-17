@@ -71,6 +71,7 @@ const UNDO_LIMIT = 30;
 export class Repository {
   private collections: Record<EntityName, Row[]> = { sources: [], contents: [], analyses: [] };
   private listeners = new Set<(e: ChangeEvent) => void>();
+  private persistErrorListeners = new Set<(e: StorageQuotaError) => void>();
   private undoStack: string[] = [];
   private redoStack: string[] = [];
   private lastPersistedAt: string | null = null;
@@ -464,6 +465,34 @@ export class Repository {
     return () => this.listeners.delete(listener);
   }
 
+  /**
+   * Notified when a write could not reach storage (quota exhausted). Losing a
+   * save silently is the worst possible outcome for a local-first app, so the
+   * UI subscribes here and warns the user.
+   */
+  onPersistError(listener: (e: StorageQuotaError) => void): () => void {
+    this.persistErrorListeners.add(listener);
+    return () => this.persistErrorListeners.delete(listener);
+  }
+
+  /** Flush to storage, reporting quota failures instead of throwing. */
+  persistSafely(): boolean {
+    try {
+      this.persist();
+      return true;
+    } catch (err) {
+      if (err instanceof StorageQuotaError) {
+        this.reportPersistError(err);
+        return false;
+      }
+      throw err;
+    }
+  }
+
+  private reportPersistError(err: StorageQuotaError) {
+    for (const listener of this.persistErrorListeners) listener(err);
+  }
+
   /* ---------------------------------- meta ---------------------------------- */
 
   stats(): RepositoryStats {
@@ -609,6 +638,9 @@ export class Repository {
           title: 'Storage',
           summary: `Persistence failed: ${err.message}`,
         });
+        // Also surface it: an audit line alone is invisible to a user who is
+        // mid-edit and believes their change was saved.
+        this.reportPersistError(err);
       } else {
         throw err;
       }

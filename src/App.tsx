@@ -11,14 +11,15 @@ import { ActivityView } from "./views/ActivityView"
 import { DictionaryView } from "./views/DictionaryView"
 import { SettingsProvider, useSettings } from "./store/SettingsContext"
 import { AppProvider } from "./store/AppContext"
-import { LanguageProvider } from "./i18n"
+import { LanguageProvider, useTranslation } from "./i18n"
+import { ErrorBoundary } from "./components/ErrorBoundary"
 import type { NavSection } from "./types"
 
 /** Sections that own a "create record" flow and accept the quick-add flag. */
 type CreatableSection = "sources" | "contents" | "analysis"
 
-function Inner() {
-  const { settings } = useSettings()
+function Workspace() {
+  const { t, language } = useTranslation()
   const [section, setSection] = useState<NavSection>("dashboard")
   const [toast, setToast] = useState("")
   const [linkedContentId, setLinkedContentId] = useState<string | undefined>()
@@ -38,7 +39,7 @@ function Inner() {
 
   const handleGenerateReport = (_records?: unknown) => {
     setSection("reports")
-    handleToast("Data sent to Reports workspace.")
+    handleToast(t.messages.reportSent)
   }
 
   /** The command bar search feeds the unified All Data view in real time. */
@@ -106,31 +107,53 @@ function Inner() {
   }
 
   return (
-    <LanguageProvider language={settings.language}>
-      <AppShell
-        activeSection={section}
-        onSectionChange={(s) => {
-          setSection(s)
-          if (s !== "analysis") setLinkedContentId(undefined)
-        }}
-        toast={toast}
-        onToastClear={clearToast}
-        globalSearch={globalSearch}
-        onGlobalSearch={handleGlobalSearch}
-        onQuickAdd={handleQuickAdd}
+    <AppShell
+      activeSection={section}
+      onSectionChange={(s) => {
+        setSection(s)
+        if (s !== "analysis") setLinkedContentId(undefined)
+      }}
+      toast={toast}
+      onToastClear={clearToast}
+      globalSearch={globalSearch}
+      onGlobalSearch={handleGlobalSearch}
+      onQuickAdd={handleQuickAdd}
+    >
+      {/*
+        Inner boundary: a crash inside one workspace view keeps the shell
+        (navigation, settings, backup) alive so the user can move away from the
+        broken section instead of losing the whole app.
+      */}
+      <ErrorBoundary
+        key={section}
+        strings={t.errorBoundary}
+        dir={language === "ar" ? "rtl" : "ltr"}
       >
         {renderSection()}
-      </AppShell>
+      </ErrorBoundary>
+    </AppShell>
+  )
+}
+
+function Inner() {
+  const { settings } = useSettings()
+  return (
+    <LanguageProvider language={settings.language}>
+      <Workspace />
     </LanguageProvider>
   )
 }
 
 export default function App() {
   return (
-    <SettingsProvider>
-      <AppProvider>
-        <Inner />
-      </AppProvider>
-    </SettingsProvider>
+    // Outer boundary: last line of defence. It cannot use the i18n context
+    // (the provider itself lives inside), so it renders its English fallback.
+    <ErrorBoundary>
+      <SettingsProvider>
+        <AppProvider>
+          <Inner />
+        </AppProvider>
+      </SettingsProvider>
+    </ErrorBoundary>
   )
 }

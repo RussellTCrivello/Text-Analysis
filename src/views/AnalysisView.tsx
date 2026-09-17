@@ -227,7 +227,7 @@ export function AnalysisView({
   const runExtraction = () => {
     const content = data.contents.find((c) => c.id === form.content_id)
     if (!content) {
-      onToast("Pick a content record first.")
+      onToast(t.messages.pickContentFirst)
       return
     }
     const text = `${content.title}\n${content.content_data}`
@@ -255,7 +255,7 @@ export function AnalysisView({
   const runExtractionSilently = () => {
     const content = data.contents.find((c) => c.id === form.content_id)
     if (!content) {
-      onToast("Pick a content record first.")
+      onToast(t.messages.pickContentFirst)
       return null
     }
     const result = extract(`${content.title}\n${content.content_data}`)

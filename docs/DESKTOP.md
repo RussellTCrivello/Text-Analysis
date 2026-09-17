@@ -48,9 +48,8 @@ Notes:
 - `ReadError: The server aborted pending request` inside `node install.js` is a
   truncated download from GitHub, not a project problem — retry, or point
   `ELECTRON_MIRROR` at a mirror your network handles better.
-- `build/` (installer icons: `icon.ico`, `icon.png`) is git-ignored, so a fresh
-  clone falls back to Electron's default icon. Regenerate it from
-  `public/favicon.svg` before shipping a branded installer.
+- `build/icon.ico` and `build/icon.png` are committed, so a fresh clone builds a
+  fully branded installer with no extra steps (`npm run icons` regenerates them).
 - `npm run electron:dev` reuses a dev server already listening on the port, so
   it is safe to run alongside a `npm run dev` in another terminal.
 - If symlink errors appear during `dist:win`, enable Developer Mode in Windows
@@ -92,13 +91,25 @@ tab (`workflow_dispatch`) — the artifact is then available on the run page.
 
 ## Icon
 
-`build/icon.ico` (16–256 px) and `build/icon.png` (512 px) are rendered from
-`public/favicon.svg`. To regenerate after changing the SVG:
+The app icon is committed so every clone and every CI run produces a branded
+installer:
+
+| File | Size | Used by |
+|---|---|---|
+| `public/favicon.svg` | vector | Source of truth; browser favicon |
+| `build/icon.ico` | 16/24/32/48/64/128/256 px | Windows installer, window & shortcut icon |
+| `build/icon.png` | 512 px | Linux AppImage, generic asset |
+
+Regenerate the raster icons after editing the SVG:
 
 ```bash
-npm i -D @resvg/resvg-js png-to-ico   # one-off, not kept in package.json
-node -e "const {Resvg}=require('@resvg/resvg-js'),ico=require('png-to-ico'),fs=require('fs');const svg=fs.readFileSync('public/favicon.svg');const r=w=>new Resvg(svg,{fitTo:{mode:'width',value:w}}).render().asPng();fs.writeFileSync('build/icon.png',r(512));ico([16,24,32,48,64,128,256].map(r)).then(b=>fs.writeFileSync('build/icon.ico',b))"
+npm i -D --no-save @resvg/resvg-js png-to-ico   # tooling, on demand only
+npm run icons
 ```
+
+`scripts/generate-icons.mjs` renders every frame and writes both files. The
+tooling is deliberately not a project dependency — it is only needed when the
+artwork changes.
 
 ## Code signing (optional, recommended for distribution)
 

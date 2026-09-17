@@ -4,7 +4,7 @@ const ar: TranslationShape = {
   app: {
     name: "مدير تحليل النصوص",
     tagline: "منصة الذكاء البحثي",
-    version: "الإصدار 2.1.0",
+    version: "{version}",
   },
   dashboard: {
     title: "لوحة المعلومات",
@@ -452,6 +452,12 @@ const ar: TranslationShape = {
         "لا توجد بيانات ملف مخزَّن لهذا المرفق (ربما أُلحق قبل إصلاح المرفقات). أعد إرفاق الملف.",   },
   },
   messages: {
+    storageFull: "مساحة التخزين ممتلئة — تعذّر حفظ التغييرات الأخيرة. صدّر نسخة احتياطية ثم احذف سجلات أو مرفقات قديمة لتحرير مساحة.",
+    storageFullDismiss: "إغلاق",
+    pickContentFirst: "اختر سجل محتوى أولاً.",
+    runQueryFirst: "نفّذ استعلاماً أولاً.",
+    chartGenerated: "تم إنشاء الرسم البياني.",
+    noResultsToExport: "لا توجد نتائج للتصدير.",
     confirmDelete: "حذف هذا السجل نهائيًا؟",
     confirmDeleteMultiple: "حذف {n} سجلات؟",
     confirmReset: "اكتب RESET لتأكيد مسح البيانات:",
@@ -871,7 +877,7 @@ const ar: TranslationShape = {
   },
   about: {
     title: "حول مدير تحليل النصوص",
-    version: "الإصدار 2.1.0",
+    version: "الإصدار {version}",
     description: "منصة ذكاء بحثي احترافية.",
     built: "مبني بـ React 19 + TypeScript + Tailwind CSS v4",
   },
@@ -896,6 +902,15 @@ const ar: TranslationShape = {
     ctrlK: "Ctrl+K — التركيز على البحث",
     esc: "Esc — إغلاق",
     del: "Delete — حذف",
+  },
+  errorBoundary: {
+    title: "حدث خطأ ما",
+    description: "حدث خطأ غير متوقع أدى إلى مقاطعة هذا العرض. سجلاتك المحفوظة لم تتأثر — إعادة التحميل آمنة.",
+    reload: "إعادة تحميل التطبيق",
+    retry: "إعادة المحاولة",
+    details: "التفاصيل التقنية",
+    copied: "تم نسخ تفاصيل الخطأ.",
+    copy: "نسخ التفاصيل",
   },
 }
 

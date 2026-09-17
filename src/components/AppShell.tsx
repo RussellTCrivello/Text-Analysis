@@ -14,6 +14,7 @@ import { InfoModal } from "./FormModal"
 import { SearchInput, Kbd, IconButton, ToggleChip } from "./ui"
 import {
   NAV_ICONS,
+  Alert,
   Attachment,
   Backup,
   ChevronL,
@@ -34,6 +35,7 @@ import {
   Trash,
 } from "./icons"
 import type { NavSection } from "../types"
+import { APP_VERSION, APP_VERSION_LABEL } from "../core/appInfo"
 
 const NAV_ITEMS: {
   id: NavSection
@@ -974,6 +976,30 @@ export function AppShell({
             </ToggleChip>
           </div>
 
+          {/* Storage-failure banner: a dropped save must never be silent. */}
+          {appCtx.persistError && (
+            <div
+              role="alert"
+              className="flex items-center gap-2 px-4 py-2 text-[12px] shrink-0"
+              style={{
+                background: "var(--color-danger-bg, rgba(229,72,77,0.12))",
+                color: "var(--color-danger, #e5484d)",
+                borderBottom: "1px solid var(--border)",
+              }}
+            >
+              <Alert size="xs" />
+              <span className="flex-1">{t.messages.storageFull}</span>
+              <button
+                type="button"
+                onClick={appCtx.dismissPersistError}
+                className="underline"
+                style={{ color: "inherit" }}
+              >
+                {t.messages.storageFullDismiss}
+              </button>
+            </div>
+          )}
+
           <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
@@ -992,7 +1018,7 @@ export function AppShell({
         }}
       >
         <span style={{ color: "rgba(255,255,255,0.38)" }}>
-          {t.app.name} <span style={{ opacity: 0.5 }}>{t.app.version}</span>
+          {t.app.name} <span style={{ opacity: 0.5 }}>{t.app.version.replace("{version}", APP_VERSION_LABEL)}</span>
         </span>
         <div className="flex items-center gap-3">
           <span className="tnum">
@@ -1045,7 +1071,7 @@ export function AppShell({
         icon={<InfoIcon size="sm" />}
       >
         <div className="flex flex-col gap-3 text-sm">
-          <p style={{ color: "var(--muted-fg)" }}>{t.about.version}</p>
+          <p style={{ color: "var(--muted-fg)" }}>{t.about.version.replace("{version}", APP_VERSION)}</p>
           <p>{t.about.description}</p>
           <p
             style={{

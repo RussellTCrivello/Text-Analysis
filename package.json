@@ -1,7 +1,7 @@
 {
   "name": "text-analysis",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +16,8 @@
     "electron:dev": "node scripts/electron-dev.mjs",
     "dist": "vite build && electron-builder",
     "dist:win": "vite build && electron-builder --win --x64",
-    "dist:dir": "vite build && electron-builder --dir"
+    "dist:dir": "vite build && electron-builder --dir",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.46.0",
@@ -38,12 +39,12 @@
     "electron": "^38.0.0",
     "electron-builder": "^26.0.0"
   },
-  "productName": "Text Analysis",
-  "description": "Local-first workspace for structured text analysis",
+  "productName": "Text Analysis Manager",
+  "description": "Local-first workspace for structured text analysis: sources, contents, analysis, reports and audit trail.",
   "main": "electron/main.cjs",
   "build": {
     "appId": "com.russellcrivello.textanalysis",
-    "productName": "Text Analysis",
+    "productName": "Text Analysis Manager",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -73,7 +74,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Text Analysis",
+      "shortcutName": "Text Analysis Manager",
       "deleteAppDataOnUninstall": false,
       "uninstallDisplayName": "${productName}"
     },

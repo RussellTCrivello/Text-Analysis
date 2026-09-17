@@ -51,6 +51,7 @@ import React from "react"
 import { createRoot } from "react-dom/client"
 import { act } from "react"
 import App from "../src/App"
+import { ErrorBoundary } from "../src/components/ErrorBoundary"
 
 const { document } = dom.window as unknown as { document: Document }
 
@@ -595,6 +596,51 @@ async function main() {
   await click(findButton("EN")!)
 
   await act(async () => root.unmount())
+
+  // 15. Error boundary: a throwing child must render the recovery UI instead of
+  // unmounting the tree, and "Try again" must restore a healthy child.
+  {
+    const host = document.createElement("div")
+    document.body.appendChild(host)
+    const ebRoot = createRoot(host)
+    let shouldThrow = true
+    const Boom = () => {
+      if (shouldThrow) throw new Error("boundary-probe")
+      return React.createElement("p", null, "recovered-ok")
+    }
+    // React logs the caught error to console.error by design; silence it so the
+    // harness output stays readable, then restore.
+    const realError = console.error
+    console.error = () => {}
+    await act(async () => {
+      ebRoot.render(React.createElement(ErrorBoundary, null, React.createElement(Boom)))
+    })
+    console.error = realError
+
+    const alert = host.querySelector('[role="alert"]')
+    check("error boundary catches render crash", alert !== null)
+    check(
+      "error boundary shows recovery copy",
+      /Something went wrong/i.test(text(alert)),
+      text(alert).slice(0, 60),
+    )
+    const retry = Array.from(host.querySelectorAll("button")).find((b) =>
+      /Try again/i.test(text(b)),
+    )
+    check("error boundary offers retry", Boolean(retry))
+    check(
+      "error boundary exposes details",
+      /boundary-probe/.test(text(host.querySelector("pre"))),
+    )
+
+    shouldThrow = false
+    await act(async () => retry!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })))
+    await sleep(30)
+    check("error boundary retry recovers", /recovered-ok/.test(text(host)))
+    await act(async () => ebRoot.unmount())
+    host.remove()
+  }
+
   console.log(
     failures === 0 ? "DOM CHECK PASS" : `DOM CHECK FAILURES: ${failures}`,
   )

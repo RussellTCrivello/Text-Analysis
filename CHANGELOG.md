@@ -3,6 +3,54 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.1.0] — 2026-09-17 — Production release
+
+Release-readiness pass: product identity unified, the app icon designed and
+committed, and three latent production defects fixed (silent data-loss on a
+full disk, no crash barrier, and a version that disagreed with its own
+installer).
+
+### Added
+- **App icon**, designed and committed: `public/favicon.svg` (vector source),
+  `build/icon.ico` (16–256 px frames) and `build/icon.png` (512 px), so a fresh
+  clone builds a branded installer instead of falling back to Electron's default
+  icon. `npm run icons` (`scripts/generate-icons.mjs`) regenerates them.
+- **Error boundaries** — an outer barrier around the whole app and an inner,
+  per-section one inside the shell, so a crash in one workspace no longer white-
+  screens the window: the user gets localized recovery copy, *Reload* / *Try
+  again* / *Copy details*, and navigation stays usable. Covered by 5 new DOM
+  checks.
+- **Storage-quota warning.** `Repository.onPersistError()` +
+  `persistSafely()` surface failed writes; the shell renders a dismissible
+  banner. Previously a full disk was recorded only as an audit line the user
+  never saw, and the auto-save heartbeat threw inside its own timer. 4 new unit
+  tests.
+- `docs/RELEASE.md` — release checklist, version single-source-of-truth map and
+  known constraints. README gains a **Privacy** section (audited: no telemetry,
+  no backend, no `fetch`/`sendBeacon`/`WebSocket` in the bundle).
+
+### Changed
+- **Product name unified to "Text Analysis Manager"** across `package.json`,
+  the installer, the NSIS shortcut, the Add/Remove Programs entry and the UI.
+- **Version unified to 2.1.0.** The UI now reads `__APP_VERSION__`, injected by
+  Vite from `package.json` (`src/core/appInfo.ts`); the locale strings carry a
+  `{version}` placeholder. The shell previously advertised v2.1.0 while the
+  installer built 1.0.0.
+- The Electron `userData` directory is **pinned** to `%APPDATA%\Text Analysis`,
+  independent of `productName`, so the rename cannot orphan existing records.
+  CI asserts the exact path.
+- CI derives the product name from `package.json` (12 hardcoded paths removed)
+  and now runs `smoke:dom`, which was a documented gate but never enforced.
+- `build/` is no longer git-ignored wholesale — the two icon files are tracked.
+
+### Fixed
+- Page title shipped as **"Figma Make App"**; `.figma/make/site.json` now sets
+  the real title, description and language.
+- Nine hardcoded English strings in `App.tsx`, `AnalysisView` and `ReportsView`
+  bypassed i18n and stayed English under Arabic/RTL.
+- `docs/DESKTOP.md`'s icon-regeneration one-liner was broken (`png-to-ico`
+  exports its function as `.default`); replaced by a real script.
+
 ## [1.1.0] — 2026-09-18 — Front-end modernization (PR #2)
 
 A presentation-layer program of work: the entire UI was rebuilt onto a

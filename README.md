@@ -69,6 +69,20 @@ scripts/         smoke.tsx + dom-check.tsx harnesses (run through vite SSR build
 - All UI text flows through the i18n dictionary (English + Arabic); Arabic switches the whole shell to RTL.
 - High-contrast and color-blind-safe palettes in Settings; motion is fully suppressed under `prefers-reduced-motion`.
 
+## Privacy
+
+The application is **local-first and offline-capable**. Records, attachments and
+settings never leave the machine: data lives in `localStorage` and IndexedDB
+(desktop: `%APPDATA%\Text Analysis`). There is no account, no telemetry, no
+analytics and no backend. The only network request the app can make is for the
+Google Fonts stylesheet referenced by `src/index.css`, which degrades to system
+fonts when offline; the desktop Content-Security-Policy blocks everything else.
+
+Import, export and backup are explicit, user-initiated file operations.
+
 ## Status
 
-Active development happens on Arena agent branches; see [CHANGELOG.md](CHANGELOG.md) for the modernization history and merged PRs for detail.
+**Production — v2.1.0.** The feature set is complete and the release gates
+(`npm run check`, `npm run smoke:dom`, plus the Windows installer verification
+in CI) are green. See [CHANGELOG.md](CHANGELOG.md) for the release history and
+[docs/RELEASE.md](docs/RELEASE.md) for the shipping checklist.

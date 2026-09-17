@@ -1,6 +1,5 @@
 node_modules/
 dist/
-build/
 .cache/
 .env*
 .vite/
@@ -28,3 +27,10 @@ logs/
 
 # electron-builder output
 release/
+
+# `build/` holds committed installer assets (icon.ico / icon.png) — it is the
+# electron-builder `buildResources` dir, not a compilation output. Keep the
+# icons tracked and ignore anything else that lands there.
+build/*
+!build/icon.ico
+!build/icon.png
