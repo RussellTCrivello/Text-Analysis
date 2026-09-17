@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react"
 import { AppShell } from "./components/AppShell"
+import { DashboardView } from "./views/DashboardView"
 import { SourcesView } from "./views/SourcesView"
 import { ContentsView } from "./views/ContentsView"
 import { AnalysisView } from "./views/AnalysisView"
@@ -18,7 +19,7 @@ type CreatableSection = "sources" | "contents" | "analysis"
 
 function Inner() {
   const { settings } = useSettings()
-  const [section, setSection] = useState<NavSection>("sources")
+  const [section, setSection] = useState<NavSection>("dashboard")
   const [toast, setToast] = useState("")
   const [linkedContentId, setLinkedContentId] = useState<string | undefined>()
   const [globalSearch, setGlobalSearch] = useState("")
@@ -59,6 +60,8 @@ function Inner() {
     const openAdd = quickAdd ? quickAdd.section : undefined
     const openAddNonce = quickAdd ? quickAdd.nonce : 0
     switch (section) {
+      case "dashboard":
+        return <DashboardView onToast={handleToast} onNavigate={setSection} />
       case "sources":
         return (
           <SourcesView

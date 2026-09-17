@@ -37,10 +37,16 @@ import type { NavSection } from "../types"
 
 const NAV_ITEMS: {
   id: NavSection
-  labelKey: "sources" | "contents" | "analysis" | "allData" | "timeline" | "reports" | "activity" | "dictionary"
+  labelKey: "dashboard" | "sources" | "contents" | "analysis" | "allData" | "timeline" | "reports" | "activity" | "dictionary"
   descKey: string
-  group: "collections" | "intelligence" | "system"
+  group: "overview" | "collections" | "intelligence" | "system"
 }[] = [
+  {
+    id: "dashboard",
+    labelKey: "dashboard",
+    descKey: "dashboardDesc",
+    group: "overview",
+  },
   {
     id: "sources",
     labelKey: "sources",
@@ -232,13 +238,18 @@ export function AppShell({
   const currentSection = NAV_ITEMS.find((n) => n.id === activeSection)
   const CurrentIcon = currentSection ? NAV_ICONS[currentSection.id] : null
 
-  const groups: ("collections" | "intelligence" | "system")[] = [
+  const groups: ("overview" | "collections" | "intelligence" | "system")[] = [
+    "overview",
     "collections",
     "intelligence",
     "system",
   ]
-  const groupLabels: Record<"collections" | "intelligence" | "system", string> =
+  const groupLabels: Record<
+    "overview" | "collections" | "intelligence" | "system",
+    string
+  > =
     {
+      overview: t.nav.groups.overview,
       collections: t.nav.groups.collections,
       intelligence: t.nav.groups.intelligence,
       system: t.nav.groups.system,

@@ -64,6 +64,7 @@ import {
   FolderInput,
   FolderOpen,
   Gauge,
+  LayoutDashboard,
   GitCompareArrows,
   Globe,
   HardDrive,
@@ -249,6 +250,7 @@ export const TypeIcon = createAppIcon(Type, "md")
 export const AccessibilityIcon = createAppIcon(Accessibility, "md")
 export const MonitorIcon = createAppIcon(Monitor, "md")
 export const GaugeIcon = createAppIcon(Gauge, "md")
+export const NavDashboard = createAppIcon(LayoutDashboard, "md")
 export const Spinner = createAppIcon(Loader, "md")
 export const PlayIcon = createAppIcon(Play, "sm")
 export const SparkleIcon = createAppIcon(Sparkles, "sm")
@@ -295,6 +297,7 @@ export const NavDictionary = createAppIcon(BookOpen, "md")
 export const NAV_ICONS: Record<NavSection, React.ComponentType<AppIconProps>> =
   {
     sources: NavSources,
+    dashboard: NavDashboard,
     contents: NavContents,
     analysis: NavAnalysis,
     allData: NavAllData,
@@ -305,9 +308,10 @@ export const NAV_ICONS: Record<NavSection, React.ComponentType<AppIconProps>> =
   }
 
 export const NAV_GROUPS: {
-  id: "collections" | "intelligence" | "system"
+  id: "overview" | "collections" | "intelligence" | "system"
   sections: NavSection[]
 }[] = [
+  { id: "overview", sections: ["dashboard"] },
   { id: "collections", sections: ["sources", "contents", "analysis"] },
   { id: "intelligence", sections: ["allData", "timeline", "reports"] },
   { id: "system", sections: ["activity", "dictionary"] },

@@ -175,6 +175,12 @@ async function main() {
     "command search exists",
     !!document.querySelector('input[role="searchbox"]'),
   )
+  const mainText = () => document.querySelector("main")?.textContent ?? ""
+  check(
+    "dashboard is the landing view",
+    text(document.querySelector("main h1")).includes("Dashboard") &&
+      mainText().includes("quiet"),
+  )
 
   // 2. Navigation: Contents
   const contentsBtn = allButtons().find((b) => text(b).startsWith("Contents"))
@@ -191,6 +197,24 @@ async function main() {
   check(
     "sample toast",
     document.body.textContent?.includes("Sample data loaded"),
+  )
+
+  // 3b. Dashboard fills itself from the loaded workspace
+  await click(allButtons().find((b) => text(b).startsWith("Dashboard")))
+  await sleep(40)
+  check(
+    "dashboard shows KPIs and charts",
+    mainText().includes("Creation momentum") &&
+      mainText().includes("Total records") &&
+      mainText().includes("Latest activity") &&
+      document.querySelectorAll("main svg").length >= 4,
+    `(${document.querySelectorAll("main svg").length} svgs)`,
+  )
+  const viewAll = allButtons().find((b) => text(b) === "View all")
+  await click(viewAll!)
+  check(
+    "dashboard panel navigation is real",
+    text(document.querySelector("main h1")).includes("All Data"),
   )
 
   // 4. All Data view shows records + count chip
@@ -457,7 +481,7 @@ async function main() {
   )
 
   // 12. Timeline + Activity + Dictionary render through nav
-  for (const name of ["Timeline", "Activity", "Dictionary"]) {
+  for (const name of ["Dashboard", "Timeline", "Activity", "Dictionary"]) {
     await click(allButtons().find((b) => text(b).startsWith(name))!)
     await sleep(40)
     check(

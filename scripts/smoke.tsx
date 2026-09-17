@@ -6,6 +6,7 @@ import { AppProvider } from '../src/store/AppContext';
 import { LanguageProvider } from '../src/i18n';
 import { AppShell } from '../src/components/AppShell';
 import { SourcesView } from '../src/views/SourcesView';
+import { DashboardView } from '../src/views/DashboardView';
 import { ContentsView } from '../src/views/ContentsView';
 import { AnalysisView } from '../src/views/AnalysisView';
 import { AllDataView } from '../src/views/AllDataView';
@@ -28,6 +29,7 @@ import { sampleData } from '../src/data/sampleData';
 const toast = (m: string) => { if (!m) throw new Error('empty toast'); };
 
 const views: Record<string, React.ReactNode> = {
+  dashboard: <DashboardView onToast={toast} onNavigate={() => {}} />,
   sources: <SourcesView onToast={toast} />,
   contents: <ContentsView onToast={toast} />,
   analysis: <AnalysisView onToast={toast} />,

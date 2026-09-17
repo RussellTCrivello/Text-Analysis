@@ -196,14 +196,18 @@ export function Input({
 }: React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) {
   return (
     <input
-      className={`w-full px-3 py-1.5 text-sm outline-none transition-all duration-150 ${className}`}
+      className={`w-full px-2.5 outline-none transition-all duration-150 ${className}`}
       style={{
         background: "var(--surface)",
         color: "var(--fg)",
         border: `1px solid ${error ? "var(--error)" : "var(--border-strong)"}`,
         borderRadius: "var(--radius)",
         fontFamily: "var(--font-body)",
-        boxShadow: error ? "0 0 0 2px var(--error-soft)" : "none",
+        fontSize: "0.86rem",
+        height: 28,
+        boxShadow: error
+          ? "0 0 0 2px var(--error-soft)"
+          : "inset 0 1px 2px rgba(10,15,28,0.05)",
       }}
       onFocus={(e) => {
         e.currentTarget.style.borderColor = error
@@ -211,7 +215,7 @@ export function Input({
           : "var(--primary)"
         e.currentTarget.style.boxShadow = error
           ? "0 0 0 3px var(--error-soft)"
-          : "0 0 0 3px var(--primary-soft)"
+          : "0 0 0 3px var(--primary-soft), 0 2px 10px -6px var(--primary)"
       }}
       onBlur={(e) => {
         e.currentTarget.style.borderColor = error
@@ -232,13 +236,23 @@ export function Textarea({
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className={`w-full px-3 py-2 text-sm outline-none resize-y min-h-[80px] transition-all duration-150 ${className}`}
+      className={`w-full px-2.5 py-1.5 outline-none resize-y min-h-[80px] transition-all duration-150 ${className}`}
       style={{
         background: "var(--surface)",
         color: "var(--fg)",
         border: "1px solid var(--border-strong)",
         borderRadius: "var(--radius)",
         fontFamily: "var(--font-body)",
+        fontSize: "0.88rem",
+        lineHeight: 1.55,
+      }}
+      onFocusCapture={(e) => {
+        e.currentTarget.style.borderColor = "var(--primary)"
+        e.currentTarget.style.boxShadow = "0 0 0 3px var(--primary-soft)"
+      }}
+      onBlurCapture={(e) => {
+        e.currentTarget.style.borderColor = "var(--border-strong)"
+        e.currentTarget.style.boxShadow = "none"
       }}
       onFocus={(e) => {
         e.currentTarget.style.borderColor = "var(--primary)"
@@ -272,13 +286,15 @@ export function Select({
   return (
     <div className={`relative inline-flex items-center ${className}`}>
       <select
-        className={`w-full ps-3 py-1.5 pe-8 text-sm outline-none transition-all duration-150 appearance-none cursor-pointer ${selectClassName}`}
+        className={`w-full ps-2.5 pe-8 outline-none transition-all duration-150 appearance-none cursor-pointer ${selectClassName}`}
         style={{
           background: "var(--surface)",
           color: "var(--fg)",
           border: "1px solid var(--border-strong)",
           borderRadius: "var(--radius)",
           fontFamily: "var(--font-body)",
+          fontSize: "0.86rem",
+          height: 28,
         }}
         onFocus={(e) => {
           e.currentTarget.style.borderColor = "var(--primary)"
@@ -509,12 +525,15 @@ export function SearchInput({
         placeholder={placeholder}
         autoFocus={autoFocus}
         aria-label={placeholder}
-        className="w-full ps-8 pe-7 py-1.5 text-xs outline-none transition-all duration-150"
+        className="w-full ps-8 pe-7 outline-none transition-all duration-150"
         style={{
           background: "var(--surface)",
           color: "var(--fg)",
           border: "1px solid var(--border-strong)",
           borderRadius: "var(--radius)",
+          fontSize: "0.86rem",
+          height: 28,
+          boxShadow: "inset 0 1px 2px rgba(10,15,28,0.05)",
         }}
         onFocus={(e) => {
           e.currentTarget.style.borderColor = "var(--primary)"
@@ -698,10 +717,11 @@ export function Toolbar({
 }) {
   return (
     <div
-      className={`flex items-center gap-1.5 px-3 py-2 shrink-0 flex-wrap ${className}`}
+      className={`flex items-center gap-1.5 px-3 py-1.5 shrink-0 flex-wrap ${className}`}
       style={{
-        background: "var(--surface)",
+        background: "linear-gradient(180deg, var(--surface), var(--surface-2))",
         borderBottom: "1px solid var(--border)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
       }}
     >
       {children}
@@ -722,9 +742,10 @@ export function ToolbarSep() {
 export function FilterRow({ children }: { children: ReactNode }) {
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2 shrink-0 flex-wrap"
+      className="flex items-center gap-2 px-3 py-1.5 shrink-0 flex-wrap"
       style={{
-        background: "var(--surface-2)",
+        background:
+          "linear-gradient(180deg, var(--surface-2), var(--surface-inset))",
         borderBottom: "1px solid var(--border)",
       }}
       role="search"
@@ -2372,7 +2393,8 @@ export function Modal({
             className="flex items-center gap-2 px-4 py-3 shrink-0"
             style={{
               borderTop: "1px solid var(--border)",
-              background: "var(--surface-2)",
+              background:
+                "linear-gradient(180deg, var(--surface-2), var(--surface-inset))",
             }}
           >
             {footer}

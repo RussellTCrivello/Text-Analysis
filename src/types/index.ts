@@ -1,7 +1,7 @@
 export type Language = 'en' | 'ar';
 export type Theme = 'light' | 'dark';
 export type Density = 'compact' | 'comfortable' | 'expansive';
-export type NavSection = 'sources' | 'contents' | 'analysis' | 'allData' | 'timeline' | 'reports' | 'activity' | 'dictionary';
+export type NavSection = 'dashboard' | 'sources' | 'contents' | 'analysis' | 'allData' | 'timeline' | 'reports' | 'activity' | 'dictionary';
 export type RecordType = 'source' | 'content' | 'analysis';
 export type ColorBlindMode = 'none' | 'deuteranopia' | 'protanopia' | 'tritanopia';
 
