@@ -1,4 +1,5 @@
 import React, { type ReactNode, useState, useRef, useEffect, useId } from "react"
+import { useTranslation } from "../i18n"
 import {
   formatDateTime,
   fromDateTimeLocal,
@@ -27,6 +28,8 @@ import {
   Warning,
   InfoIcon,
   type AppIconProps,
+  CalendarSmall,
+  MinusSmall,
 } from "./icons"
 
 /* ============================================================================
@@ -53,22 +56,22 @@ export function Btn({
   ...rest
 }: BtnProps) {
   const base =
-    "inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-150 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-1 hover:-translate-y-px active:translate-y-0 active:scale-[0.985] disabled:hover:translate-y-0 disabled:active:scale-100"
+    "inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-150 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-0 active:scale-[0.985] disabled:active:scale-100"
   const radii = {
     xs: "rounded-[var(--radius-sm)]",
     sm: "rounded-[var(--radius)]",
     md: "rounded-[var(--radius)]",
   }
   const sizes = {
-    xs: "px-2.5 py-1 text-[11px] tracking-wide [&_svg]:!size-3.5",
-    sm: "px-3 py-1.5 text-xs [&_svg]:!size-3.5",
-    md: "px-4 py-2 text-sm [&_svg]:!size-4",
+    xs: "h-[26px] px-2 text-[0.72rem] tracking-wide [&_svg]:!size-3.5",
+    sm: "h-[30px] px-3 text-[0.8rem] [&_svg]:!size-3.5",
+    md: "h-[34px] px-4 text-[0.86rem] [&_svg]:!size-4",
   }
   const vars: Record<string, string> = {
     primary:
-      "bg-[image:var(--brand-grad)] text-[var(--primary-fg)] shadow-[var(--glow-brand-sm)] hover:brightness-110 hover:shadow-[var(--glow-brand)] active:brightness-95",
+      "bg-[var(--primary)] text-[var(--primary-fg)] shadow-[0_1px_2px_rgba(15,23,42,0.22)] hover:brightness-[1.14] hover:shadow-[0_3px_12px_-5px_var(--primary)] active:brightness-95",
     secondary:
-      "border border-[var(--border-strong)] bg-[linear-gradient(180deg,var(--surface),var(--surface-2))] text-[var(--fg)] hover:bg-[var(--surface-3)] hover:border-[color-mix(in_srgb,var(--primary)_45%,var(--border-strong))] active:bg-[var(--surface-2)]",
+      "border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--fg)] hover:bg-[var(--surface-2)] hover:border-[color-mix(in_srgb,var(--primary)_38%,var(--border-strong))] active:bg-[var(--surface-3)]",
     ghost:
       "text-[var(--fg-soft)] hover:bg-[var(--surface-3)] active:bg-[var(--surface-2)]",
     subtle:
@@ -150,15 +153,12 @@ interface FieldProps {
 
 export function Field({ label, required, hint, error, children }: FieldProps) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        className="text-[11px] font-semibold uppercase tracking-[0.07em]"
-        style={{ color: "var(--muted-fg)", fontFamily: "var(--font-display)" }}
-      >
+    <div className="flex flex-col gap-1">
+      <label className="field-label">
         {label}
         {required && (
           <span
-            className="ms-1"
+            className="ms-1 font-bold"
             style={{ color: "var(--error)" }}
             aria-hidden="true"
           >
@@ -196,35 +196,8 @@ export function Input({
 }: React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) {
   return (
     <input
-      className={`w-full px-2.5 outline-none transition-all duration-150 ${className}`}
-      style={{
-        background: "var(--surface)",
-        color: "var(--fg)",
-        border: `1px solid ${error ? "var(--error)" : "var(--border-strong)"}`,
-        borderRadius: "var(--radius)",
-        fontFamily: "var(--font-body)",
-        fontSize: "0.86rem",
-        height: 28,
-        boxShadow: error
-          ? "0 0 0 2px var(--error-soft)"
-          : "inset 0 1px 2px rgba(10,15,28,0.05)",
-      }}
-      onFocus={(e) => {
-        e.currentTarget.style.borderColor = error
-          ? "var(--error)"
-          : "var(--primary)"
-        e.currentTarget.style.boxShadow = error
-          ? "0 0 0 3px var(--error-soft)"
-          : "0 0 0 3px var(--primary-soft), 0 2px 10px -6px var(--primary)"
-      }}
-      onBlur={(e) => {
-        e.currentTarget.style.borderColor = error
-          ? "var(--error)"
-          : "var(--border-strong)"
-        e.currentTarget.style.boxShadow = error
-          ? "0 0 0 2px var(--error-soft)"
-          : "none"
-      }}
+      className={`ctrl w-full ${className}`}
+      data-error={error ? "true" : undefined}
       {...rest}
     />
   )
@@ -234,37 +207,7 @@ export function Textarea({
   className = "",
   ...rest
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      className={`w-full px-2.5 py-1.5 outline-none resize-y min-h-[80px] transition-all duration-150 ${className}`}
-      style={{
-        background: "var(--surface)",
-        color: "var(--fg)",
-        border: "1px solid var(--border-strong)",
-        borderRadius: "var(--radius)",
-        fontFamily: "var(--font-body)",
-        fontSize: "0.88rem",
-        lineHeight: 1.55,
-      }}
-      onFocusCapture={(e) => {
-        e.currentTarget.style.borderColor = "var(--primary)"
-        e.currentTarget.style.boxShadow = "0 0 0 3px var(--primary-soft)"
-      }}
-      onBlurCapture={(e) => {
-        e.currentTarget.style.borderColor = "var(--border-strong)"
-        e.currentTarget.style.boxShadow = "none"
-      }}
-      onFocus={(e) => {
-        e.currentTarget.style.borderColor = "var(--primary)"
-        e.currentTarget.style.boxShadow = "0 0 0 3px var(--primary-soft)"
-      }}
-      onBlur={(e) => {
-        e.currentTarget.style.borderColor = "var(--border-strong)"
-        e.currentTarget.style.boxShadow = "none"
-      }}
-      {...rest}
-    />
-  )
+  return <textarea className={`ctrl w-full ${className}`} {...rest} />
 }
 
 /**
@@ -286,24 +229,7 @@ export function Select({
   return (
     <div className={`relative inline-flex items-center ${className}`}>
       <select
-        className={`w-full ps-2.5 pe-8 outline-none transition-all duration-150 appearance-none cursor-pointer ${selectClassName}`}
-        style={{
-          background: "var(--surface)",
-          color: "var(--fg)",
-          border: "1px solid var(--border-strong)",
-          borderRadius: "var(--radius)",
-          fontFamily: "var(--font-body)",
-          fontSize: "0.86rem",
-          height: 28,
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--primary)"
-          e.currentTarget.style.boxShadow = "0 0 0 3px var(--primary-soft)"
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = "var(--border-strong)"
-          e.currentTarget.style.boxShadow = "none"
-        }}
+        className={`ctrl w-full appearance-none cursor-pointer ${selectClassName}`}
         {...rest}
       >
         {placeholder && <option value="">{placeholder}</option>}
@@ -316,6 +242,7 @@ export function Select({
       <span
         className="pointer-events-none absolute end-2 inline-flex"
         style={{ color: "var(--muted-fg)" }}
+        aria-hidden="true"
       >
         <ChevronD size="xs" />
       </span>
@@ -364,17 +291,19 @@ export function Badge({
   className?: string
 }) {
   const sz =
-    size === "xs" ? "px-1.5 py-px text-[10px]" : "px-2 py-0.5 text-[11px]"
+    size === "xs"
+      ? "h-[16px] px-1.5 text-[9.5px]"
+      : "h-[19px] px-2 text-[10.5px]"
   return (
     <span
-      className={`inline-flex items-center gap-1 font-semibold tracking-wide ${sz} ${className}`}
+      className={`inline-flex max-w-full items-center gap-1 overflow-hidden rounded-full font-semibold ${sz} ${className}`}
       style={{
-        background: color ? color + "18" : "var(--surface-3)",
+        background: color ? `color-mix(in srgb, ${color} 9%, transparent)` : "var(--surface-2)",
         color: color ?? "var(--fg-soft)",
-        border: `1px solid ${color ? color + "38" : "var(--border)"}`,
-        borderRadius: "var(--radius-sm)",
+        border: `1px solid ${color ? `color-mix(in srgb, ${color} 24%, transparent)` : "var(--border)"}`,
         fontFamily: "var(--font-display)",
-        letterSpacing: "0.03em",
+        letterSpacing: "0.01em",
+        lineHeight: 1,
       }}
     >
       {children}
@@ -456,34 +385,41 @@ export function Tag({
    IMPORTANCE
    ========================================================================== */
 export function ImportanceBar({ value }: { value: number }) {
-  const pct = (value * 100).toFixed(2)
+  const v = Math.max(0, Math.min(1, value || 0))
+  const pct = (v * 100).toFixed(1)
   const color =
-    value >= 0.8
+    v >= 0.85
       ? "var(--error)"
-      : value >= 0.6
-        ? "var(--primary)"
-        : value >= 0.3
-          ? "var(--warning)"
-          : "var(--muted-fg)"
+      : v >= 0.6
+        ? "var(--warning)"
+        : v >= 0.35
+          ? "var(--primary)"
+          : "var(--muted-fg-2)"
   return (
-    <div className="flex items-center gap-2">
-      <div
-        className="w-16 h-1.5 rounded-full overflow-hidden shrink-0"
-        style={{ background: "var(--surface-3)" }}
+    <div
+      className="flex items-center gap-2"
+      role="img"
+      aria-label={`Importance ${pct}%`}
+    >
+      <span
+        className="h-1 w-14 shrink-0 overflow-hidden rounded-full"
+        style={{
+          background: "var(--surface-3)",
+          boxShadow: "inset 0 0 0 1px var(--border)",
+        }}
         aria-hidden="true"
       >
-        <div
-          className="h-full rounded-full transition-all duration-300"
-          style={{ width: `${value * 100}%`, background: color }}
+        <span
+          className="block h-full rounded-full transition-[width] duration-300"
+          style={{ width: `${v * 100}%`, background: color }}
         />
-      </div>
+      </span>
       <span
         className="tnum"
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: "0.7rem",
-          color,
-          minWidth: 52,
+          color: "var(--fg-soft)",
         }}
       >
         {pct}%
@@ -493,6 +429,69 @@ export function ImportanceBar({ value }: { value: number }) {
 }
 
 export const ImportanceStars = ImportanceBar
+
+/**
+ * Unified importance control: one grouped field for the numeric value and
+ * `%`, a live slider, and a monospaced readout — all three always agree
+ * because they share a single percent-string state.
+ */
+export function ImportanceControl({
+  value,
+  onChange,
+  error,
+}: {
+  value: string
+  onChange: (v: string) => void
+  error?: boolean
+}) {
+  const n = parseFloat(value)
+  const v = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0
+  return (
+    <div className="flex w-full items-center gap-3">
+      <div className="fgroup" style={{ width: 104, paddingInlineEnd: 10 }} data-error={error ? "true" : undefined}>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step={0.01}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label="Importance percent"
+          style={{ textAlign: "center" }}
+        />
+        <span
+          className="flex-none text-[0.78rem]"
+          style={{ color: "var(--muted-fg-2)" }}
+          aria-hidden="true"
+        >
+          %
+        </span>
+      </div>
+      <input
+        type="range"
+        className="imp-range"
+        min={0}
+        max={100}
+        step={0.01}
+        value={v}
+        onChange={(e) => onChange(String(parseFloat(e.target.value)))}
+        aria-label="Importance slider"
+        style={{ "--fill": `${v}%` } as React.CSSProperties}
+      />
+      <span
+        className="tnum flex-none text-[0.78rem]"
+        style={{
+          fontFamily: "var(--font-mono)",
+          color: "var(--fg-soft)",
+          minWidth: 52,
+          textAlign: "end",
+        }}
+      >
+        {Number.isFinite(n) ? n.toFixed(2) : "0.00"}%
+      </span>
+    </div>
+  )
+}
 
 /* ============================================================================
    SEARCH / DATE INPUTS
@@ -509,9 +508,9 @@ export function SearchInput({
   autoFocus?: boolean
 }) {
   return (
-    <div className="relative flex items-center" style={{ minWidth: 180 }}>
+    <div className="relative flex items-center" style={{ minWidth: 220 }}>
       <span
-        className="absolute start-2.5 pointer-events-none inline-flex"
+        className="pointer-events-none absolute start-2.5 inline-flex"
         style={{ color: "var(--muted-fg)" }}
         aria-hidden="true"
       >
@@ -525,31 +524,15 @@ export function SearchInput({
         placeholder={placeholder}
         autoFocus={autoFocus}
         aria-label={placeholder}
-        className="w-full ps-8 pe-7 outline-none transition-all duration-150"
-        style={{
-          background: "var(--surface)",
-          color: "var(--fg)",
-          border: "1px solid var(--border-strong)",
-          borderRadius: "var(--radius)",
-          fontSize: "0.86rem",
-          height: 28,
-          boxShadow: "inset 0 1px 2px rgba(10,15,28,0.05)",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--primary)"
-          e.currentTarget.style.boxShadow = "0 0 0 3px var(--primary-soft)"
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = "var(--border-strong)"
-          e.currentTarget.style.boxShadow = "none"
-        }}
+        className="ctrl w-full ps-8 pe-7"
       />
       {value && (
         <button
           onClick={() => onChange("")}
           aria-label="Clear search"
           title="Clear search"
-          className="absolute end-1.5 flex items-center justify-center w-4.5 h-4.5 rounded-full transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          type="button"
+          className="absolute end-1.5 flex items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           style={{ color: "var(--muted-fg)", width: 18, height: 18 }}
         >
           <Close size="xs" />
@@ -578,21 +561,16 @@ export function DateTimeInput({
   showNow?: boolean
   className?: string
 }) {
+  const { t } = useTranslation()
   const local = toDateTimeLocal(value)
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
-        <span
-          className="text-[11px] font-semibold uppercase tracking-[0.07em] whitespace-nowrap"
-          style={{
-            color: "var(--muted-fg)",
-            fontFamily: "var(--font-display)",
-          }}
-        >
+        <span className="field-label">
           {label}
           {required && (
             <span
-              className="ms-1"
+              className="ms-1 font-bold"
               style={{ color: "var(--error)" }}
               aria-hidden="true"
             >
@@ -601,47 +579,39 @@ export function DateTimeInput({
           )}
         </span>
       )}
-      <div className="flex items-center gap-1">
+      <div className="fgroup" data-error={error ? "true" : undefined}>
+        <span
+          className="pointer-events-none inline-flex shrink-0"
+          style={{ color: "var(--muted-fg)" }}
+          aria-hidden="true"
+        >
+          <CalendarSmall />
+        </span>
         <input
           type="datetime-local"
           aria-label={label ?? "Date and time"}
           value={local}
           onChange={(e) => onChange(fromDateTimeLocal(e.target.value) ?? "")}
-          className="px-2 py-1.5 text-xs outline-none transition-all duration-150 w-full"
-          style={{
-            background: "var(--surface)",
-            color: "var(--fg)",
-            border: `1px solid ${
-              error ? "var(--error)" : "var(--border-strong)"
-            }`,
-            borderRadius: "var(--radius)",
-            fontFamily: "var(--font-mono)",
-            minWidth: 0,
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = "var(--primary)"
-            e.currentTarget.style.boxShadow = "0 0 0 3px var(--primary-soft)"
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = error
-              ? "var(--error)"
-              : "var(--border-strong)"
-            e.currentTarget.style.boxShadow = "none"
-          }}
         />
         {showNow && (
           <button
             type="button"
             onClick={() => onChange(nowIso())}
-            title="Set to now"
-            className="px-2 py-1.5 text-xs rounded shrink-0 transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-            style={{
-              background: "var(--surface-2)",
-              color: "var(--muted-fg)",
-              border: "1px solid var(--border)",
-            }}
+            title={t.actions.now}
+            className="fgroup-act"
           >
-            now
+            {t.actions.now}
+          </button>
+        )}
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            aria-label="Clear date"
+            title="Clear date"
+            className="fgroup-x"
+          >
+            <Close size="xs" />
           </button>
         )}
       </div>
@@ -652,7 +622,7 @@ export function DateTimeInput({
       )}
       {value && (
         <span
-          className="text-[10px] tnum"
+          className="tnum text-[10px]"
           style={{ color: "var(--muted-fg)", fontFamily: "var(--font-mono)" }}
         >
           {formatDateTime(value)}
@@ -672,35 +642,32 @@ export function DateInput({
   onChange: (v: string) => void
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="fgroup" style={{ width: 216 }}>
+      <span className="fgroup-tag">{label}</span>
       <span
-        className="text-[11px] font-medium shrink-0 whitespace-nowrap"
-        style={{ color: "var(--muted-fg)", fontFamily: "var(--font-display)" }}
+        className="pointer-events-none inline-flex shrink-0"
+        style={{ color: "var(--muted-fg)" }}
+        aria-hidden="true"
       >
-        {label}
+        <CalendarSmall />
       </span>
       <input
         type="datetime-local"
         aria-label={label}
         value={toDateTimeLocal(value)}
         onChange={(e) => onChange(fromDateTimeLocal(e.target.value) ?? "")}
-        className="px-2 py-1.5 text-xs outline-none transition-all duration-150"
-        style={{
-          background: "var(--surface)",
-          color: "var(--fg)",
-          border: "1px solid var(--border-strong)",
-          borderRadius: "var(--radius)",
-          fontFamily: "var(--font-mono)",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--primary)"
-          e.currentTarget.style.boxShadow = "0 0 0 3px var(--primary-soft)"
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = "var(--border-strong)"
-          e.currentTarget.style.boxShadow = "none"
-        }}
       />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label={`Clear ${label}`}
+          title={`Clear ${label}`}
+          className="fgroup-x"
+        >
+          <Close size="xs" />
+        </button>
+      )}
     </div>
   )
 }
@@ -719,9 +686,8 @@ export function Toolbar({
     <div
       className={`flex items-center gap-1.5 px-3 py-1.5 shrink-0 flex-wrap ${className}`}
       style={{
-        background: "linear-gradient(180deg, var(--surface), var(--surface-2))",
+        background: "var(--surface)",
         borderBottom: "1px solid var(--border)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
       }}
     >
       {children}
@@ -744,8 +710,7 @@ export function FilterRow({ children }: { children: ReactNode }) {
     <div
       className="flex items-center gap-2 px-3 py-1.5 shrink-0 flex-wrap"
       style={{
-        background:
-          "linear-gradient(180deg, var(--surface-2), var(--surface-inset))",
+        background: "var(--surface-2)",
         borderBottom: "1px solid var(--border)",
       }}
       role="search"
@@ -777,9 +742,7 @@ export function ResultsStrip({
     <div
       className="flex items-center gap-2 px-3 shrink-0"
       style={{
-        background: "var(--thead-glass)",
-        backdropFilter: "blur(8px) saturate(1.3)",
-        WebkitBackdropFilter: "blur(8px) saturate(1.3)",
+        background: "var(--surface-2)",
         borderBottom: "1px solid var(--border)",
         height: 26,
         color: "var(--muted-fg)",
@@ -922,6 +885,9 @@ export function PaginationBar({
     return pages
   }
 
+  const cell =
+    "flex h-[26px] min-w-[26px] items-center justify-center rounded-[var(--radius-sm)] px-1.5 text-[0.74rem] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+
   const navBtn = (
     label: string,
     target: number,
@@ -930,16 +896,13 @@ export function PaginationBar({
   ) => (
     <button
       key={label}
+      type="button"
       onClick={() => !disabled && onPage(target)}
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="min-w-[26px] h-[26px] px-1 text-[11px] font-medium flex items-center justify-center transition-all duration-150 disabled:opacity-30 hover:enabled:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-      style={{
-        color: "var(--muted-fg)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-sm)",
-      }}
+      className={`${cell} hover:enabled:bg-[var(--surface-3)] disabled:cursor-not-allowed disabled:opacity-30`}
+      style={{ color: "var(--muted-fg)" }}
     >
       {icon}
     </button>
@@ -948,17 +911,20 @@ export function PaginationBar({
   const pgBtn = (label: number, target: number, active = false) => (
     <button
       key={`p-${target}`}
+      type="button"
       onClick={() => onPage(target)}
-      disabled={false}
       aria-current={active ? "page" : undefined}
-      className="min-w-[26px] h-[26px] px-1.5 text-[11px] font-medium flex items-center justify-center transition-all duration-150"
-      style={{
-        background: active ? "var(--primary)" : "transparent",
-        color: active ? "var(--primary-fg)" : "var(--muted-fg)",
-        border: active ? "1px solid var(--primary)" : "1px solid var(--border)",
-        borderRadius: "var(--radius-sm)",
-        fontFamily: active ? "var(--font-mono)" : "inherit",
-      }}
+      className={`${cell} ${active ? "hover:!bg-[var(--primary)]" : "hover:bg-[var(--surface-3)]"}`}
+      style={
+        active
+          ? {
+              background: "var(--primary)",
+              color: "var(--primary-fg)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 600,
+            }
+          : { color: "var(--muted-fg)" }
+      }
     >
       {label}
     </button>
@@ -966,76 +932,97 @@ export function PaginationBar({
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-1.5 shrink-0 flex-wrap"
+      className="flex items-center gap-2.5 px-3 py-1.5 shrink-0 flex-wrap"
       style={{
-        background: "var(--surface)",
+        background: "var(--surface-2)",
         borderTop: "1px solid var(--border)",
-        minHeight: 36,
+        minHeight: 38,
       }}
     >
       <span
-        className="text-[11px] tnum"
-        style={{ color: "var(--muted-fg)", fontFamily: "var(--font-mono)" }}
+        className="tnum text-[0.76rem]"
+        style={{ color: "var(--muted-fg)" }}
       >
         {showingLabel}{" "}
         <span style={{ color: "var(--fg)", fontWeight: 600 }}>
           {start}–{end}
         </span>{" "}
         {ofLabel}{" "}
-        <span style={{ color: "var(--fg)", fontWeight: 600 }}>{total}</span>
+        <span style={{ color: "var(--fg)", fontWeight: 600 }}>{total}</span>{" "}
+        {total > 0 ? "" : ""}
       </span>
       <div className="flex-1" />
-      <nav
-        aria-label={`${pageLabel} ${page} ${ofLabel} ${totalPages}`}
-        className="flex items-center gap-0.5"
+      <div
+        className="flex items-center gap-0.5 p-[2px]"
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border-strong)",
+          borderRadius: "var(--radius)",
+        }}
       >
-        {navBtn("First page", 1, page === 1, <ChevronsL size="xs" />)}
-        {navBtn("Previous page", page - 1, page === 1, <ChevronL size="xs" />)}
-        {getPages().map((p, i) =>
-          p === "ellipsis" ? (
-            <span
-              key={`e${i}`}
-              className="text-xs px-1 tracking-widest"
-              style={{ color: "var(--muted-fg-2)" }}
-              aria-hidden="true"
-            >
-              ···
-            </span>
-          ) : (
-            pgBtn(p, p as number, p === page)
-          ),
-        )}
-        {navBtn(
-          "Next page",
-          page + 1,
-          page === totalPages,
-          <ChevronR size="xs" />,
-        )}
-        {navBtn(
-          "Last page",
-          totalPages,
-          page === totalPages,
-          <ChevronsR size="xs" />,
-        )}
-      </nav>
-      <div className="flex items-center gap-2 ms-2">
-        <span className="text-[11px]" style={{ color: "var(--muted-fg)" }}>
-          {perPageLabel}
-        </span>
-        <Select
-          className=""
-          selectClassName="!text-[11px] !py-1 !px-2 tnum"
-          value={String(pageSize)}
-          onChange={(e) => {
-            onPageSize(Number(e.target.value))
-            onPage(1)
-          }}
-          aria-label="Rows per page"
-          options={PAGE_SIZES.map((s) => ({
-            value: String(s),
-            label: String(s),
-          }))}
+        <nav aria-label={`${pageLabel} ${page} ${ofLabel} ${totalPages}`}>
+          <div className="flex items-center gap-0.5">
+            {navBtn("First page", 1, page === 1, <ChevronsL size="xs" />)}
+            {navBtn("Previous page", page - 1, page === 1, <ChevronL size="xs" />)}
+            {getPages().map((p, i) =>
+              p === "ellipsis" ? (
+                <span
+                  key={`e${i}`}
+                  className="px-1 text-xs tracking-widest"
+                  style={{ color: "var(--muted-fg-2)" }}
+                  aria-hidden="true"
+                >
+                  ···
+                </span>
+              ) : (
+                pgBtn(p, p as number, p === page)
+              ),
+            )}
+            {navBtn(
+              "Next page",
+              page + 1,
+              page === totalPages,
+              <ChevronR size="xs" />,
+            )}
+            {navBtn(
+              "Last page",
+              totalPages,
+              page === totalPages,
+              <ChevronsR size="xs" />,
+            )}
+          </div>
+        </nav>
+        <span
+          aria-hidden="true"
+          className="mx-1 self-stretch"
+          style={{ width: 1, background: "var(--border)" }}
         />
+        <label
+          className="flex items-center gap-1.5 px-1 text-[0.72rem]"
+          style={{ color: "var(--muted-fg)" }}
+        >
+          {perPageLabel}
+          <select
+            aria-label="Rows per page"
+            value={String(pageSize)}
+            onChange={(e) => {
+              onPageSize(Number(e.target.value))
+              onPage(1)
+            }}
+            className="tnum cursor-pointer rounded-[var(--radius-sm)] border border-transparent bg-transparent px-1 py-0.5 text-[0.74rem] transition-colors hover:border-[var(--border)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            style={{
+              color: "var(--fg)",
+              fontFamily: "var(--font-mono)",
+              background: "transparent",
+            }}
+          >
+            {PAGE_SIZES.map((s) => (
+              <option key={s} value={String(s)}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
     </div>
   )
@@ -1128,7 +1115,7 @@ export function FullTextPreview({
       className="shrink-0 overflow-hidden transition-all duration-200"
       style={{
         height: expanded ? 280 : 36,
-        borderTop: "2px solid var(--primary)",
+        borderTop: "1px solid var(--border-strong)",
         background: "var(--surface)",
       }}
     >
@@ -1136,12 +1123,22 @@ export function FullTextPreview({
         onClick={() => setExpanded((e) => !e)}
         aria-expanded={expanded}
         aria-controls="full-text-preview-body"
-        className="w-full flex items-center gap-2.5 px-3 h-9 text-start transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]"
+        className="group/ftp w-full flex items-center gap-2.5 px-3 h-9 text-start transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]"
       >
         <span
           className="text-[10px] font-bold uppercase tracking-[0.1em]"
           style={{ color: "var(--primary)", fontFamily: "var(--font-display)" }}
         >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: 999,
+              background: "var(--primary)",
+              display: "inline-block",
+            }}
+          />
           {label}
         </span>
         {record && recordType && (
@@ -1156,8 +1153,8 @@ export function FullTextPreview({
           </>
         )}
         <span
-          className="ms-auto inline-flex items-center text-[10px]"
-          style={{ color: "var(--muted-fg)" }}
+          className="ms-auto inline-flex h-[22px] w-[22px] items-center justify-center rounded-[6px] transition-colors group-hover/ftp:bg-[var(--surface-3)]"
+          style={{ color: "var(--muted-fg)", border: "1px solid var(--border)" }}
           aria-hidden="true"
         >
           {expanded ? <ChevronU size="xs" /> : <ChevronD size="xs" />}
@@ -1171,15 +1168,18 @@ export function FullTextPreview({
         >
           {!record ? (
             <div
-              className="flex items-center justify-center w-full text-xs"
+              className="flex w-full flex-col items-center justify-center gap-1.5 text-xs"
               style={{ color: "var(--muted-fg)" }}
             >
+              <span style={{ color: "var(--muted-fg-2)", opacity: 0.55 }}>
+                <EmptyFile size="lg" />
+              </span>
               {emptyLabel}
             </div>
           ) : (
             <>
               <div
-                className="flex-1 overflow-y-auto p-3 text-xs leading-relaxed"
+                className="min-w-0 flex-1 overflow-y-auto p-4 text-xs leading-relaxed"
                 style={{
                   color: "var(--fg)",
                   borderRight: "1px solid var(--border)",
@@ -1187,11 +1187,16 @@ export function FullTextPreview({
                   fontFamily: "var(--font-body)",
                 }}
               >
+                <div className="max-w-[78ch]">
                 {getPrimaryText() || (
                   <span style={{ color: "var(--muted-fg)" }}>—</span>
                 )}
+                </div>
               </div>
-              <div className="w-52 shrink-0 overflow-y-auto py-1">
+              <div
+                className="w-56 shrink-0 overflow-y-auto py-0.5"
+                style={{ background: "var(--surface-2)" }}
+              >
                 {getFields().map(([k, v]) => (
                   <div
                     key={k}
@@ -1199,11 +1204,11 @@ export function FullTextPreview({
                     style={{ borderBottom: "1px solid var(--border)" }}
                   >
                     <div
-                      className="text-[10px] uppercase tracking-[0.07em] mb-0.5"
+                      className="mb-0.5 text-[0.68rem] font-semibold"
                       style={{
                         color: "var(--muted-fg)",
                         fontFamily: "var(--font-display)",
-                        fontWeight: 600,
+                        letterSpacing: "0.01em",
                       }}
                     >
                       {k}
@@ -1269,7 +1274,7 @@ export function MoreMenu({
         title={label}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        className="inline-flex h-[30px] items-center gap-1 px-2 text-xs font-medium rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-2)] hover:border-[var(--muted-fg-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
         style={{
           border: "1px solid var(--border-strong)",
           background: open ? "var(--surface-3)" : "var(--surface)",
@@ -1600,6 +1605,63 @@ export function Checkbox({
         onChange={(e) => onChange(e.target.checked)}
       />
       {label}
+    </label>
+  )
+}
+
+/**
+ * Table checkbox: 16px rounded box, hover/focus affordances and a real
+ * indeterminate state — driven by a hidden native input so keyboard and
+ * screen readers behave exactly like a checkbox.
+ */
+export function RowCheckbox({
+  checked,
+  mixed,
+  label,
+  disabled,
+  onChange,
+}: {
+  checked: boolean
+  mixed?: boolean
+  label: string
+  disabled?: boolean
+  onChange: (v: boolean) => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = !!mixed && !checked
+  }, [mixed, checked])
+  const on = checked || !!mixed
+  return (
+    <label
+      className="relative inline-flex cursor-pointer items-center justify-center align-middle"
+      style={{ width: 16, height: 16 }}
+    >
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        aria-label={label}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer absolute inset-0 m-0 cursor-pointer opacity-0"
+        style={{ width: 16, height: 16 }}
+      />
+      <span
+        aria-hidden="true"
+        className="row-cb pointer-events-none absolute inset-0"
+        data-on={on ? "true" : undefined}
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+      >
+        {checked ? (
+          <Check size="xs" style={{ color: "var(--primary-fg)" }} />
+        ) : mixed ? (
+          <MinusSmall style={{ color: "var(--primary-fg)" }} />
+        ) : null}
+      </span>
     </label>
   )
 }
@@ -2254,6 +2316,7 @@ const MODAL_WIDTHS = {
   md: "max-w-2xl",
   lg: "max-w-4xl",
   xl: "max-w-6xl",
+  form: "max-w-[720px]",
 }
 
 export function Modal({
@@ -2273,7 +2336,7 @@ export function Modal({
   title: ReactNode
   subtitle?: ReactNode
   icon?: ReactNode
-  size?: "sm" | "md" | "lg" | "xl"
+  size?: "sm" | "md" | "lg" | "xl" | "form"
   children: ReactNode
   footer?: ReactNode
   accent?: "danger" | "primary"
@@ -2336,7 +2399,7 @@ export function Modal({
           className="flex items-center gap-2.5 px-4 py-3 shrink-0"
           style={{
             borderBottom: "1px solid var(--border)",
-            background: "var(--surface-2)",
+            background: "var(--surface)",
           }}
         >
           {icon && (
@@ -2356,7 +2419,7 @@ export function Modal({
           <div className="min-w-0">
             <h2
               id={titleId}
-              className="font-bold text-[13px] tracking-tight"
+              className="font-bold text-[13.5px] tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {title}
@@ -2387,14 +2450,13 @@ export function Modal({
             </IconButton>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer && (
           <div
             className="flex items-center gap-2 px-4 py-3 shrink-0"
             style={{
               borderTop: "1px solid var(--border)",
-              background:
-                "linear-gradient(180deg, var(--surface-2), var(--surface-inset))",
+              background: "var(--surface-2)",
             }}
           >
             {footer}
@@ -2424,25 +2486,28 @@ export function ColumnFilter({ value, onChange, label, options }: ColumnFilterPr
   const listId = useId()
   return (
     <>
-      <input
-        type="search"
-        list={options && options.length ? listId : undefined}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onChange("")
-        }}
-        aria-label={label}
-        placeholder={"⌕"}
-        title={label}
-        className="w-full rounded-[var(--radius)] px-1.5 py-0.5 text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-        style={{
-          background: "var(--surface-1)",
-          border: "1px solid var(--border)",
-          color: "var(--fg)",
-          minHeight: 22,
-        }}
-      />
+      <div className="relative min-w-0">
+        <span
+          className="pointer-events-none absolute start-1.5 top-1/2 inline-flex -translate-y-1/2"
+          style={{ color: "var(--muted-fg-2)" }}
+          aria-hidden="true"
+        >
+          <Search size="xs" />
+        </span>
+        <input
+          type="search"
+          list={options && options.length ? listId : undefined}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onChange("")
+          }}
+          aria-label={label}
+          placeholder="Filter…"
+          title={label}
+          className="ctrl ctrl-sm w-full"
+        />
+      </div>
       {options && options.length > 0 && (
         <datalist id={listId}>
           {options.slice(0, 300).map((o) => (

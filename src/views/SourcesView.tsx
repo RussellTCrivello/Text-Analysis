@@ -18,6 +18,7 @@ import {
   FullTextPreview,
   PaginationBar,
   ImportanceBar,
+  ImportanceControl,
   RecordTypeBadge,
   MoreMenu,
   Badge,
@@ -38,6 +39,8 @@ import {
   SearchCodeIcon,
   SigmaIcon,
   LayersIcon,
+  ExternalLinkIcon,
+  Close,
 } from "../components/icons"
 import { ExportDialog } from "../components/ExportDialog"
 import { AdvancedSearch } from "../components/AdvancedSearch"
@@ -293,12 +296,28 @@ export function SourcesView({
     [vocabulary, vocabularyTick, data.sources],
   )
 
+  /** Display-only URL shortening: the href always keeps the full value. */
+  const hostOf = (u: string) => {
+    try {
+      const x = new URL(u)
+      const p2 = x.pathname === "/" ? "" : x.pathname
+      return x.hostname + p2 + (x.search || "")
+    } catch {
+      return u.replace(/^https?:\/\//, "").slice(0, 72)
+    }
+  }
+  const dateBits = (v: string) => {
+    const parts = formatDateTime(v).split(" ")
+    const time = parts.pop() ?? ""
+    return { d: parts.join(" "), t: time }
+  }
+
   const columns: Column<Source>[] = [
     { key: "name", header: t.fields.name, width: "22%", sortable: true },
     {
       key: "type",
       header: t.fields.type,
-      width: "90px",
+      width: "104px",
       sortable: true,
       render: (s) => (
         <Badge>
@@ -313,26 +332,29 @@ export function SourcesView({
     {
       key: "link_sources",
       header: t.fields.link_sources,
-      width: "22%",
+      width: "20%",
       render: (s) =>
         s.link_sources ? (
           <a
             href={s.link_sources}
             target="_blank"
             rel="noreferrer"
-            className="text-blue-600 hover:underline truncate block text-xs"
+            title={s.link_sources}
+            className="inline-flex max-w-full items-center gap-1 rounded-[4px] text-[0.78rem] underline-offset-2 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            style={{ color: "var(--primary)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {s.link_sources}
+            <ExternalLinkIcon />
+            <span className="truncate">{hostOf(s.link_sources)}</span>
           </a>
         ) : (
-          <span style={{ color: "var(--muted-fg)" }}>—</span>
+          <span style={{ color: "var(--muted-fg-2)" }}>—</span>
         ),
     },
     {
       key: "importance",
       header: t.fields.importance,
-      width: "110px",
+      width: "122px",
       sortable: true,
       render: (s) => <ImportanceBar value={s.importance} />,
     },
@@ -348,13 +370,35 @@ export function SourcesView({
     {
       key: "date_entry",
       header: t.fields.date_entry,
-      width: "90px",
+      width: "116px",
       sortable: true,
-      render: (s) => (
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.8em" }}>
-          {s.date_entry ? formatDateTime(s.date_entry) : "—"}
-        </span>
-      ),
+      render: (s) => {
+        if (!s.date_entry)
+          return <span style={{ color: "var(--muted-fg-2)" }}>—</span>
+        const { d, t: tm } = dateBits(s.date_entry)
+        return (
+          <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+            <span
+              className="tnum"
+              style={{ fontFamily: "var(--font-mono)", fontSize: "0.74rem" }}
+            >
+              {d}
+            </span>
+            {tm && (
+              <span
+                className="tnum"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.68rem",
+                  color: "var(--muted-fg)",
+                }}
+              >
+                {tm}
+              </span>
+            )}
+          </span>
+        )
+      },
     },
   ]
 
@@ -427,8 +471,8 @@ export function SourcesView({
   }, [data.sources])
 
   const renderForm = () => (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-4">
+    <div className="flex flex-col gap-3.5">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
         <Field label={t.fields.name} required error={errors.name}>
           <Input
             value={form.name}
@@ -482,22 +526,11 @@ export function SourcesView({
           required
           error={errors.importance}
         >
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              step={0.01}
-              value={importancePct}
-              onChange={(e) => setImportancePct(e.target.value)}
-              className="w-24"
-              error={!!errors.importance}
-            />
-            <span className="text-xs" style={{ color: "var(--muted-fg)" }}>
-              %
-            </span>
-            <ImportanceBar value={parseFloat(importancePct) / 100 || 0} />
-          </div>
+          <ImportanceControl
+            value={importancePct}
+            onChange={setImportancePct}
+            error={!!errors.importance}
+          />
         </Field>
         <Field label={t.fields.country}>
           <Input
@@ -544,7 +577,8 @@ export function SourcesView({
           onChange={(e) =>
             setForm((f) => ({ ...f, description: e.target.value }))
           }
-          rows={3}
+          rows={4}
+          placeholder={t.fields.description}
         />
       </Field>
       <Field label={t.fields.note}>
@@ -589,7 +623,7 @@ export function SourcesView({
             setPage(1)
           }}
           options={typeOpts}
-          className="!w-32"
+          className="!w-36"
         />
         <DateInput
           label={t.messages.dateFrom}
@@ -608,7 +642,12 @@ export function SourcesView({
           }}
         />
         <Btn
-          size="xs"
+          size="sm"
+          variant="subtle"
+          icon={<Close size="xs" />}
+          disabled={
+            !search && !typeFilter && !dateFrom && !dateTo && !advancedIds
+          }
           onClick={() => {
             setSearch("")
             setTypeFilter("")
@@ -617,13 +656,17 @@ export function SourcesView({
             setAdvancedIds(null)
             setPage(1)
           }}
-          variant="ghost"
         >
           {t.actions.clearFilters}
         </Btn>
         {advancedIds && (
-          <Btn size="xs" variant="ghost" onClick={() => setAdvancedIds(null)}>
-            Clear advanced ({advancedIds.length})
+          <Btn
+            size="sm"
+            variant="subtle"
+            icon={<Close size="xs" />}
+            onClick={() => setAdvancedIds(null)}
+          >
+            {t.messages.clearAdvanced} ({advancedIds.length})
           </Btn>
         )}
       </FilterRow>
@@ -747,8 +790,8 @@ export function SourcesView({
             action={
               search || typeFilter || dateFrom || dateTo || advancedIds ? (
                 <Btn
-                  size="xs"
-                  variant="ghost"
+                  size="sm"
+                  variant="subtle"
                   onClick={() => {
                     setSearch("")
                     setTypeFilter("")
@@ -812,6 +855,8 @@ export function SourcesView({
         record={selected}
         recordType={selected ? "source" : null}
         sources={data.sources}
+        label={t.messages.fullTextPreview}
+        emptyLabel={t.messages.selectToPreview}
       />
 
       {/* Pagination */}
@@ -839,7 +884,7 @@ export function SourcesView({
         onClose={() => setShowAdd(false)}
         onSave={handleSave}
         saveLabel={t.actions.save}
-        size="lg"
+        size="form"
       >
         {renderForm()}
       </FormModal>
@@ -851,7 +896,7 @@ export function SourcesView({
         onClose={() => setShowEdit(false)}
         onSave={handleSave}
         saveLabel={t.actions.save}
-        size="lg"
+        size="form"
       >
         {renderForm()}
       </FormModal>

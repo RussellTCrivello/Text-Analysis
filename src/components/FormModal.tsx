@@ -15,7 +15,7 @@ interface Props {
   onClose: () => void
   onSave: () => void
   children: ReactNode
-  size?: "md" | "lg" | "xl"
+  size?: "md" | "lg" | "xl" | "form"
   saveLabel?: string
   saveDisabled?: boolean
   saveIcon?: ReactNode
@@ -45,7 +45,7 @@ export function FormModal({
       footer={
         <>
           <div className="flex-1" />
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn variant="secondary" onClick={onClose}>
             {t.actions.cancel}
           </Btn>
           <Btn

@@ -111,6 +111,7 @@ const en = {
     statistics: "Statistics",
     filter: "Filter",
     clearFilters: "Clear Filters",
+    now: "Now",
     close: "Close",
     confirm: "Confirm",
     quickView: "Quick View",

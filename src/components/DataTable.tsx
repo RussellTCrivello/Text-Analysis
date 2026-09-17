@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react"
 import { Sort, SortAsc, SortDesc, EmptyFile } from "./icons"
+import { RowCheckbox } from "./ui"
 
 export interface Column<T> {
   key: keyof T | string
@@ -67,7 +68,7 @@ export function DataTable<T extends { id: string }>({
   }, [data, sortKey, sortDir])
 
   const rowPy =
-    density === "compact" ? "py-1" : density === "expansive" ? "py-3" : "py-2"
+    density === "compact" ? "py-1" : density === "expansive" ? "py-2.5" : "py-1.5"
 
   const handleRowClick = (row: T, e: React.MouseEvent) => {
     if (onSelectionChange) {
@@ -121,7 +122,7 @@ export function DataTable<T extends { id: string }>({
         style={{ tableLayout: "fixed", fontFamily: "var(--font-body)" }}
       >
         <colgroup>
-          {onSelectionChange && <col style={{ width: 34 }} />}
+          {onSelectionChange && <col style={{ width: 32 }} />}
           <col style={{ width: 36 }} />
           {columns.map((col) => (
             <col key={String(col.key)} style={{ width: col.width ?? "auto" }} />
@@ -136,27 +137,25 @@ export function DataTable<T extends { id: string }>({
                 className="px-2 text-center"
                 style={{
                   background: "var(--thead-glass)",
-                  borderBottom: "2px solid var(--border)",
-                  height: 32,
+                  borderBottom: "1px solid var(--border-strong)",
+                  height: 30,
                 }}
               >
-                <input
-                  type="checkbox"
+                <RowCheckbox
                   checked={
                     data.length > 0 && selectedIds.length === data.length
                   }
-                  onChange={(e) =>
-                    onSelectionChange(
-                      e.target.checked ? data.map((r) => r.id) : [],
-                    )
+                  mixed={
+                    selectedIds.length > 0 && selectedIds.length < data.length
                   }
-                  aria-label={
-                    selectedIds.length === data.length
+                  label={
+                    selectedIds.length === data.length && data.length > 0
                       ? "Deselect all rows"
                       : "Select all rows"
                   }
-                  className="cursor-pointer"
-                  style={{ accentColor: "var(--primary)" }}
+                  onChange={(v) =>
+                    onSelectionChange(v ? data.map((r) => r.id) : [])
+                  }
                 />
               </th>
             )}
@@ -166,8 +165,8 @@ export function DataTable<T extends { id: string }>({
               aria-label="Row number"
               style={{
                 background: "var(--thead-glass)",
-                borderBottom: "2px solid var(--border)",
-                height: 32,
+                borderBottom: "1px solid var(--border-strong)",
+                height: 30,
                 color: "var(--muted-fg)",
                 fontSize: "0.65rem",
                 fontFamily: "var(--font-mono)",
@@ -192,13 +191,13 @@ export function DataTable<T extends { id: string }>({
                 className="px-3 text-start"
                 style={{
                   background: "var(--thead-glass)",
-                  borderBottom: "2px solid var(--border)",
-                  height: 32,
-                  color: "var(--muted-fg)",
-                  fontSize: "0.65rem",
+                  borderBottom: "1px solid var(--border-strong)",
+                  height: 30,
+                  color: "var(--fg-soft)",
+                  fontSize: "0.78rem",
                   fontFamily: "var(--font-display)",
                   fontWeight: 600,
-                  letterSpacing: "0.07em",
+                  letterSpacing: "0.005em",
                   textAlign: col.align ?? "start",
                   userSelect: "none",
                 }}
@@ -207,12 +206,10 @@ export function DataTable<T extends { id: string }>({
                   <button
                     type="button"
                     onClick={() => handleSort(String(col.key))}
-                    className="group inline-flex items-center gap-1 uppercase tracking-[0.07em] cursor-pointer rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] hover:text-[var(--fg)] transition-colors"
+                    className="group inline-flex items-center gap-1 cursor-pointer rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] hover:text-[var(--fg)] transition-colors"
                     style={{
                       color: "inherit",
                       font: "inherit",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
                     }}
                     title={`Sort by ${col.header}`}
                   >
@@ -220,9 +217,7 @@ export function DataTable<T extends { id: string }>({
                     <SortIcon col={col} />
                   </button>
                 ) : (
-                  <span className="uppercase tracking-[0.07em]">
-                    {col.header}
-                  </span>
+                  <span>{col.header}</span>
                 )}
               </th>
             ))}
@@ -282,7 +277,7 @@ export function DataTable<T extends { id: string }>({
                   className={`cursor-pointer transition-all duration-150 ${rowPy}`}
                   style={{
                     background: sel
-                      ? "linear-gradient(90deg, var(--primary-soft-2), var(--primary-soft) 45%, var(--surface) 160px)"
+                      ? "var(--primary-soft-2)"
                       : idx % 2 === 0
                         ? "var(--surface)"
                         : "var(--row-tint)",
@@ -307,18 +302,15 @@ export function DataTable<T extends { id: string }>({
                       style={{ borderBottom: "1px solid var(--border)" }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <input
-                        type="checkbox"
+                      <RowCheckbox
                         checked={selectedIds.includes(row.id)}
-                        aria-label={`Select row ${rowNumberOffset + idx + 1}`}
-                        onChange={(e) => {
-                          const next = e.target.checked
+                        label={`Select row ${rowNumberOffset + idx + 1}`}
+                        onChange={(v) => {
+                          const next = v
                             ? [...selectedIds, row.id]
                             : selectedIds.filter((id) => id !== row.id)
                           onSelectionChange(next)
                         }}
-                        className="cursor-pointer"
-                        style={{ accentColor: "var(--primary)" }}
                       />
                     </td>
                   )}
@@ -330,7 +322,7 @@ export function DataTable<T extends { id: string }>({
                       fontFamily: "var(--font-mono)",
                       color: "var(--muted-fg)",
                       width: 36,
-                      opacity: sel ? 0.5 : 0.4,
+                      opacity: sel ? 0.65 : 0.5,
                     }}
                   >
                     {rowNumberOffset + idx + 1}
@@ -338,13 +330,13 @@ export function DataTable<T extends { id: string }>({
                   {columns.map((col) => (
                     <td
                       key={String(col.key)}
-                      className="px-3 overflow-hidden"
+                      className="px-2.5 overflow-hidden"
                       style={{
                         borderBottom: "1px solid var(--border)",
                         textAlign: col.align ?? "start",
                         maxWidth: col.width ?? 200,
-                        fontSize: "0.75rem",
-                        lineHeight: 1.4,
+                        fontSize: "0.78rem",
+                        lineHeight: 1.45,
                       }}
                     >
                       <div className="truncate">

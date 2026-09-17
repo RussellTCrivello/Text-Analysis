@@ -34,6 +34,8 @@ import {
   CalendarRange,
   ChartPie,
   Check as CheckRaw,
+  Calendar as CalendarRaw,
+  Minus as MinusRaw,
   ChevronsLeft,
   ChevronsRight,
   ChevronDown,
@@ -207,6 +209,8 @@ export const TriangleAlert = createAppIcon(TriangleAlertRaw, "md")
 export const ErrorIcon = createAppIcon(CircleAlert, "md")
 export const Success = createAppIcon(CircleCheck, "md")
 export const Check = createAppIcon(CheckRaw, "sm")
+export const CalendarSmall = createAppIcon(CalendarRaw, "xs")
+export const MinusSmall = createAppIcon(MinusRaw, "xs")
 export const CheckSmall = createAppIcon(CheckRaw, "xs")
 export const CopyIcon = createAppIcon(Copy, "sm")
 export const EyeIcon = createAppIcon(Eye, "sm")

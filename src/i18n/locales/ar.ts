@@ -113,6 +113,7 @@ const ar: TranslationShape = {
     statistics: "إحصائيات",
     filter: "تصفية",
     clearFilters: "مسح الفلاتر",
+    now: "الآن",
     close: "إغلاق",
     confirm: "تأكيد",
     quickView: "عرض سريع",

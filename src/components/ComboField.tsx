@@ -148,11 +148,11 @@ export function ComboField({
   return (
     <div ref={boxRef} className="relative" style={{ minWidth: 0 }}>
       <div
-        className="flex items-center gap-1 rounded transition-all duration-150"
+        className="fgroup gap-1"
         style={{
-          background: "var(--card-bg)",
-          border: `1px solid ${borderColor}`,
-          borderRadius: "var(--radius)",
+          borderColor,
+          background: "var(--surface)",
+          boxShadow: error && !open ? "0 0 0 2px var(--error-soft)" : undefined,
         }}
       >
         <input
@@ -173,11 +173,12 @@ export function ComboField({
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className="w-full px-3 py-1.5 text-sm outline-none"
+          className="w-full outline-none"
           style={{
             background: "transparent",
             color: "var(--fg)",
             fontFamily: "var(--font-body)",
+            fontSize: "0.86rem",
             minWidth: 0,
           }}
         />
@@ -190,7 +191,7 @@ export function ComboField({
             setOpen((o) => !o)
             inputRef.current?.focus()
           }}
-          className="px-2 py-1.5 shrink-0"
+          className="inline-flex h-full shrink-0 items-center rounded-e-[7px] px-1.5 transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           style={{ color: "var(--muted-fg)" }}
         >
           <ChevronD
@@ -207,7 +208,7 @@ export function ComboField({
         <ul
           id={id ? `${id}-list` : undefined}
           role="listbox"
-          className="absolute z-30 mt-1 w-full overflow-y-auto rounded shadow-lg"
+          className="absolute z-30 mt-1 w-full overflow-y-auto"
           style={{
             background: "var(--card-bg)",
             border: "1px solid var(--border)",
@@ -227,7 +228,7 @@ export function ComboField({
                 aria-selected={isActive}
                 onMouseEnter={() => setActive(index)}
                 onClick={() => pick(index)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer"
+                className="flex items-center gap-2 px-2.5 py-1.5 text-[0.82rem] cursor-pointer"
                 style={{
                   background: isActive ? "var(--secondary-bg)" : "transparent",
                   color: isCreate ? "var(--primary)" : "var(--fg)",
