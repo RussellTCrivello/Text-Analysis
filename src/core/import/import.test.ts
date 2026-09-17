@@ -266,3 +266,27 @@ test('validation messages are field-key-free (the UI supplies translated labels)
   assert.equal(issue.message, 'is required', 'message must not embed the raw field key');
   assert.equal(issue.field, 'name');
 });
+
+test('ref columns accept names: resolved for storage, file text kept for the preview', () => {
+  const repo = new Repository(new MemoryStorage(), 'rn.data', 'rn.audit');
+  repo.insertMany('sources', [{ id: 'src-reuters', name: 'Reuters', type: 'website' }], { validate: false });
+  const parsed = {
+    headers: ['Title', 'Body', 'Source'],
+    rows: [{ Title: 'Investigation piece', Body: 'The full text of the article goes here.', Source: 'reuters' }],
+    format: 'csv' as const,
+    problems: [],
+  };
+  const mapping = [
+    { header: 'Title', field: 'title', confidence: 1, suggestions: [], sample: 'Investigation piece' },
+    { header: 'Body', field: 'content_data', confidence: 1, suggestions: [], sample: 'The full text…' },
+    { header: 'Source', field: 'sources_id', confidence: 1, suggestions: [], sample: 'reuters' },
+  ];
+  const plan = planImport(parsed, mapping, 'contents', {
+    existing: repo.list('contents'),
+    parents: { sources: repo.list('sources'), contents: [], analyses: [] },
+    resolveRef: (e, v) => repo.resolveRef(e, v),
+  });
+  assert.equal(plan.errors, 0, JSON.stringify(plan.rows[0].issues));
+  assert.equal(plan.rows[0].values.sources_id, 'src-reuters', 'stored value is the parent id');
+  assert.equal(plan.rows[0].raw.sources_id, 'reuters', 'the preview keeps what the file actually said');
+});

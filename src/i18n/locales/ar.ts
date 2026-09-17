@@ -625,6 +625,8 @@ const ar: TranslationShape = {
       sourceColumn: "عمود الملف",
       targetField: "الحقل المستهدف",
       ignore: "— تجاهل —",
+      refHint:
+        "تقبل أعمدة الأصل المعرّف أو الاسم — يُطابَق الاسم تلقائيًا مع قائمة المصادر.",
       validRows: "صحيح",
       warningRows: "تحذيرات",
       errorRows: "أخطاء",

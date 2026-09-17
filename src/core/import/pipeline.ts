@@ -30,6 +30,12 @@ export type RowStatus = 'ok' | 'warning' | 'error';
 export interface RowPlan {
   row: number;
   values: Row;
+  /**
+   * Mapped values exactly as the file wrote them, before coercion and before
+   * references were resolved to parent ids. Preview UIs show this for ref
+   * columns so a user who imports by name sees the name, not an opaque id.
+   */
+  raw: Row;
   issues: ValidationIssue[];
   status: RowStatus;
 }
@@ -112,6 +118,7 @@ export function planImport(
   parsed.rows.forEach((source, index) => {
     const values: Row = {};
     for (const m of active) values[m.field as string] = source[m.header];
+    const raw: Row = { ...values };
 
     // Resolve foreign keys from names when the file carries titles instead of ids.
     const issues: ValidationIssue[] = [];
@@ -150,7 +157,7 @@ export function planImport(
         ? 'warning'
         : 'ok';
 
-    rows.push({ row: index + 2, values: coerced, issues: rowIssues, status });
+    rows.push({ row: index + 2, values: coerced, raw, issues: rowIssues, status });
     if (status !== 'error' || options.skipErrors === false) {
       if (status !== 'error') accepted.push(coerced);
     }

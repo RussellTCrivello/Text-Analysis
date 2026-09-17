@@ -193,6 +193,23 @@ export function ImportWizard({
     }
   }
 
+  // Ref columns are resolved to parent ids for storage; the review table must
+  // still show humans what they actually wrote: the parent's name when it
+  // matched, otherwise the raw file text.
+  const refFields = new Set(
+    importTargets(entity)
+      .filter((f) => (f as { kind?: string }).kind === "ref")
+      .map((f) => f.key),
+  )
+  const titleById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const e of ["sources", "contents", "analyses"] as const) {
+      const tf = SCHEMA[e].titleField
+      for (const r of repo.list(e)) m.set(String(r.id), String(r[tf] ?? r.id))
+    }
+    return m
+  }, [repo])
+
   const buildPlan = async () => {
     if (!parsed) return
     setBusy("plan")
@@ -581,6 +598,17 @@ export function ImportWizard({
         {mapping.filter((m) => !m.field).length > 0 &&
           ` · ${iw.ignoreCount.replace("{n}", String(mapping.filter((m) => !m.field).length))}`}
       </div>
+      {SCHEMA[entity].parent && (
+        <p
+          className="text-[11px] flex items-start gap-1.5"
+          style={{ color: "var(--muted-fg)" }}
+        >
+          <span style={{ color: "var(--primary)" }}>
+            <Verify size="xs" />
+          </span>
+          {iw.refHint}
+        </p>
+      )}
     </div>
   )
 
@@ -734,15 +762,23 @@ export function ImportWizard({
                     {row.status}
                   </span>
                 </td>
-                {planCols.slice(0, 4).map((field) => (
-                  <td
-                    key={field}
-                    className="px-2 py-1 text-xs border-b truncate"
-                    style={{ borderColor: "var(--border)", maxWidth: 120 }}
-                  >
-                    {String(row.values[field] ?? "—")}
-                  </td>
-                ))}
+                {planCols.slice(0, 4).map((field) => {
+                  const isRef = refFields.has(field)
+                  const id = String(row.values[field] ?? "")
+                  const shown = isRef
+                    ? titleById.get(id) ?? String(row.raw[field] ?? "—")
+                    : String(row.values[field] ?? "—")
+                  return (
+                    <td
+                      key={field}
+                      className="px-2 py-1 text-xs border-b truncate"
+                      style={{ borderColor: "var(--border)", maxWidth: 120 }}
+                      title={isRef && id ? `id: ${id}` : undefined}
+                    >
+                      {shown}
+                    </td>
+                  )
+                })}
                 <td
                   className="px-2 py-1 text-[11px] border-b"
                   style={{

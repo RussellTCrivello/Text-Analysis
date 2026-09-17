@@ -151,6 +151,19 @@ export function ContentsView({
     ]) as unknown as Content[]
   }, [data.contents, search, srcFilter, dateFrom, dateTo, advancedIds])
 
+
+  // Files and exports should read like the table: the Source column carries
+  // the source's name, which the import pipeline resolves back to an id
+  // (see repo.resolveRef), so export → edit → import round-trips by name.
+  const namedRows = useMemo(
+    () =>
+      filtered.map((c) => ({
+        ...c,
+        sources_id: c.sources_id ? sourceName(c.sources_id) : "",
+      })),
+    [filtered, data.sources],
+  )
+
   const contentStats = useMemo(
     () =>
       computeEntityStats(
@@ -277,7 +290,7 @@ export function ContentsView({
               ? "datetime"
               : undefined,
       })),
-      rows: filtered as unknown as Record<string, unknown>[],
+      rows: namedRows as unknown as Record<string, unknown>[],
       config: printConfig,
       title: `${t.sections.contents.title} — ${filtered.length} ${t.messages.records}`,
       subtitle: [
@@ -298,7 +311,9 @@ export function ContentsView({
       width: "16%",
       sortable: true,
       render: (c) => (
-        <span className="truncate">{sourceName(c.sources_id)}</span>
+        <span className="truncate" title={c.sources_id || undefined}>
+          {sourceName(c.sources_id)}
+        </span>
       ),
     },
     {
@@ -791,7 +806,7 @@ export function ContentsView({
       <ExportDialog
         isOpen={showExport}
         onClose={() => setShowExport(false)}
-        data={filtered as unknown as Record<string, unknown>[]}
+        data={namedRows as unknown as Record<string, unknown>[]}
         columns={exportColumns}
         defaultFilename="contents"
       />

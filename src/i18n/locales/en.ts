@@ -630,6 +630,8 @@ const en = {
       sourceColumn: "File Column",
       targetField: "Target Field",
       ignore: "— Ignore —",
+      refHint:
+        "Parent columns accept an id or a name — a name like Reuters is matched to the source list automatically.",
       validRows: "Valid",
       warningRows: "Warnings",
       errorRows: "Errors",
