@@ -63,9 +63,9 @@ export function Btn({
     md: "rounded-[var(--radius)]",
   }
   const sizes = {
-    xs: "h-[26px] px-2 text-[0.72rem] tracking-wide [&_svg]:!size-3.5",
-    sm: "h-[30px] px-3 text-[0.8rem] [&_svg]:!size-3.5",
-    md: "h-[34px] px-4 text-[0.86rem] [&_svg]:!size-4",
+    xs: "h-[28px] px-2 text-[0.78rem] tracking-wide [&_svg]:!size-3.5",
+    sm: "h-[32px] px-3 text-[0.86rem] [&_svg]:!size-3.5",
+    md: "h-[36px] px-4 text-[0.92rem] [&_svg]:!size-4",
   }
   const vars: Record<string, string> = {
     primary:
@@ -101,7 +101,7 @@ export function IconButton({
   danger,
   active,
   disabled,
-  size = 28,
+  size = 30,
   className = "",
 }: {
   label: string
@@ -292,15 +292,15 @@ export function Badge({
 }) {
   const sz =
     size === "xs"
-      ? "h-[16px] px-1.5 text-[9.5px]"
-      : "h-[19px] px-2 text-[10.5px]"
+      ? "h-[18px] px-1.5 text-[0.7rem]"
+      : "h-[20px] px-2 text-[0.8rem]"
   return (
     <span
-      className={`inline-flex max-w-full items-center gap-1 overflow-hidden rounded-full font-semibold ${sz} ${className}`}
+      className={`inline-flex max-w-full items-center gap-1 overflow-hidden rounded-[7px] font-semibold ${sz} ${className}`}
       style={{
-        background: color ? `color-mix(in srgb, ${color} 9%, transparent)` : "var(--surface-2)",
+        background: color ? `color-mix(in srgb, ${color} 8%, transparent)` : "var(--surface-2)",
         color: color ?? "var(--fg-soft)",
-        border: `1px solid ${color ? `color-mix(in srgb, ${color} 24%, transparent)` : "var(--border)"}`,
+        border: `1px solid ${color ? `color-mix(in srgb, ${color} 18%, transparent)` : "var(--border)"}`,
         fontFamily: "var(--font-display)",
         letterSpacing: "0.01em",
         lineHeight: 1,
@@ -402,7 +402,7 @@ export function ImportanceBar({ value }: { value: number }) {
       aria-label={`Importance ${pct}%`}
     >
       <span
-        className="h-1 w-14 shrink-0 overflow-hidden rounded-full"
+        className="h-[5px] w-16 shrink-0 overflow-hidden rounded-full"
         style={{
           background: "var(--surface-3)",
           boxShadow: "inset 0 0 0 1px var(--border)",
@@ -418,7 +418,7 @@ export function ImportanceBar({ value }: { value: number }) {
         className="tnum"
         style={{
           fontFamily: "var(--font-mono)",
-          fontSize: "0.7rem",
+          fontSize: "0.78rem",
           color: "var(--fg-soft)",
         }}
       >
@@ -508,7 +508,7 @@ export function SearchInput({
   autoFocus?: boolean
 }) {
   return (
-    <div className="relative flex items-center" style={{ minWidth: 220 }}>
+    <div className="relative flex items-center" style={{ minWidth: 240 }}>
       <span
         className="pointer-events-none absolute start-2.5 inline-flex"
         style={{ color: "var(--muted-fg)" }}
@@ -743,11 +743,10 @@ export function ResultsStrip({
       className="flex items-center gap-2 px-3 shrink-0"
       style={{
         background: "var(--surface-2)",
-        borderBottom: "1px solid var(--border)",
-        height: 26,
+        height: 28,
         color: "var(--muted-fg)",
         fontFamily: "var(--font-mono)",
-        fontSize: "0.68rem",
+        fontSize: "0.74rem",
         letterSpacing: "0.02em",
       }}
     >
@@ -886,7 +885,7 @@ export function PaginationBar({
   }
 
   const cell =
-    "flex h-[26px] min-w-[26px] items-center justify-center rounded-[var(--radius-sm)] px-1.5 text-[0.74rem] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+    "flex h-[28px] min-w-[28px] items-center justify-center rounded-[var(--radius)] px-1.5 text-[0.82rem] font-medium tnum transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
 
   const navBtn = (
     label: string,
@@ -932,15 +931,15 @@ export function PaginationBar({
 
   return (
     <div
-      className="flex items-center gap-2.5 px-3 py-1.5 shrink-0 flex-wrap"
+      className="flex items-center gap-2.5 px-3 py-2 shrink-0 flex-wrap"
       style={{
         background: "var(--surface-2)",
         borderTop: "1px solid var(--border)",
-        minHeight: 38,
+        minHeight: 42,
       }}
     >
       <span
-        className="tnum text-[0.76rem]"
+        className="tnum text-[0.82rem]"
         style={{ color: "var(--muted-fg)" }}
       >
         {showingLabel}{" "}
@@ -998,7 +997,7 @@ export function PaginationBar({
           style={{ width: 1, background: "var(--border)" }}
         />
         <label
-          className="flex items-center gap-1.5 px-1 text-[0.72rem]"
+          className="flex items-center gap-1.5 px-1 text-[0.78rem]"
           style={{ color: "var(--muted-fg)" }}
         >
           {perPageLabel}
@@ -1009,7 +1008,7 @@ export function PaginationBar({
               onPageSize(Number(e.target.value))
               onPage(1)
             }}
-            className="tnum cursor-pointer rounded-[var(--radius-sm)] border border-transparent bg-transparent px-1 py-0.5 text-[0.74rem] transition-colors hover:border-[var(--border)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            className="tnum cursor-pointer rounded-[var(--radius)] border border-transparent bg-transparent px-1.5 py-0.5 text-[0.82rem] transition-colors hover:border-[var(--border)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
             style={{
               color: "var(--fg)",
               fontFamily: "var(--font-mono)",
@@ -1114,7 +1113,7 @@ export function FullTextPreview({
     <div
       className="shrink-0 overflow-hidden transition-all duration-200"
       style={{
-        height: expanded ? 280 : 36,
+        height: expanded ? 300 : 40,
         borderTop: "1px solid var(--border-strong)",
         background: "var(--surface)",
       }}
@@ -1123,7 +1122,7 @@ export function FullTextPreview({
         onClick={() => setExpanded((e) => !e)}
         aria-expanded={expanded}
         aria-controls="full-text-preview-body"
-        className="group/ftp w-full flex items-center gap-2.5 px-3 h-9 text-start transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]"
+        className="group/ftp w-full flex items-center gap-2.5 px-3.5 h-10 text-start transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]"
       >
         <span
           className="text-[10px] font-bold uppercase tracking-[0.1em]"
@@ -1164,7 +1163,7 @@ export function FullTextPreview({
         <div
           id="full-text-preview-body"
           className="flex"
-          style={{ height: "calc(100% - 36px)" }}
+          style={{ height: "calc(100% - 40px)" }}
         >
           {!record ? (
             <div
@@ -1179,7 +1178,7 @@ export function FullTextPreview({
           ) : (
             <>
               <div
-                className="min-w-0 flex-1 overflow-y-auto p-4 text-xs leading-relaxed"
+                className="min-w-0 flex-1 overflow-y-auto p-5 text-[0.9rem] leading-[1.65]"
                 style={{
                   color: "var(--fg)",
                   borderRight: "1px solid var(--border)",
@@ -1635,7 +1634,7 @@ export function RowCheckbox({
   return (
     <label
       className="relative inline-flex cursor-pointer items-center justify-center align-middle"
-      style={{ width: 16, height: 16 }}
+      style={{ width: 18, height: 18 }}
     >
       <input
         ref={ref}
@@ -1645,7 +1644,7 @@ export function RowCheckbox({
         aria-label={label}
         onChange={(e) => onChange(e.target.checked)}
         className="peer absolute inset-0 m-0 cursor-pointer opacity-0"
-        style={{ width: 16, height: 16 }}
+        style={{ width: 18, height: 18 }}
       />
       <span
         aria-hidden="true"
@@ -2148,23 +2147,22 @@ export function PageHeader({
 }) {
   return (
     <header
-      className="flex items-center gap-3 px-4 shrink-0 rule-grad"
+      className="flex items-center gap-3 px-4 shrink-0"
       style={{
-        background:
-          "linear-gradient(180deg, var(--surface) 60%, var(--surface-2))",
+        background: "var(--surface)",
         borderBottom: "1px solid var(--border)",
-        minHeight: 56,
+        minHeight: 60,
         paddingTop: 10,
         paddingBottom: 10,
       }}
     >
       {icon && (
         <div
-          className="w-9 h-9 shrink-0 rounded-[var(--radius)] flex items-center justify-center"
+          className="w-10 h-10 shrink-0 rounded-[10px] flex items-center justify-center"
           style={{
-            background: "var(--brand-grad)",
-            color: "var(--primary-fg)",
-            boxShadow: "var(--glow-brand-sm), inset 0 1px 0 rgba(255,255,255,0.25)",
+            background: "var(--primary-soft)",
+            color: "var(--primary)",
+            border: "1px solid color-mix(in srgb, var(--primary) 18%, transparent)",
           }}
         >
           {icon}
@@ -2184,7 +2182,7 @@ export function PageHeader({
         )}
         <div className="flex items-center gap-2.5 min-w-0">
           <h1
-            className="text-[15px] font-bold leading-none truncate"
+            className="text-[17px] font-bold leading-tight tracking-tight truncate"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {title}
@@ -2316,7 +2314,7 @@ const MODAL_WIDTHS = {
   md: "max-w-2xl",
   lg: "max-w-4xl",
   xl: "max-w-6xl",
-  form: "max-w-[720px]",
+  form: "max-w-[760px]",
 }
 
 export function Modal({
@@ -2396,7 +2394,7 @@ export function Modal({
           />
         )}
         <div
-          className="flex items-center gap-2.5 px-4 py-3 shrink-0"
+          className="flex items-center gap-3 px-5 py-3.5 shrink-0"
           style={{
             borderBottom: "1px solid var(--border)",
             background: "var(--surface)",
@@ -2419,7 +2417,7 @@ export function Modal({
           <div className="min-w-0">
             <h2
               id={titleId}
-              className="font-bold text-[13.5px] tracking-tight"
+              className="font-bold text-[15.5px] tracking-tight leading-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {title}
@@ -2450,13 +2448,14 @@ export function Modal({
             </IconButton>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
         {footer && (
           <div
-            className="flex items-center gap-2 px-4 py-3 shrink-0"
+            className="flex items-center gap-2 px-5 py-3 shrink-0"
             style={{
               borderTop: "1px solid var(--border)",
               background: "var(--surface-2)",
+              minHeight: 52,
             }}
           >
             {footer}

@@ -7,12 +7,10 @@ import {
   Input,
   Textarea,
   Select,
-  Toolbar,
   ToolbarSep,
   SearchInput,
   DateInput,
   DateTimeInput,
-  FilterRow,
   ResultsStrip,
   SelectionBar,
   FullTextPreview,
@@ -472,6 +470,10 @@ export function SourcesView({
 
   const renderForm = () => (
     <div className="flex flex-col gap-3.5">
+      <div className="form-section">
+        <span>{t.sections.sources.formIdentity}</span>
+        <i />
+      </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
         <Field label={t.fields.name} required error={errors.name}>
           <Input
@@ -532,6 +534,12 @@ export function SourcesView({
             error={!!errors.importance}
           />
         </Field>
+      </div>
+      <div className="form-section">
+        <span>{t.sections.sources.formContext}</span>
+        <i />
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
         <Field label={t.fields.country}>
           <Input
             value={form.country}
@@ -561,6 +569,10 @@ export function SourcesView({
             }
           />
         </Field>
+      </div>
+      <div className="form-section">
+        <span>{t.sections.sources.formNotes}</span>
+        <i />
       </div>
       <Field
         label={t.fields.accounts}
@@ -606,125 +618,127 @@ export function SourcesView({
         }
       />
 
-      {/* Filter row */}
-      <FilterRow>
-        <SearchInput
-          value={search}
-          onChange={(v) => {
-            setSearch(v)
-            setPage(1)
-          }}
-          placeholder={t.messages.searchPlaceholder}
-        />
-        <Select
-          value={typeFilter}
-          onChange={(e) => {
-            setTypeFilter(e.target.value)
-            setPage(1)
-          }}
-          options={typeOpts}
-          className="!w-36"
-        />
-        <DateInput
-          label={t.messages.dateFrom}
-          value={dateFrom}
-          onChange={(v) => {
-            setDateFrom(v)
-            setPage(1)
-          }}
-        />
-        <DateInput
-          label={t.messages.dateTo}
-          value={dateTo}
-          onChange={(v) => {
-            setDateTo(v)
-            setPage(1)
-          }}
-        />
-        <Btn
-          size="sm"
-          variant="subtle"
-          icon={<Close size="xs" />}
-          disabled={
-            !search && !typeFilter && !dateFrom && !dateTo && !advancedIds
-          }
-          onClick={() => {
-            setSearch("")
-            setTypeFilter("")
-            setDateFrom("")
-            setDateTo("")
-            setAdvancedIds(null)
-            setPage(1)
-          }}
-        >
-          {t.actions.clearFilters}
-        </Btn>
-        {advancedIds && (
+      <div className="work-card mx-3 mb-3">
+        {/* Command rail: record actions, live results meta, overflow */}
+        <div className="rail-row">
+          <Btn onClick={openEdit} disabled={!selected} icon={<Pencil size="sm" />}>
+            {t.actions.edit}
+          </Btn>
+          <Btn
+            variant="danger"
+            onClick={() => setShowDelete(true)}
+            disabled={!selected}
+            icon={<Trash size="sm" />}
+          >
+            {t.actions.delete}
+          </Btn>
+          <Btn
+            onClick={() => {
+              setSelectedId(null)
+              setSelectedIds([])
+            }}
+            variant="ghost"
+            icon={<Refresh size="sm" />}
+          >
+            {t.actions.refresh}
+          </Btn>
+          <ToolbarSep />
+          <Btn onClick={() => setShowImport(true)} icon={<ImportFile size="sm" />}>
+            {t.actions.import}
+          </Btn>
+          <Btn
+            onClick={handleDuplicate}
+            disabled={!selected}
+            icon={<CopyIcon size="sm" />}
+          >
+            {t.actions.duplicate}
+          </Btn>
+          <ToolbarSep />
+          <Btn onClick={() => setShowExport(true)} icon={<ExportArrow size="sm" />}>
+            {t.actions.export}
+          </Btn>
+          <Btn onClick={handlePrint} icon={<Print size="sm" />}>
+            {t.actions.print}
+          </Btn>
+          <div className="ms-auto flex items-center gap-2">
+            <ResultsStrip
+              total={data.sources.length}
+              filtered={filtered.length}
+              selected={selectedIds.length}
+              recordsLabel={t.messages.records}
+              totalLabel={t.messages.total}
+              selectedLabel={t.messages.selected}
+            />
+            <MoreMenu items={moreItems} />
+          </div>
+        </div>
+
+        {/* Filter rail */}
+        <div className="rail-row rail-row--quiet" role="search">
+          <div className="min-w-0" style={{ flex: "1 1 240px", maxWidth: 380 }}>
+            <SearchInput
+              value={search}
+              onChange={(v) => {
+                setSearch(v)
+                setPage(1)
+              }}
+              placeholder={t.messages.searchPlaceholder}
+            />
+          </div>
+          <Select
+            value={typeFilter}
+            onChange={(e) => {
+              setTypeFilter(e.target.value)
+              setPage(1)
+            }}
+            options={typeOpts}
+            className="!w-40"
+          />
+          <DateInput
+            label={t.messages.dateFrom}
+            value={dateFrom}
+            onChange={(v) => {
+              setDateFrom(v)
+              setPage(1)
+            }}
+          />
+          <DateInput
+            label={t.messages.dateTo}
+            value={dateTo}
+            onChange={(v) => {
+              setDateTo(v)
+              setPage(1)
+            }}
+          />
           <Btn
             size="sm"
             variant="subtle"
             icon={<Close size="xs" />}
-            onClick={() => setAdvancedIds(null)}
+            disabled={
+              !search && !typeFilter && !dateFrom && !dateTo && !advancedIds
+            }
+            onClick={() => {
+              setSearch("")
+              setTypeFilter("")
+              setDateFrom("")
+              setDateTo("")
+              setAdvancedIds(null)
+              setPage(1)
+            }}
           >
-            {t.messages.clearAdvanced} ({advancedIds.length})
+            {t.actions.clearFilters}
           </Btn>
-        )}
-      </FilterRow>
-
-      {/* Action row */}
-      <Toolbar>
-        <Btn
-          onClick={openEdit}
-          disabled={!selected}
-          icon={<Pencil size="xs" />}
-        >
-          {t.actions.edit}
-        </Btn>
-        <Btn
-          variant="danger"
-          onClick={() => setShowDelete(true)}
-          disabled={!selected}
-          icon={<Trash size="xs" />}
-        >
-          {t.actions.delete}
-        </Btn>
-        <Btn
-          onClick={() => {
-            setSelectedId(null)
-            setSelectedIds([])
-          }}
-          variant="ghost"
-          icon={<Refresh size="xs" />}
-        >
-          {t.actions.refresh}
-        </Btn>
-        <ToolbarSep />
-        <Btn
-          onClick={() => setShowImport(true)}
-          icon={<ImportFile size="xs" />}
-        >
-          {t.actions.import}
-        </Btn>
-        <Btn
-          onClick={handleDuplicate}
-          disabled={!selected}
-          icon={<CopyIcon size="xs" />}
-        >
-          {t.actions.duplicate}
-        </Btn>
-        <ToolbarSep />
-        <Btn
-          onClick={() => setShowExport(true)}
-          icon={<ExportArrow size="xs" />}
-        >
-          {t.actions.export}
-        </Btn>
-        <Btn onClick={handlePrint} icon={<Print size="xs" />}>
-          {t.actions.print}
-        </Btn>
-        <div className="flex-1" />
-        <MoreMenu items={moreItems} />
-      </Toolbar>
+          {advancedIds && (
+            <Btn
+              size="sm"
+              variant="subtle"
+              icon={<Close size="xs" />}
+              onClick={() => setAdvancedIds(null)}
+            >
+              {t.messages.clearAdvanced} ({advancedIds.length})
+            </Btn>
+          )}
+        </div>
 
       {orphanTypes.length > 0 && (
         <div
@@ -758,18 +772,8 @@ export function SourcesView({
         </div>
       )}
 
-      {/* Results strip */}
-      <ResultsStrip
-        total={data.sources.length}
-        filtered={filtered.length}
-        selected={selectedIds.length}
-        recordsLabel={t.messages.records}
-        totalLabel={t.messages.total}
-        selectedLabel={t.messages.selected}
-      />
-
       {/* Table */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {filtered.length === 0 ? (
           <EmptyState
             variant={
@@ -840,16 +844,6 @@ export function SourcesView({
         )}
       </div>
 
-      {/* Selection bar */}
-      {selectedIds.length > 0 && (
-        <SelectionBar
-          count={selectedIds.length}
-          onClear={() => setSelectedIds([])}
-          onBulkDelete={() => setShowBulkOps(true)}
-          label={t.messages.selected}
-        />
-      )}
-
       {/* Full Text Preview */}
       <FullTextPreview
         record={selected}
@@ -874,6 +868,17 @@ export function SourcesView({
           pageLabel={t.messages.page}
           ofLabel={t.messages.of}
           showingLabel={t.messages.showing}
+        />
+      )}
+      </div>
+
+      {/* Selection bar */}
+      {selectedIds.length > 0 && (
+        <SelectionBar
+          count={selectedIds.length}
+          onClear={() => setSelectedIds([])}
+          onBulkDelete={() => setShowBulkOps(true)}
+          label={t.messages.selected}
         />
       )}
 

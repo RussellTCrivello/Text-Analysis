@@ -110,7 +110,7 @@
   --radius-lg: 14px;
   --radius-xl: 16px;
   --radius-full: 999px;
-  --control-h: 30px;
+  --control-h: 32px;
 
   /* Elevation */
   --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.07);
@@ -564,7 +564,7 @@ button, a, [role='button'], input, select, summary {
     border: 1px solid var(--border-strong);
     border-radius: var(--radius);
     font-family: var(--font-body);
-    font-size: 0.86rem;
+    font-size: 0.92rem;
     box-shadow: inset 0 1px 2px rgba(10, 15, 28, 0.05);
     transition:
       border-color var(--t-fast) var(--ease-out),
@@ -598,9 +598,9 @@ button, a, [role='button'], input, select, summary {
     box-shadow: 0 0 0 3px var(--error-soft);
   }
   .ctrl-sm {
-    height: 24px;
+    height: 26px;
     padding: 0 6px 0 22px;
-    font-size: 0.76rem;
+    font-size: 0.8rem;
     border-radius: var(--radius-sm);
   }
   select.ctrl {
@@ -655,7 +655,7 @@ button, a, [role='button'], input, select, summary {
     outline: none;
     background: transparent;
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.86rem;
     color: var(--fg);
   }
   .fgroup > input::-webkit-datetime-edit {
@@ -800,7 +800,7 @@ button, a, [role='button'], input, select, summary {
   .field-label {
     display: block;
     font-family: var(--font-display);
-    font-size: 0.78rem;
+    font-size: 0.84rem;
     font-weight: 600;
     letter-spacing: 0.015em;
     color: var(--fg-soft);
@@ -814,9 +814,9 @@ button, a, [role='button'], input, select, summary {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
-    border-radius: 5px;
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
     background: var(--surface);
     border: 1.5px solid var(--border-strong);
     box-shadow: inset 0 1px 2px rgba(10, 15, 28, 0.06);
@@ -835,5 +835,54 @@ button, a, [role='button'], input, select, summary {
   }
   input:focus-visible + .row-cb {
     box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+}
+
+/* ============================================================================
+   Workspace card — the table, its command rails and the footer live on ONE
+   framed surface instead of stacked full-bleed bands.
+   ========================================================================== */
+@layer components {
+  .work-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+    overflow: hidden;
+  }
+  .rail-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    flex: none;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .rail-row--quiet {
+    background: var(--surface-2);
+  }
+  /* Form modal section caption: quiet sentence-case label + hairline */
+  .form-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 2px;
+  }
+  .form-section > span {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--primary);
+  }
+  .form-section > i {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
   }
 }

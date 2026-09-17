@@ -221,6 +221,9 @@ const en = {
         "other",
       ],
       noData: "No sources found. Add your first source to get started.",
+      formIdentity: "Identity",
+      formContext: "Context & provenance",
+      formNotes: "Notes",
     },
     contents: {
       title: "Contents",

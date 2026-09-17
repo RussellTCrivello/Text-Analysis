@@ -223,6 +223,9 @@ const ar: TranslationShape = {
         "other",
       ],
       noData: "لا توجد مصادر.",
+      formIdentity: "الأساسيات",
+      formContext: "السياق والمصدر",
+      formNotes: "ملاحظات",
     },
     contents: {
       title: "المحتويات",

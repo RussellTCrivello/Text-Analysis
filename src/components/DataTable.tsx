@@ -68,7 +68,7 @@ export function DataTable<T extends { id: string }>({
   }, [data, sortKey, sortDir])
 
   const rowPy =
-    density === "compact" ? "py-1" : density === "expansive" ? "py-2.5" : "py-1.5"
+    density === "compact" ? "py-1" : density === "expansive" ? "py-3" : "py-2"
 
   const handleRowClick = (row: T, e: React.MouseEvent) => {
     if (onSelectionChange) {
@@ -122,7 +122,7 @@ export function DataTable<T extends { id: string }>({
         style={{ tableLayout: "fixed", fontFamily: "var(--font-body)" }}
       >
         <colgroup>
-          {onSelectionChange && <col style={{ width: 32 }} />}
+          {onSelectionChange && <col style={{ width: 36 }} />}
           <col style={{ width: 36 }} />
           {columns.map((col) => (
             <col key={String(col.key)} style={{ width: col.width ?? "auto" }} />
@@ -138,7 +138,7 @@ export function DataTable<T extends { id: string }>({
                 style={{
                   background: "var(--thead-glass)",
                   borderBottom: "1px solid var(--border-strong)",
-                  height: 30,
+                  height: 34,
                 }}
               >
                 <RowCheckbox
@@ -166,7 +166,7 @@ export function DataTable<T extends { id: string }>({
               style={{
                 background: "var(--thead-glass)",
                 borderBottom: "1px solid var(--border-strong)",
-                height: 30,
+                height: 34,
                 color: "var(--muted-fg)",
                 fontSize: "0.65rem",
                 fontFamily: "var(--font-mono)",
@@ -192,9 +192,9 @@ export function DataTable<T extends { id: string }>({
                 style={{
                   background: "var(--thead-glass)",
                   borderBottom: "1px solid var(--border-strong)",
-                  height: 30,
+                  height: 34,
                   color: "var(--fg-soft)",
-                  fontSize: "0.78rem",
+                  fontSize: "0.84rem",
                   fontFamily: "var(--font-display)",
                   fontWeight: 600,
                   letterSpacing: "0.005em",
@@ -318,10 +318,10 @@ export function DataTable<T extends { id: string }>({
                     className="text-center"
                     style={{
                       borderBottom: "1px solid var(--border)",
-                      fontSize: "0.65rem",
+                      fontSize: "0.7rem",
                       fontFamily: "var(--font-mono)",
                       color: "var(--muted-fg)",
-                      width: 36,
+                      width: 38,
                       opacity: sel ? 0.65 : 0.5,
                     }}
                   >
@@ -330,13 +330,14 @@ export function DataTable<T extends { id: string }>({
                   {columns.map((col) => (
                     <td
                       key={String(col.key)}
-                      className="px-2.5 overflow-hidden"
+                      className="px-3 overflow-hidden"
                       style={{
                         borderBottom: "1px solid var(--border)",
                         textAlign: col.align ?? "start",
                         maxWidth: col.width ?? 200,
-                        fontSize: "0.78rem",
-                        lineHeight: 1.45,
+                        fontSize: "0.94rem",
+                        lineHeight: 1.5,
+                        fontWeight: 450,
                       }}
                     >
                       <div className="truncate">
