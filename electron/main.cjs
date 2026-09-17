@@ -160,7 +160,9 @@ function createWindow() {
 
   if (DEV_URL) {
     win.loadURL(DEV_URL)
-    win.webContents.openDevTools({ mode: 'detach' })
+    // DevTools opens by default in dev; set ELECTRON_DEVTOOLS=0 to start without
+    // it (also silences the DevTools frontend's harmless Autofill CDP errors).
+    if (process.env.ELECTRON_DEVTOOLS !== '0') win.webContents.openDevTools({ mode: 'detach' })
   } else {
     win.loadURL(APP_INDEX)
   }
