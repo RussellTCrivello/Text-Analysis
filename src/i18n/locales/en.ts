@@ -408,7 +408,9 @@ const en = {
       attachedTo: "{n} file(s) attached to {t}",
       syncHint:
         "Attach files with the button or by dropping them below — the list and stored files stay in sync; rename or remove any file here.",
-      stagedCount: "Staged ({n}) — attached when the record is saved",    },
+      stagedCount: "Staged ({n}) — attached when the record is saved",
+      openFailed:
+        "This attachment has no stored file data (it may predate the attachment fix). Re-attach the file.",   },
   },
   messages: {
     confirmDelete: "Delete this record permanently?",

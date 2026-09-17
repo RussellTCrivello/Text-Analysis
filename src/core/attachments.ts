@@ -48,9 +48,13 @@ export interface AttachmentPayload {
   attachedBy?: string;
 }
 
+/** Shape persisted in IndexedDB: meta fields plus the file under `bytes`. */
+type RawAttachmentRecord = AttachmentMeta & { bytes?: Blob | Uint8Array; blob?: Blob };
+
 export interface AttachmentStore {
   list(contentId?: string): Promise<AttachmentMeta[]>;
   put(contentId: string, payload: AttachmentPayload): Promise<AttachmentMeta>;
+  /** Returns the file as a real Blob, or null when the record (or its data) is missing. */
   get(id: string): Promise<{ meta: AttachmentMeta; blob: Blob } | null>;
   remove(id: string): Promise<boolean>;
   removeByContent(contentId: string): Promise<number>;
@@ -163,6 +167,28 @@ export class IndexedDbAttachmentStore implements AttachmentStore {
     });
   }
 
+  /** Shape persisted in IndexedDB: meta fields plus the file under `bytes`.
+   *  `blob` is only read, for compatibility with older builds. */
+  private async rawGet(id: string): Promise<RawAttachmentRecord | undefined> {
+    return this.tx<RawAttachmentRecord | undefined>('readonly', (store) =>
+      store.get(id) as unknown as IDBRequest<RawAttachmentRecord | undefined>,
+    );
+  }
+
+  private static metaOfRecord(record: RawAttachmentRecord): AttachmentMeta {
+    const { bytes, blob, ...meta } = record;
+    void bytes;
+    void blob;
+    return meta as AttachmentMeta;
+  }
+
+  private static fileOf(record: RawAttachmentRecord): Blob | null {
+    const data = record.bytes ?? record.blob;
+    if (data instanceof Blob) return data;
+    if (data) return new Blob([data as BlobPart], { type: record.mime ?? 'application/octet-stream' });
+    return null;
+  }
+
   private async tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
     const db = await this.dbPromise;
     return new Promise<T>((resolve, reject) => {
@@ -174,8 +200,9 @@ export class IndexedDbAttachmentStore implements AttachmentStore {
   }
 
   async list(contentId?: string): Promise<AttachmentMeta[]> {
-    const all = await this.tx<AttachmentMeta[]>('readonly', (store) => store.getAll() as IDBRequest<AttachmentMeta[]>);
-    const filtered = contentId ? all.filter((m) => m.contentId === contentId) : all;
+    const all = await this.tx<RawAttachmentRecord[]>('readonly', (store) => store.getAll() as unknown as IDBRequest<RawAttachmentRecord[]>);
+    const metas = all.map(IndexedDbAttachmentStore.metaOfRecord);
+    const filtered = contentId ? metas.filter((m) => m.contentId === contentId) : metas;
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -188,28 +215,30 @@ export class IndexedDbAttachmentStore implements AttachmentStore {
     return meta;
   }
 
+  /** Patch metadata without touching the stored file. (The previous version
+   *  read the file through a mismatched field name, which truncated it.) */
   async update(id: string, patch: Partial<AttachmentMeta>): Promise<AttachmentMeta | null> {
-    const existing = await this.get(id);
-    if (!existing) return null;
-    const meta = { ...existing.meta, ...patch, id: existing.meta.id };
+    const record = await this.rawGet(id);
+    if (!record) return null;
+    const file = IndexedDbAttachmentStore.fileOf(record);
+    const meta = { ...IndexedDbAttachmentStore.metaOfRecord(record), ...patch, id: record.id };
     await this.tx('readwrite', (store) =>
-      store.put({ ...meta, bytes: existing.blob }) as unknown as IDBRequest,
+      store.put({ ...meta, bytes: file ?? new Blob() }) as unknown as IDBRequest,
     );
     return meta;
   }
 
   async get(id: string): Promise<{ meta: AttachmentMeta; blob: Blob } | null> {
-    const record = await this.tx<(AttachmentMeta & { blob: Blob }) | undefined>('readonly', (store) =>
-      store.get(id) as IDBRequest<(AttachmentMeta & { blob: Blob }) | undefined>,
-    );
+    const record = await this.rawGet(id);
     if (!record) return null;
-    const { blob, ...meta } = record;
-    return { meta, blob };
+    const blob = IndexedDbAttachmentStore.fileOf(record);
+    if (!blob) return null; // metadata survives, but the file bytes are gone
+    return { meta: IndexedDbAttachmentStore.metaOfRecord(record), blob };
   }
 
   async remove(id: string): Promise<boolean> {
-    const existing = await this.get(id);
-    if (!existing) return false;
+    const before = await this.rawGet(id);
+    if (!before) return false;
     await this.tx('readwrite', (store) => store.delete(id) as unknown as IDBRequest);
     return true;
   }
@@ -221,14 +250,15 @@ export class IndexedDbAttachmentStore implements AttachmentStore {
   }
 
   async stats(): Promise<{ count: number; bytes: number; byContent: Record<string, number> }> {
-    const metas = await this.list();
+    const all = await this.tx<RawAttachmentRecord[]>('readonly', (store) => store.getAll() as unknown as IDBRequest<RawAttachmentRecord[]>);
     const byContent: Record<string, number> = {};
     let bytes = 0;
-    for (const meta of metas) {
+    for (const record of all) {
+      const meta = IndexedDbAttachmentStore.metaOfRecord(record);
       bytes += meta.size;
       byContent[meta.contentId] = (byContent[meta.contentId] ?? 0) + 1;
     }
-    return { count: metas.length, bytes, byContent };
+    return { count: all.length, bytes, byContent };
   }
 }
 

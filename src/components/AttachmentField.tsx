@@ -222,11 +222,12 @@ export const AttachmentField = forwardRef<AttachmentFieldHandle, Props>(
 
     const saveStoredEdit = async () => {
       if (!editStored) return
-      await attachments.update(editStored.id, {
-        name: editStored.name.trim() || undefined,
+      const patch: Partial<AttachmentMeta> = {
         sourceUrl: editStored.sourceUrl.trim(),
         note: editStored.note.trim(),
-      })
+      }
+      if (editStored.name.trim()) patch.name = editStored.name.trim()
+      await attachments.update(editStored.id, patch)
       setEditStored(null)
       await refresh()
       onToast?.(t.sections.attachments.updated)

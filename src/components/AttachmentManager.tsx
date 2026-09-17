@@ -302,14 +302,22 @@ export function AttachmentManager({
                     </IconButton>
                     <IconButton
                       label={t.sections.attachments.openFile}
-                      onClick={() => void openAttachment(attachments, m.id)}
+                      onClick={() =>
+                        void openAttachment(attachments, m.id).then((ok) => {
+                          if (!ok) onToast?.(t.sections.attachments.openFailed)
+                        })
+                      }
                     >
                       <ExternalLinkIcon size="xs" />
                     </IconButton>
                     <Btn
                       size="xs"
                       variant="ghost"
-                      onClick={() => void downloadAttachment(attachments, m.id)}
+                      onClick={() =>
+                        void downloadAttachment(attachments, m.id).then((ok) => {
+                          if (!ok) onToast?.(t.sections.attachments.openFailed)
+                        })
+                      }
                       icon={<DownloadIcon size="xs" />}
                     >
                       {t.actions.download}
