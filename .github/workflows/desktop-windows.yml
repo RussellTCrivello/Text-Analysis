@@ -34,9 +34,22 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+
+      - name: Resolve product identity from package.json
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          # Display/install name follows productName; the on-disk userData folder
+          # is pinned in electron/main.cjs so rebranding never orphans records.
+          "PRODUCT_NAME=$($pkg.productName)"  | Out-File -Append $env:GITHUB_ENV
+          "APP_VERSION=$($pkg.version)"       | Out-File -Append $env:GITHUB_ENV
+          "USER_DATA_NAME=Text Analysis"      | Out-File -Append $env:GITHUB_ENV
+          Write-Host "productName=$($pkg.productName) version=$($pkg.version)"
+
       - run: npm run typecheck
       - run: npm run test
       - run: npm run smoke
+      - run: npm run smoke:dom
 
       - name: Build installer
         run: npm run dist:win
@@ -80,6 +93,11 @@ jobs:
           if (-not $r.checks.lsPrevious) { throw "localStorage did not persist across restart" }
           if (-not $r.checks.idb.previous) { throw "IndexedDB did not persist across restart" }
           if (-not $r.userData.StartsWith($env:APPDATA)) { throw "userData is not under %APPDATA%: $($r.userData)" }
+          # userData must stay pinned to the historical folder even though the
+          # productName is now "Text Analysis Manager" — renaming the product
+          # must never strand an existing user's records.
+          $expected = Join-Path $env:APPDATA $env:USER_DATA_NAME
+          if ($r.userData -ne $expected) { throw "userData drifted: expected $expected, got $($r.userData)" }
           Write-Host "userData: $($r.userData)"
 
       # ---- Verify the NSIS installer end to end ----
@@ -94,18 +112,18 @@ jobs:
       - name: Verify install location, shortcuts, registry, launch
         shell: pwsh
         run: |
-          $installDir = Join-Path $env:LOCALAPPDATA 'Programs\Text Analysis'
-          if (-not (Test-Path "$installDir\Text Analysis.exe")) { throw "app exe missing in $installDir" }
+          $installDir = Join-Path $env:LOCALAPPDATA "Programs\$env:PRODUCT_NAME"
+          if (-not (Test-Path "$installDir\$env:PRODUCT_NAME.exe")) { throw "app exe missing in $installDir" }
           Write-Host "Installed to: $installDir (per-user)"
-          $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Text Analysis.lnk'
-          $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Text Analysis.lnk'
+          $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) "$env:PRODUCT_NAME.lnk"
+          $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\$env:PRODUCT_NAME.lnk"
           if (-not (Test-Path $desktop)) { throw "desktop shortcut missing: $desktop" }
           if (-not (Test-Path $startMenu)) { throw "start menu shortcut missing: $startMenu" }
           $sh = New-Object -ComObject WScript.Shell
           Write-Host "Desktop shortcut ->" $sh.CreateShortcut($desktop).TargetPath
           Write-Host "Start Menu shortcut ->" $sh.CreateShortcut($startMenu).TargetPath
           $reg = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' |
-                 Get-ItemProperty | Where-Object { $_.DisplayName -eq 'Text Analysis' }
+                 Get-ItemProperty | Where-Object { $_.DisplayName -eq $env:PRODUCT_NAME }
           if (-not $reg) { throw 'Add/Remove Programs entry missing (HKCU)' }
           Write-Host "Uninstall entry: $($reg.DisplayName) $($reg.DisplayVersion) -> $($reg.UninstallString)"
           $pkg = Get-Content package.json | ConvertFrom-Json
@@ -113,7 +131,7 @@ jobs:
           # Launch the *installed* app once more; it shares the same userData so
           # the markers written by the unpacked runs must still be visible.
           $out = "$env:RUNNER_TEMP\smoke3.json"
-          $p = Start-Process -FilePath "$installDir\Text Analysis.exe" -ArgumentList '--smoke-test',"--smoke-out=$out" -PassThru -Wait
+          $p = Start-Process -FilePath "$installDir\$env:PRODUCT_NAME.exe" -ArgumentList '--smoke-test',"--smoke-out=$out" -PassThru -Wait
           $r = Get-Content $out | ConvertFrom-Json
           if ($p.ExitCode -ne 0) { throw 'installed app smoke failed' }
           if (-not $r.isPackaged) { throw 'installed app does not report isPackaged' }
@@ -124,7 +142,7 @@ jobs:
       - name: Single-instance check
         shell: pwsh
         run: |
-          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Text Analysis\Text Analysis.exe'
+          $exe = Join-Path $env:LOCALAPPDATA "Programs\$env:PRODUCT_NAME\$env:PRODUCT_NAME.exe"
           $first = Start-Process -FilePath $exe -PassThru
           Start-Sleep -Seconds 6
           $second = Start-Process -FilePath $exe -PassThru
@@ -138,14 +156,14 @@ jobs:
       - name: Uninstall silently and verify user data survives
         shell: pwsh
         run: |
-          $userData = Join-Path $env:APPDATA 'Text Analysis'
+          $userData = Join-Path $env:APPDATA $env:USER_DATA_NAME
           if (-not (Test-Path $userData)) { throw "expected userData dir $userData to exist before uninstall" }
-          $installDir = Join-Path $env:LOCALAPPDATA 'Programs\Text Analysis'
-          $p = Start-Process -FilePath "$installDir\Uninstall Text Analysis.exe" -ArgumentList '/S' -PassThru -Wait
+          $installDir = Join-Path $env:LOCALAPPDATA "Programs\$env:PRODUCT_NAME"
+          $p = Start-Process -FilePath "$installDir\Uninstall $env:PRODUCT_NAME.exe" -ArgumentList '/S' -PassThru -Wait
           if ($p.ExitCode -ne 0) { throw "uninstaller exit code $($p.ExitCode)" }
           Start-Sleep -Seconds 5 # NSIS uninstaller copies itself to temp and finishes async
-          if (Test-Path "$installDir\Text Analysis.exe") { throw 'app exe still present after uninstall' }
-          $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Text Analysis.lnk'
+          if (Test-Path "$installDir\$env:PRODUCT_NAME.exe") { throw 'app exe still present after uninstall' }
+          $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) "$env:PRODUCT_NAME.lnk"
           if (Test-Path $desktop) { throw 'desktop shortcut still present after uninstall' }
           if (-not (Test-Path $userData)) { throw 'uninstall deleted user data (should be preserved)' }
           Write-Host "Uninstalled cleanly; user data preserved at $userData"

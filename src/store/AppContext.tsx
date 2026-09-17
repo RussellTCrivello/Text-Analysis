@@ -295,6 +295,13 @@ interface AppCtx {
   sql: SqlEngine
   /** ISO timestamp of the last persistence flush (auto-save heartbeat + writes). */
   lastSavedAt: string | null
+  /**
+   * Set when a write could not reach storage (quota exhausted). The shell
+   * renders this as a persistent warning — a silently dropped save would be
+   * data loss in a local-first app.
+   */
+  persistError: string | null
+  dismissPersistError: () => void
 }
 
 const noopResult: WriteResult = { ok: true, issues: [] }
@@ -387,6 +394,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
    * (vocabulary, gazetteer, taxonomy) and any missed edge reach disk within the
    * configured interval. Turning auto-save off stops the background flush only. */
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
+  const [persistError, setPersistError] = useState<string | null>(null)
+  const dismissPersistError = useCallback(() => setPersistError(null), [])
+
+  /* Storage failures must reach the user, not just the audit log. */
+  useEffect(() => repo.onPersistError((err) => setPersistError(err.message)), [repo])
   const { settings: appSettings } = useSettings()
   useEffect(() => {
     setLastSavedAt(repo.stats().lastPersisted)
@@ -396,8 +408,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       600,
     )
     const timer = window.setInterval(() => {
-      repo.persist()
-      setLastSavedAt(repo.stats().lastPersisted)
+      // persistSafely() reports quota failures through onPersistError instead
+      // of throwing out of the timer callback.
+      if (repo.persistSafely()) setLastSavedAt(repo.stats().lastPersisted)
     }, seconds * 1000)
     return () => window.clearInterval(timer)
   }, [repo, appSettings.autoSave, appSettings.autoSaveInterval])
@@ -641,6 +654,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       attachments,
       sql,
       lastSavedAt,
+      persistError,
+      dismissPersistError,
     }
   }, [
     typedData,
@@ -656,6 +671,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     attachments,
     sql,
     lastSavedAt,
+    persistError,
+    dismissPersistError,
     add,
     update,
     auditTick,

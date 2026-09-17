@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
 import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
+import packageJson from './package.json' with { type: 'json' }
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -12,6 +13,13 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: process.env.FIGMA_PUBLIC_URL ? `${process.env.FIGMA_PUBLIC_URL}/` : './',
+    // Single source of truth for the shipped version/name: package.json.
+    // The UI reads these instead of hardcoding a version that can drift from
+    // the installer (see src/core/appInfo.ts).
+    define: {
+      __APP_VERSION__: JSON.stringify(packageJson.version),
+      __APP_NAME__: JSON.stringify(packageJson.productName),
+    },
     build: {
       sourcemap: emitSourcemaps ? 'inline' : false,
       minify: !emitSourcemaps,

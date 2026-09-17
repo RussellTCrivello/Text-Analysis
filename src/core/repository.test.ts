@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MemoryStorage } from './persist';
+import { MemoryStorage, StorageQuotaError } from './persist';
 import { Repository } from './repository';
 
 function seed(repo: Repository) {
@@ -199,4 +199,66 @@ test('allRecords builds the unified view with derived columns', () => {
   const analysisRow = rows.find((r) => r.record_type === 'Analysis');
   assert.equal(analysisRow?.source_name, 'Reuters');
   assert.equal(analysisRow?.classification, 'Security');
+});
+
+/* ---------------------------- storage quota ------------------------------ */
+
+/** Storage that starts failing writes once `failAfter` writes have happened. */
+class FullStorage extends MemoryStorage {
+  private writes = 0;
+  private readonly failAfter: number;
+  constructor(failAfter: number) {
+    super();
+    this.failAfter = failAfter;
+  }
+  override set(key: string, value: string): void {
+    this.writes += 1;
+    if (this.writes > this.failAfter) {
+      throw new StorageQuotaError(value.length, new Error('QuotaExceededError'));
+    }
+    super.set(key, value);
+  }
+}
+
+test('quota failures are reported to subscribers instead of thrown', () => {
+  const repo = new Repository(new FullStorage(0), 'test.data', 'test.audit', 'tester');
+  const seen: StorageQuotaError[] = [];
+  repo.onPersistError((err) => seen.push(err));
+
+  // A mutation must not throw at the call site...
+  let result: ReturnType<Repository['insert']> | undefined;
+  assert.doesNotThrow(() => {
+    result = repo.insert('sources', { name: 'Reuters', type: 'website', country: 'UK' });
+  });
+  assert.ok(result?.ok, `insert should be valid: ${JSON.stringify(result?.issues)}`);
+  // ...but the failure must be surfaced.
+  assert.ok(seen.length > 0, 'expected a persist error to be reported');
+  assert.equal(seen[0].name, 'StorageQuotaError');
+
+  // The in-memory record still exists, so the user does not lose their edit
+  // from the screen — they get a warning and can export a backup.
+  assert.equal(repo.all().sources.length, 1);
+});
+
+test('persistSafely reports quota failure and returns false', () => {
+  const repo = new Repository(new FullStorage(0), 'test.data', 'test.audit', 'tester');
+  const seen: StorageQuotaError[] = [];
+  repo.onPersistError((err) => seen.push(err));
+  assert.equal(repo.persistSafely(), false);
+  assert.equal(seen.length, 1);
+});
+
+test('persistSafely returns true when storage accepts the write', () => {
+  const repo = newRepo();
+  assert.equal(repo.persistSafely(), true);
+});
+
+test('unsubscribing stops persist-error delivery', () => {
+  const repo = new Repository(new FullStorage(0), 'test.data', 'test.audit', 'tester');
+  let count = 0;
+  const off = repo.onPersistError(() => (count += 1));
+  repo.persistSafely();
+  off();
+  repo.persistSafely();
+  assert.equal(count, 1);
 });

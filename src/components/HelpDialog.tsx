@@ -1,11 +1,12 @@
 import React, { useState } from "react"
 import { InfoModal } from "./FormModal"
+import { APP_NAME, APP_VERSION_LABEL } from "../core/appInfo"
 
 const TOPICS = [
   {
     id: "getting-started",
     title: "Getting Started",
-    content: `Welcome to Text Analysis Management System v2.1.0.
+    content: `Welcome to ${APP_NAME} ${APP_VERSION_LABEL}.
 
 This application helps you collect, organize, and analyze research sources and content.
 
@@ -295,8 +296,7 @@ export function HelpDialog({
         className="pt-3 text-xs text-center"
         style={{ color: "var(--muted-fg)" }}
       >
-        Text Analysis Management System v2.1.0 — Press F1 to open Help at any
-        time
+        {APP_NAME} {APP_VERSION_LABEL} — Press F1 to open Help at any time
       </div>
     </InfoModal>
   )

@@ -17,6 +17,13 @@ const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
 
+// Electron derives `userData` (localStorage, IndexedDB, caches) from the app
+// name, which follows package.json → productName. Pin it to a stable folder so
+// renaming or rebranding the product never silently orphans a user's records.
+// Existing installs used the productName "Text Analysis"; keep that directory.
+const USER_DATA_DIR = 'Text Analysis'
+app.setPath('userData', path.join(app.getPath('appData'), USER_DATA_DIR))
+
 const DEV_URL = process.env.ELECTRON_DEV_URL // e.g. http://localhost:8443
 const DIST_DIR = path.join(__dirname, '..', 'dist')
 const APP_ORIGIN = 'app://app'
@@ -160,7 +167,9 @@ function createWindow() {
 
   if (DEV_URL) {
     win.loadURL(DEV_URL)
-    win.webContents.openDevTools({ mode: 'detach' })
+    // DevTools opens by default in dev; set ELECTRON_DEVTOOLS=0 to start without
+    // it (also silences the DevTools frontend's harmless Autofill CDP errors).
+    if (process.env.ELECTRON_DEVTOOLS !== '0') win.webContents.openDevTools({ mode: 'detach' })
   } else {
     win.loadURL(APP_INDEX)
   }

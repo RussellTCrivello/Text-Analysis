@@ -1,5 +1,10 @@
 {
-  "description": "This web application offers a scalable platform for managing multilingual content, designed for desktop users to easily customize and extend data without hardcoding.",
+  "title": "Text Analysis Manager",
+  "description": "Local-first workspace for structured text analysis: track sources, capture contents, record analysis, and explore it all through dashboards, timelines, reports and a full audit trail.",
+  "language": "en",
+  "icons": {
+    "icon": "./favicon.svg"
+  },
   "robots": {
     "index": false
   },

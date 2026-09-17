@@ -2,7 +2,7 @@ const en = {
   app: {
     name: "Text Analysis Manager",
     tagline: "Research Intelligence Platform",
-    version: "v2.1.0",
+    version: "{version}",
   },
   dashboard: {
     title: "Dashboard",
@@ -456,6 +456,12 @@ const en = {
         "This attachment has no stored file data (it may predate the attachment fix). Re-attach the file.",   },
   },
   messages: {
+    storageFull: "Storage is full — recent changes could not be saved. Export a backup, then delete old records or attachments to free space.",
+    storageFullDismiss: "Dismiss",
+    pickContentFirst: "Pick a content record first.",
+    runQueryFirst: "Run a query first.",
+    chartGenerated: "Chart generated.",
+    noResultsToExport: "No results to export.",
     confirmDelete: "Delete this record permanently?",
     confirmDeleteMultiple: "Delete {n} selected records permanently?",
     confirmReset: "Type RESET to confirm clearing all data:",
@@ -893,7 +899,7 @@ const en = {
   },
   about: {
     title: "About Text Analysis Manager",
-    version: "Version 2.1.0",
+    version: "Version {version}",
     description:
       "A professional research intelligence platform for collecting, organizing, and analyzing information from multiple sources.",
     built: "Built with React 19 + TypeScript + Tailwind CSS v4",
@@ -919,6 +925,16 @@ const en = {
     ctrlI: "Ctrl+I — Import Data",
     esc: "Esc — Close Dialog",
     del: "Delete — Delete Selected",
+  },
+  errorBoundary: {
+    title: "Something went wrong",
+    description:
+      "An unexpected error interrupted this view. Your saved records are untouched — reloading is safe.",
+    reload: "Reload the app",
+    retry: "Try again",
+    details: "Technical details",
+    copied: "Error details copied.",
+    copy: "Copy details",
   },
 }
 

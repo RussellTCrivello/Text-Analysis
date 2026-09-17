@@ -252,7 +252,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
 
   const generateChart = () => {
     if (!queryResult) {
-      onToast("Run a query first.")
+      onToast(t.messages.runQueryFirst)
       return
     }
     const lf = labelField || queryResult.columns[0] || ""
@@ -275,7 +275,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
     }
     setChartData(processed)
     setHasChart(true)
-    onToast("Chart generated.")
+    onToast(t.messages.chartGenerated)
   }
 
   const saveReport = () => {
@@ -312,7 +312,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
 
   const exportAs = (format: ExportFormat) => {
     if (!queryResult) {
-      onToast("No results to export.")
+      onToast(t.messages.noResultsToExport)
       return
     }
     const artifact = exportData(queryResult.rows, {
@@ -341,7 +341,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
 
   const printReport = () => {
     if (!queryResult) {
-      onToast("Run a query first.")
+      onToast(t.messages.runQueryFirst)
       return
     }
     const html = buildPrintDocument({
@@ -353,7 +353,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
       preamble: `${queryResult.rows.length} rows \u00b7 ${queryResult.elapsedMs.toFixed(1)} ms \u00b7 ${queryResult.scanned} rows scanned`,
     })
     if (!printHtml(html))
-      onToast("Printing is not available in this browser context.")
+      onToast(t.messages.printUnavailable)
   }
 
   const fieldOpts = [
