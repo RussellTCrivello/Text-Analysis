@@ -25,3 +25,6 @@ logs/
 
 # DOM smoke harness build output
 .domcheck/
+
+# electron-builder output
+release/
