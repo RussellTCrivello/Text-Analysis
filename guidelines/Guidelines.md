@@ -1,106 +1,56 @@
 # Text Analysis Manager — Design Guidelines
 
-## Stance: Swiss Precision
+> **Status (2026-09):** this document was written for the earlier
+> “Swiss Precision / teal” direction and is now **superseded** by the
+> implemented system. The authoritative spec is
+> [`docs/DESIGN_SYSTEM.md`](../docs/DESIGN_SYSTEM.md) (“Graphite &
+> Iris”), and the tokens live in `src/index.css`. What follows is kept as
+> the short contract; the old palette table has been retired.
 
-The UI follows a Swiss grid aesthetic — strict structure, generous whitespace, function-first hierarchy. No decorative elements. Every element earns its place.
+## Stance: quiet enterprise precision
 
-## Color System
+Dense, calm, and deliberate. One controlled accent (iris `#4F46E5` on
+light, `#818CF8` on dark) on layered neutral surfaces. Depth comes from
+borders and 2-step surface elevation, not from gradients or heavy
+shadows; the brand gradient appears only on CTA glow, active-nav and the
+wordmark. Color communicates weight — solid red only on confirmations.
+
+## Color system (summary)
 
 | Token | Light | Dark | Usage |
 |---|---|---|---|
-| `--bg` | #F1F5F9 | #0F172A | Page background |
-| `--fg` | #0F172A | #F1F5F9 | Default text |
-| `--card-bg` | #FFFFFF | #1E293B | Cards, surfaces |
-| `--primary` | #0F766E | #14B8A6 | Accent, CTAs, selected state |
-| `--primary-fg` | #FFFFFF | #0F172A | Text on primary |
-| `--secondary-bg` | #E2E8F0 | #334155 | Alternating rows, secondary surfaces |
-| `--muted-fg` | #64748B | #94A3B8 | Labels, captions, hints |
-| `--border` | #CBD5E1 | #334155 | Hairline rules |
-| `--sidebar-bg` | #0F172A | #020617 | Navigation sidebar |
-| `--sidebar-active` | #0D9488 | #14B8A6 | Active nav item |
+| `--bg` | #E9ECF4 | abyss navy | canvas with two fixed radial washes |
+| `--surface` / `--surface-2` / `--surface-3` | #FFFFFF / #F6F8FC / #EDF0F7 | stepped navy | cards / quiet rails / hovers |
+| `--fg` / `--fg-soft` / `--muted-fg` | #10182B / #38415A / #646E86 | paper scale | text hierarchy |
+| `--primary` | #4F46E5 | #818CF8 | accents, selected state, focus |
+| `--success` / `--warning` / `--error` | #15803D / #B45309 / #DC2626 | brightened | semantics (soft tints for fills) |
+| `--border` / `--border-strong` | #DFE4EE / #C9D1E0 | navy scale | hairlines / control borders |
 
 ## Typography
 
-- **Display / Navigation**: Outfit (Google Fonts) — 300–700 weight
-- **Body / Data**: Source Sans 3 (Google Fonts) — 400, 600 weight
-- **Mono / IDs / Code**: DM Mono (Google Fonts) — 400, 500 weight
+Plus Jakarta Sans (display/labels), Inter (body), JetBrains Mono for
+data (`tnum`). Root 13.5px; sentence case everywhere — never
+all-caps shouting for headers or labels. Scale is fixed in
+`docs/DESIGN_SYSTEM.md` §1.
 
-Font size base: 13px (adjustable in Settings, 9–18px range)
+## Components
 
-## Record Type Colors
+Single control system (`.ctrl` / `.fgroup` / `.row-cb`, 32px line height
+`--control-h`) shared by toolbars, filter rails, tables and dialogs —
+adjacent controls align by construction. Table workspaces compose as one
+framed **workspace card** (command rail, quiet filter rail, grid,
+preview, segmented pagination), not stacked full-bleed bands. Radii:
+5/8/14px; motion 120–200ms and reduced-motion aware; checkbox is a
+modern 18px frame with real indeterminate state.
 
-| Type | Color | Badge |
-|---|---|---|
-| Source | #1d4ed8 (blue) | SOURCE |
-| Content | #15803d (green) | CONTENT |
-| Analysis | #b45309 (amber) | ANALYSIS |
+## Iconography
 
-## Importance Scale
+Lucide only (`src/components/icons.tsx`); never text glyphs or emoji;
+icon-only controls require label + tooltip + focus ring (audited by the
+DOM harness).
 
-Stars (★) colored by level:
-1. #94a3b8 — Very Low
-2. #64748b — Low  
-3. #f59e0b — Medium
-4. #ef4444 — High
-5. #dc2626 — Critical
+## Internationalization & accessibility
 
-## Internationalization
-
-Languages are added by creating a new locale file in `src/i18n/locales/`.
-Each file must satisfy the `TranslationShape` type exported from `en.ts`.
-
-```typescript
-// src/i18n/locales/fr.ts
-import type { TranslationShape } from './en';
-const fr: TranslationShape = { /* ... */ };
-export default fr;
-```
-
-Then register in `src/i18n/index.tsx`:
-```typescript
-import fr from './locales/fr';
-const locales = { en, ar, tr, fr };
-```
-
-RTL direction is applied automatically when language is set to `ar`:
-```typescript
-document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
-```
-
-## Data Architecture
-
-All data lives in React Context (`src/store/AppContext.tsx`) and persists to `localStorage`.
-
-To add a new field to a record type:
-1. Update the interface in `src/types/index.ts`
-2. Update `emptySource()` / `emptyContent()` / `emptyAnalysis()` in the view file
-3. Add the field to the form dialog
-4. Add the column to the DataTable columns array
-5. Update translations in all locale files
-
-## Adding a New Section
-
-1. Create `src/views/NewSectionView.tsx`
-2. Add nav item type to `NavSection` in `src/types/index.ts`
-3. Add nav icon to `NAV_ICONS` in `AppShell.tsx`
-4. Add label to all locale files
-5. Add `case 'newSection':` to `renderSection()` in `App.tsx`
-
-## Component Patterns
-
-### Toolbar
-```tsx
-<Toolbar>
-  <Btn variant="primary">+ Add</Btn>
-  <Btn disabled={!selected}>Edit</Btn>
-  <ToolbarSep />
-  <div className="flex-1" />  {/* right-align remaining items */}
-  <SearchInput value={search} onChange={setSearch} />
-</Toolbar>
-```
-
-### DataTable
-Columns define `render` for custom cells. Sort is handled internally. Parent controls `selectedId`.
-
-### FormModal
-Pass `saveDisabled` to disable Save when required fields are empty.
+All strings via `src/i18n` (EN + AR); RTL via logical properties;
+every state designed: hover / focus-visible / pressed / selected /
+disabled / loading / error. High-contrast and color-blind-safe modes.
