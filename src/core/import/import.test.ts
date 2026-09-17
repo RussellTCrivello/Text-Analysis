@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { detectFormat, parseDelimited, parseJson, parseJsonLines, parseXml, parseXlsxBytes } from './parse';
+import { detectFormat, detectFormatBytes, parseDelimited, parseJson, parseJsonLines, parseXml, parseXlsxBytes } from './parse';
 import { autoMap, planImport, describePlan, sniffDelimiter, importanceLooksLikePercent } from './pipeline';
 import { exportData } from '../export/exporters';
 import { MemoryStorage } from '../persist';
@@ -17,7 +17,9 @@ test('detects file formats from name and content', () => {
   assert.equal(detectFormat('data.csv', CSV), 'csv');
   assert.equal(detectFormat('data.tsv', 'a\tb\tc'), 'tsv');
   assert.equal(detectFormat('data.json', '[{"a":1}]'), 'json');
-  assert.equal(detectFormat('data.json', '{"a":1}'), 'jsonl');
+  // A lone object is JSON proper; brace-per-line records are detected as jsonl.
+  assert.equal(detectFormat('data.json', '{"a":1}'), 'json');
+  assert.equal(detectFormat('data.json', '{"a":1}\n{"a":2}'), 'jsonl');
   assert.equal(detectFormat('data.xml', '<records/>'), 'xml');
   assert.equal(detectFormat('unknown.txt', 'a\tb\tc'), 'tsv');
   assert.equal(detectFormat('unknown', 'a,b,c'), 'csv');
@@ -289,4 +291,24 @@ test('ref columns accept names: resolved for storage, file text kept for the pre
   assert.equal(plan.errors, 0, JSON.stringify(plan.rows[0].issues));
   assert.equal(plan.rows[0].values.sources_id, 'src-reuters', 'stored value is the parent id');
   assert.equal(plan.rows[0].raw.sources_id, 'reuters', 'the preview keeps what the file actually said');
+});
+
+test('format detection reads the file, not just the name', () => {
+  const enc = new TextEncoder();
+  const zip = new Uint8Array([0x50, 0x4b, 3, 4, 0, 0]);
+  assert.equal(detectFormatBytes('mystery.dat', zip, ''), 'xlsx', 'zip magic wins over any extension');
+  assert.equal(detectFormatBytes('data.txt', enc.encode('[{"a":1}]'), '[{"a":1}]'), 'json', 'JSON content in a .txt file');
+  assert.equal(detectFormatBytes('rows.dat', enc.encode('a,b\n1,2\n'), 'a,b\n1,2\n'), 'csv', 'delimited text without a known extension still imports');
+  assert.throws(
+    () => detectFormatBytes('report.pdf', new Uint8Array([0x25, 0x50, 0x44, 0x46, 0, 0]), '%PDF-1.7\u0000binary'),
+    /Unsupported file type/,
+  );
+  assert.throws(() => detectFormatBytes('old.xls', new Uint8Array([0xd0, 0xcf, 0, 0, 0]), '\u0000\u0000'), /\.xls/);
+});
+
+test('JSON import accepts common wrapper shapes', () => {
+  const wrap = (body: string) => parseJson(body).rows;
+  assert.equal(wrap('{"rows":[{"name":"a"},{"name":"b"}]}').length, 2, '{ rows: [...] }');
+  assert.equal(wrap('{"data":[{"name":"a"}]}').length, 1, '{ data: [...] }');
+  assert.equal(wrap('{"name":"solo"}').length, 1, 'bare object is one row');
 });

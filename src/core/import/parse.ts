@@ -18,20 +18,24 @@ export interface ParsedTable {
 export function detectFormat(filename: string, sample: string): ImportFileFormat {
   const lower = filename.toLowerCase();
   if (lower.endsWith('.xlsx') || lower.endsWith('.xlsm')) return 'xlsx';
+  const trimmed = sample.trimStart();
+  const firstLine = trimmed.split(/\r?\n/)[0] ?? '';
+  // Structured content beats ambiguous extensions, so a mislabelled file
+  // parses correctly instead of arriving as one column of garbage.
+  if (trimmed.startsWith('[')) return 'json';
+  if (trimmed.startsWith('{')) {
+    // A single pretty-printed object is JSON; brace-per-line records are NDJSON.
+    const lines = trimmed.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    return lines.length > 1 && lines[1].startsWith('{') ? 'jsonl' : 'json';
+  }
+  if (trimmed.startsWith('<')) return 'xml';
+  if (lower.endsWith('.jsonl') || lower.endsWith('.ndjson')) return 'jsonl';
+  if (lower.endsWith('.json')) return 'json';
+  if (lower.endsWith('.xml')) return 'xml';
   if (lower.endsWith('.tsv') || lower.endsWith('.txt')) {
-    const firstLine = sample.split(/\r?\n/)[0] ?? '';
     if (firstLine.includes('\t') && !firstLine.includes(',')) return 'tsv';
     return 'csv';
   }
-  if (lower.endsWith('.json')) {
-    return sample.trimStart().startsWith('[') ? 'json' : 'jsonl';
-  }
-  if (lower.endsWith('.jsonl') || lower.endsWith('.ndjson')) return 'jsonl';
-  if (lower.endsWith('.xml')) return 'xml';
-  const trimmed = sample.trimStart();
-  if (trimmed.startsWith('[') || trimmed.startsWith('{')) return 'json';
-  if (trimmed.startsWith('<')) return 'xml';
-  const firstLine = trimmed.split(/\r?\n/)[0] ?? '';
   if (firstLine.includes('\t') && (firstLine.match(/\t/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0)) return 'tsv';
   return 'csv';
 }
@@ -104,10 +108,48 @@ export function parseDelimited(text: string, delimiter = ','): ParsedTable {
   return { headers, rows: out, format: delimiter === '\t' ? 'tsv' : 'csv', problems };
 }
 
+const JSON_WRAPPER_KEYS = ['records', 'rows', 'data', 'items', 'entries'];
+
 export function parseJson(text: string): ParsedTable {
   const data = JSON.parse(text);
-  const array = Array.isArray(data) ? data : Array.isArray((data as { records?: unknown[] }).records) ? (data as { records: unknown[] }).records : [data];
-  return rowsFromObjects(array as Row[], 'json');
+  if (Array.isArray(data)) return rowsFromObjects(data as Row[], 'json');
+  if (data && typeof data === 'object') {
+    for (const key of JSON_WRAPPER_KEYS) {
+      const arr = (data as Record<string, unknown>)[key];
+      if (Array.isArray(arr)) return rowsFromObjects(arr as Row[], 'json');
+    }
+  }
+  // A single object imports as a one-row table; anything else is a shape error.
+  return rowsFromObjects([data as Row], 'json');
+}
+
+/** Text-looking extensions that always parse as delimited/JSON/XML even when
+ *  the name says otherwise. Everything else needs sniffing or a clear refusal. */
+const TEXT_EXTENSIONS = new Set(['csv', 'tsv', 'txt', 'json', 'jsonl', 'ndjson', 'xml', 'md', 'log', 'html', 'htm']);
+
+/**
+ * Format detection that reads the file itself, not just the name — so a zip
+ * re-saved by Office, a JSON named .txt, or a legacy .xls all land in the
+ * right (or a clearly explained) path instead of a mangled CSV.
+ */
+export function detectFormatBytes(filename: string, bytes: Uint8Array, textSample: string): ImportFileFormat {
+  // 'PK' — a zip container (xlsx/xlsm/ods/docx…); the xlsx parser reports
+  // precisely which OOXML parts are missing if this is not a workbook.
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b) return 'xlsx';
+  const ext = (/\.([a-z0-9]+)$/i.exec(filename)?.[1] ?? '').toLowerCase();
+  const trimmed = textSample.trimStart();
+  const looksStructured =
+    trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('<');
+  if (ext === 'xls' || (!TEXT_EXTENSIONS.has(ext) && !looksStructured)) {
+    if (/\u0000/.test(textSample)) {
+      throw new Error(
+        ext === 'xls'
+          ? 'Legacy .xls files are not supported — open the file in Excel and save it as .xlsx, then import.'
+          : `Unsupported file type${ext ? ` “.${ext}”` : ''}. Import reads CSV, TSV, TXT, JSON, JSONL, XML and Excel (.xlsx/.xlsm) files.`,
+      );
+    }
+  }
+  return detectFormat(filename, textSample);
 }
 
 export function parseJsonLines(text: string): ParsedTable {

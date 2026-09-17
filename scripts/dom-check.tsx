@@ -466,6 +466,68 @@ async function main() {
     )
   }
 
+  // 12b. Analysis table: joined Source + Content columns, per-column filters
+  await click(allButtons().find((b) => text(b).startsWith("Analysis")))
+  await sleep(30)
+  const aHead = document.querySelector("main thead")
+  check(
+    "analysis table shows Source & Content columns",
+    /Source/.test(text(aHead)) && /Content/.test(text(aHead)),
+  )
+  const aFilters = Array.from(
+    aHead?.querySelectorAll('input[type="search"]') ?? [],
+  )
+  check(
+    "analysis columns expose filter inputs",
+    aFilters.length >= 5,
+    `(${aFilters.length})`,
+  )
+  const contentFilter = aFilters.find((i) =>
+    (i.getAttribute("aria-label") ?? "").includes("Content"),
+  )
+  check(
+    "content filter is a searchable dropdown",
+    !!contentFilter?.getAttribute("list"),
+  )
+  const rowsBefore = document.querySelectorAll("main tbody tr").length
+  if (contentFilter) await setInputValue(contentFilter, "zzz-no-match")
+  await sleep(20)
+  check(
+    "column filter narrows analysis rows",
+    rowsBefore > 0 &&
+      document.querySelectorAll("main tbody tr").length < rowsBefore,
+  )
+  // The no-match filter replaces the table with its empty state (the header
+  // unmounts with it), so clearing goes through the view's own control.
+  await click(findButton("Clear Filters"))
+  await sleep(30)
+  check(
+    "clear filters restores analysis rows",
+    document.querySelectorAll("main tbody tr").length === rowsBefore,
+  )
+
+  // 12c. Contents: table and global search speak source NAMES, not ids
+  await click(allButtons().find((b) => text(b).startsWith("Contents")))
+  await sleep(30)
+  const tbodyText = () => document.querySelector("main tbody")?.textContent ?? ""
+  check(
+    "contents table shows source names",
+    tbodyText().includes("Reuters News Agency") &&
+      !/01[0-9A-HJKMNP-TV-Z]{20}/.test(tbodyText()),
+  )
+  const cSearch = document.querySelector(
+    'main input[role="searchbox"]',
+  ) as HTMLInputElement | null
+  if (cSearch) await setInputValue(cSearch, "Reuters News Agency")
+  await sleep(30)
+  check(
+    "global search matches source names",
+    (document.querySelectorAll("main tbody tr").length ?? 0) >= 1 &&
+      tbodyText().includes("Reuters News Agency"),
+  )
+  if (cSearch) await setInputValue(cSearch, "")
+  await sleep(20)
+
   // 13. Icon-integrity audit over the live DOM:
   const glyphRe =
     /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}✕✓✔⚙⚠ℹ＋←↑↓↺⎘⋯»«›‹★☆▲▼◀▶]/u

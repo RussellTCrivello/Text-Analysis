@@ -20,6 +20,7 @@ import {
   ImportanceBar,
   MoreMenu,
   Badge,
+  ColumnFilter,
   StatCard,
   PageHeader,
   EmptyState,
@@ -54,7 +55,11 @@ import { useAppData } from "../store/AppContext"
 import { useSettings } from "../store/SettingsContext"
 import { useTranslation } from "../i18n"
 import type { Content } from "../types"
-import { applyDateFilter, freeTextSearch } from "../core/search"
+import {
+  applyColumnFilters,
+  applyDateFilter,
+  freeTextSearch,
+} from "../core/search"
 import { computeEntityStats } from "../core/stats"
 import { buildPrintDocument, printHtml } from "../core/print"
 import type { Row } from "../core/repository"
@@ -103,6 +108,7 @@ export function ContentsView({
 
   const [search, setSearch] = useState("")
   const [srcFilter, setSrcFilter] = useState("")
+  const [colFilters, setColFilters] = useState<Record<string, string>>({})
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [page, setPage] = useState(1)
@@ -137,19 +143,31 @@ export function ContentsView({
   ]
 
   const filtered = useMemo(() => {
-    const typed = data.contents as unknown as Row[]
-    const byText = freeTextSearch(typed, search, searchFields)
+    // Search & filter against DISPLAY values: a source name must match the
+    // "Source" column, not the stored id.
+    const typed: Row[] = (data.contents as unknown as Array<Record<string, unknown>>).map((c) => ({
+      ...c,
+      source_name: sourceName(String(c.sources_id ?? "")),
+    }))
+    const byText = freeTextSearch(typed, search, [...searchFields, "source_name"])
     const bySource = srcFilter
       ? byText.filter((c) => c.sources_id === srcFilter)
       : byText
+    const byColumns = applyColumnFilters(bySource, colFilters, (row, key) => {
+      if (key === "sources_id") return String(row.source_name ?? "")
+      const raw = String(row[key] ?? "")
+      return key === "date_content" && raw
+        ? `${raw} ${formatDateTime(raw)}`
+        : raw
+    })
     const byAdvanced = advancedIds
-      ? bySource.filter((c) => advancedIds.includes(String(c.id)))
-      : bySource
+      ? byColumns.filter((c) => advancedIds.includes(String(c.id)))
+      : byColumns
     return applyDateFilter(byAdvanced, dateFrom || null, dateTo || null, [
       "date_content",
       "date_creation",
     ]) as unknown as Content[]
-  }, [data.contents, search, srcFilter, dateFrom, dateTo, advancedIds])
+  }, [data.contents, data.sources, search, srcFilter, colFilters, dateFrom, dateTo, advancedIds])
 
 
   // Files and exports should read like the table: the Source column carries
@@ -303,8 +321,38 @@ export function ContentsView({
     if (!printHtml(html)) onToast(t.messages.printUnavailable)
   }
 
+  const setColFilter = (key: string, value: string) => {
+    setColFilters((f) => {
+      const n = { ...f }
+      if (value.trim()) n[key] = value
+      else delete n[key]
+      return n
+    })
+    setPage(1)
+  }
+  const sourceNames = [
+    ...new Set(data.sources.map((x) => x.name).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b))
+  const contentTitles = [
+    ...new Set(data.contents.map((c) => c.title).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b))
+  const colFilter = (key: string, label: string, options?: string[]) => (
+    <ColumnFilter
+      label={`${label} — ${t.actions.filter}`}
+      value={colFilters[key] ?? ""}
+      onChange={(v) => setColFilter(key, v)}
+      options={options}
+    />
+  )
+
   const columns: Column<Content>[] = [
-    { key: "title", header: t.fields.title, width: "26%", sortable: true },
+    {
+      key: "title",
+      header: t.fields.title,
+      width: "26%",
+      sortable: true,
+      filter: colFilter("title", t.fields.title, contentTitles),
+    },
     {
       key: "sources_id",
       header: t.fields.sources_id,
@@ -315,6 +363,7 @@ export function ContentsView({
           {sourceName(c.sources_id)}
         </span>
       ),
+      filter: colFilter("sources_id", t.fields.sources_id, sourceNames),
     },
     {
       key: "content_data",
@@ -327,6 +376,7 @@ export function ContentsView({
           {c.content_data?.slice(0, 80)}
         </span>
       ),
+      filter: colFilter("content_data", t.fields.content_data),
     },
     {
       key: "importance",
@@ -334,6 +384,7 @@ export function ContentsView({
       width: "110px",
       sortable: true,
       render: (c) => <ImportanceBar value={c.importance} />,
+      filter: colFilter("importance", t.fields.importance),
     },
     {
       key: "attachments",
@@ -368,6 +419,7 @@ export function ContentsView({
           <span aria-hidden="true">—</span>
         )
       },
+      filter: colFilter("attachments", t.fields.attachments),
     },
     {
       key: "date_content",
@@ -379,6 +431,7 @@ export function ContentsView({
           {c.date_content ? formatDateTime(c.date_content) : "—"}
         </span>
       ),
+      filter: colFilter("date_content", t.fields.date_content),
     },
   ]
 
@@ -596,6 +649,7 @@ export function ContentsView({
           onClick={() => {
             setSearch("")
             setSrcFilter("")
+            setColFilters({})
             setDateFrom("")
             setDateTo("")
             setAdvancedIds(null)
@@ -697,13 +751,19 @@ export function ContentsView({
                 : t.sections.contents.noData
             }
             action={
-              search || srcFilter || dateFrom || dateTo || advancedIds ? (
+              search ||
+              srcFilter ||
+              dateFrom ||
+              dateTo ||
+              advancedIds ||
+              Object.keys(colFilters).length > 0 ? (
                 <Btn
                   size="xs"
                   variant="ghost"
                   onClick={() => {
                     setSearch("")
                     setSrcFilter("")
+                    setColFilters({})
                     setDateFrom("")
                     setDateTo("")
                     setAdvancedIds(null)

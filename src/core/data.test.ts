@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildTimeline, filterTimeline, sortTimeline, summarizeTimeline, timelineSeries, timelineStats, timelineFacets, paginateEvents } from './timeline';
-import { freeTextSearch, applyDateFilter, runAdvancedSearch, conditionsToSql, evaluateCondition, LocalSavedSearchStore, type SearchCondition } from './search';
+import { freeTextSearch, applyColumnFilters, applyDateFilter, runAdvancedSearch, conditionsToSql, evaluateCondition, LocalSavedSearchStore, type SearchCondition } from './search';
 import { computeEntityStats, computeWorkspaceStats, frequencyByPeriod, bucket, compareRecords } from './stats';
 import { createBackup, verifyBackup, mergeData, diffData, describeDiff, checksumData, referentialProblems } from './backup';
 import { MemoryAttachmentStore, describeAttachments } from './attachments';
@@ -394,4 +394,16 @@ test('SQL, timeline and stats agree on the same dataset', () => {
   const events = buildTimeline(data);
   assert.equal(events.filter((e) => e.hasCoordinates).length, 1);
   assert.equal(computeEntityStats('analyses', data.analyses as unknown as Record<string, unknown>[]).withCoordinates, 1);
+});
+
+test('applyColumnFilters matches display values across every column', () => {
+  const rows = [
+    { id: '1', title: 'Investigation', source: 'Reuters', n: 0.9 },
+    { id: '2', title: 'Interview', source: 'Al Jazeera', n: 0.2 },
+  ];
+  const valueOf = (row: (typeof rows)[number], key: string) => String(row[key as keyof typeof row] ?? '');
+  assert.equal(applyColumnFilters(rows, {}, valueOf).length, 2, 'no filters → untouched');
+  assert.equal(applyColumnFilters(rows, { source: 'reuters' }, valueOf).length, 1, 'case-insensitive contains');
+  assert.equal(applyColumnFilters(rows, { source: ' ', title: '' }, valueOf).length, 2, 'blank filters are ignored');
+  assert.equal(applyColumnFilters(rows, { source: 'a', title: 'i' }, valueOf).length, 1, 'all active filters must match');
 });

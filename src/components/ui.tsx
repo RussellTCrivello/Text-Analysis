@@ -1,4 +1,4 @@
-import React, { type ReactNode, useState, useRef, useEffect } from "react"
+import React, { type ReactNode, useState, useRef, useEffect, useId } from "react"
 import {
   formatDateTime,
   fromDateTimeLocal,
@@ -2371,3 +2371,51 @@ export function Modal({
 }
 
 export type { AppIconProps }
+export interface ColumnFilterProps {
+  value: string
+  onChange: (value: string) => void
+  /** Accessible name of the column this input filters. */
+  label: string
+  /** Suggestions shown while typing (searchable-dropdown behaviour). */
+  options?: string[]
+}
+
+/**
+ * Compact per-column search box. With `options` it behaves like a searchable
+ * dropdown (native datalist: suggestions filter as you type, free text also
+ * accepted); without, a plain contains-filter input. Escape clears.
+ */
+export function ColumnFilter({ value, onChange, label, options }: ColumnFilterProps) {
+  const listId = useId()
+  return (
+    <>
+      <input
+        type="search"
+        list={options && options.length ? listId : undefined}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onChange("")
+        }}
+        aria-label={label}
+        placeholder={"⌕"}
+        title={label}
+        className="w-full rounded-[var(--radius)] px-1.5 py-0.5 text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        style={{
+          background: "var(--surface-1)",
+          border: "1px solid var(--border)",
+          color: "var(--fg)",
+          minHeight: 22,
+        }}
+      />
+      {options && options.length > 0 && (
+        <datalist id={listId}>
+          {options.slice(0, 300).map((o) => (
+            <option key={o} value={o} />
+          ))}
+        </datalist>
+      )}
+    </>
+  )
+}
+

@@ -8,6 +8,12 @@ export interface Column<T> {
   sortable?: boolean
   render?: (row: T, idx: number) => React.ReactNode
   align?: "left" | "right" | "center"
+  /**
+   * Optional control (usually a ColumnFilter input) rendered in a dedicated
+   * row under the header. Filtering itself lives in the owning view so the
+   * row objects, display labels and sort/search stay a single story.
+   */
+  filter?: React.ReactNode
 }
 
 interface DataTableProps<T extends { id: string }> {
@@ -221,6 +227,27 @@ export function DataTable<T extends { id: string }>({
               </th>
             ))}
           </tr>
+          {columns.some((col) => col.filter) && (
+            <tr aria-label="Column filters">
+              {onSelectionChange && (
+                <th style={{ background: "var(--surface-2)" }} aria-hidden="true" />
+              )}
+              <th style={{ background: "var(--surface-2)" }} aria-hidden="true" />
+              {columns.map((col) => (
+                <th
+                  key={`filter-${String(col.key)}`}
+                  className="px-1 pb-1.5 align-top"
+                  style={{
+                    background: "var(--surface-2)",
+                    borderTop: "1px solid var(--border)",
+                  }}
+                >
+                  {col.filter ?? null}
+                </th>
+              ))}
+            </tr>
+          )}
+
         </thead>
 
         <tbody>

@@ -19,6 +19,7 @@ import {
   PaginationBar,
   MoreMenu,
   Badge,
+  ColumnFilter,
   StatCard,
   PageHeader,
   EmptyState,
@@ -51,7 +52,11 @@ import { useAppData } from "../store/AppContext"
 import { useSettings } from "../store/SettingsContext"
 import { useTranslation } from "../i18n"
 import { mergeSuggestion, type ExtractionResult } from "../core/extract/engine"
-import { applyDateFilter, freeTextSearch } from "../core/search"
+import {
+  applyColumnFilters,
+  applyDateFilter,
+  freeTextSearch,
+} from "../core/search"
 import { computeEntityStats } from "../core/stats"
 import { buildPrintDocument, printHtml } from "../core/print"
 import type { Row } from "../core/repository"
@@ -73,6 +78,9 @@ function emptyAnalysis(
     date_analysis: nowIso(),
   }
 }
+
+/** Rows carry the joined labels the table and filters display. */
+type EnrichedAnalysis = Analysis & { content_title: string; source_name: string }
 
 export function AnalysisView({
   onToast,
@@ -109,6 +117,7 @@ export function AnalysisView({
 
   const [search, setSearch] = useState("")
   const [classFilter, setClassFilter] = useState("")
+  const [colFilters, setColFilters] = useState<Record<string, string>>({})
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [page, setPage] = useState(1)
@@ -161,19 +170,27 @@ export function AnalysisView({
     const byClass = classFilter
       ? byText.filter((a) => String(a.classification) === classFilter)
       : byText
+    const byColumns = applyColumnFilters(byClass, colFilters, (row, key) => {
+      const v = row[key as keyof typeof row] ?? row[key]
+      const raw = String(v ?? "")
+      return key.startsWith("date_") && raw
+        ? `${raw} ${formatDateTime(raw)}`
+        : raw
+    })
     const byAdvanced = advancedIds
-      ? byClass.filter((a) => advancedIds.includes(String(a.id)))
-      : byClass
+      ? byColumns.filter((a) => advancedIds.includes(String(a.id)))
+      : byColumns
     return applyDateFilter(byAdvanced, dateFrom || null, dateTo || null, [
       "date_analysis",
       "date_creation",
-    ]) as unknown as Analysis[]
+    ]) as unknown as EnrichedAnalysis[]
   }, [
     data.analyses,
     data.contents,
     data.sources,
     search,
     classFilter,
+    colFilters,
     dateFrom,
     dateTo,
     advancedIds,
@@ -183,7 +200,7 @@ export function AnalysisView({
     () =>
       computeEntityStats(
         "analyses",
-        (search || classFilter || advancedIds
+        (search || classFilter || advancedIds || Object.keys(colFilters).length
           ? filtered
           : data.analyses) as unknown as Row[],
       ),
@@ -331,15 +348,57 @@ export function AnalysisView({
     label: c.title,
   }))
 
-  const columns: Column<Analysis>[] = [
+  const setColFilter = (key: string, value: string) => {
+    setColFilters((f) => {
+      const n = { ...f }
+      if (value.trim()) n[key] = value
+      else delete n[key]
+      return n
+    })
+    setPage(1)
+  }
+  const sourceNames = [
+    ...new Set(data.sources.map((x) => x.name).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b))
+  const contentTitles = [
+    ...new Set(data.contents.map((c) => c.title).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b))
+  const classificationValues = [
+    ...new Set(data.analyses.map((a) => a.classification).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b))
+  const colFilter = (key: string, label: string, options?: string[]) => (
+    <ColumnFilter
+      label={`${label} — ${t.actions.filter}`}
+      value={colFilters[key] ?? ""}
+      onChange={(v) => setColFilter(key, v)}
+      options={options}
+    />
+  )
+
+  const columns: Column<EnrichedAnalysis>[] = [
+    {
+      key: "source_name",
+      header: t.fields.sources_id,
+      width: "13%",
+      sortable: true,
+      render: (a) => (
+        <span className="truncate" style={{ color: "var(--muted-fg)" }}>
+          {a.source_name || "—"}
+        </span>
+      ),
+      filter: colFilter("source_name", t.fields.sources_id, sourceNames),
+    },
     {
       key: "content_id",
       header: t.fields.content_id,
-      width: "22%",
+      width: "20%",
       sortable: true,
       render: (a) => (
-        <span className="truncate">{contentTitle(a.content_id)}</span>
+        <span className="truncate" title={a.content_id}>
+          {a.content_title || contentTitle(a.content_id)}
+        </span>
       ),
+      filter: colFilter("content_id", t.fields.content_id, contentTitles),
     },
     {
       key: "classification",
@@ -347,51 +406,57 @@ export function AnalysisView({
       width: "140px",
       sortable: true,
       render: (a) => <Badge color="#1d4ed8">{a.classification}</Badge>,
+      filter: colFilter("classification", t.fields.classification, classificationValues),
     },
     {
       key: "list_names_people",
       header: t.fields.list_names_people,
-      width: "18%",
+      width: "16%",
       render: (a) => (
         <span className="text-xs truncate block">
           {a.list_names_people || "—"}
         </span>
       ),
+      filter: colFilter("list_names_people", t.fields.list_names_people),
     },
     {
       key: "list_names_places",
       header: t.fields.list_names_places,
-      width: "16%",
+      width: "15%",
       render: (a) => (
         <span className="text-xs truncate block">
           {a.list_names_places || "—"}
         </span>
       ),
+      filter: colFilter("list_names_places", t.fields.list_names_places),
     },
     {
       key: "list_sides",
       header: t.fields.list_sides,
-      width: "16%",
+      width: "14%",
       render: (a) => (
         <span className="text-xs truncate block">{a.list_sides || "—"}</span>
       ),
+      filter: colFilter("list_sides", t.fields.list_sides),
     },
     {
       key: "date_analysis",
       header: t.fields.date_analysis,
-      width: "90px",
+      width: "96px",
       sortable: true,
       render: (a) => (
         <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.8em" }}>
           {a.date_analysis ? formatDateTime(a.date_analysis) : "—"}
         </span>
       ),
+      filter: colFilter("date_analysis", t.fields.date_analysis),
     },
   ]
 
   const exportColumns = [
     { key: "id", label: "ID" },
-    { key: "content_id", label: t.fields.content_id },
+    { key: "source_name", label: t.fields.sources_id },
+    { key: "content_title", label: t.fields.content_id },
     { key: "classification", label: t.fields.classification },
     { key: "list_names_people", label: t.fields.list_names_people },
     { key: "list_names_places", label: t.fields.list_names_places },
@@ -494,6 +559,20 @@ export function AnalysisView({
             placeholder="Select content..."
           />
         </Field>
+        {form.content_id && (
+          <Field label={t.fields.sources_id}>
+            <Input
+              readOnly
+              value={sourceName(form.content_id)}
+              aria-label={t.fields.sources_id}
+              style={{
+                background: "var(--surface-2)",
+                color: "var(--muted-fg)",
+                cursor: "default",
+              }}
+            />
+          </Field>
+        )}
         <Field
           label={t.fields.classification}
           required
@@ -736,6 +815,7 @@ export function AnalysisView({
           size="xs"
           onClick={() => {
             setSearch("")
+            setColFilters({})
             setClassFilter("")
             setDateFrom("")
             setDateTo("")

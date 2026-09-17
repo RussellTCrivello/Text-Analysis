@@ -56,15 +56,14 @@ import {
   type ImportPlan,
 } from "../core/import/pipeline"
 import {
-  detectFormat,
+  detectFormatBytes,
   parseDelimited,
   parseJson,
   parseJsonLines,
   parseXml,
   parseXlsxBytes,
   type ImportFileFormat,
-  type ParsedTable,
-} from "../core/import/parse"
+  type ParsedTable,} from "../core/import/parse"
 import { formatBytes } from "../core/text"
 import type { ValidationIssue } from "../core/validation"
 
@@ -84,7 +83,8 @@ const TARGET_ENTITY: Record<"source" | "content" | "analysis", EntityName> = {
   analysis: "analyses",
 }
 
-const ACCEPT = ".csv,.tsv,.txt,.json,.jsonl,.ndjson,.xml,.xlsx"
+const ACCEPT =
+  ".csv,.tsv,.txt,.json,.jsonl,.ndjson,.xml,.xlsx,.xlsm,.md,.log,.html"
 
 export function ImportWizard({
   isOpen,
@@ -161,21 +161,22 @@ export function ImportWizard({
     try {
       // Yield one frame so the busy state paints around the real parse work.
       await new Promise((r) => window.setTimeout(r, 16))
-      const detected = detectFormat(chosen.name, "")
+      // Read the file once and let the bytes, not just the extension, pick
+      // the parser: zips (any Office re-save), JSON with a wrong name, and
+      // binary formats all land in the right or a clearly-explained path.
+      const bytes = new Uint8Array(await chosen.arrayBuffer())
+      const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b
+      const text = isZip ? "" : new TextDecoder().decode(bytes)
+      const detected = detectFormatBytes(chosen.name, bytes, text.slice(0, 4096))
       setFormat(detected)
       let table: ParsedTable
-      if (detected === "xlsx") {
-        const bytes = new Uint8Array(await chosen.arrayBuffer())
-        table = await parseXlsxBytes(bytes)
-      } else {
-        const text = await chosen.text()
-        if (detected === "json") table = parseJson(text)
-        else if (detected === "jsonl") table = parseJsonLines(text)
-        else if (detected === "xml") table = parseXml(text)
-        else {
-          const delim = sniffDelimiter(text)
-          table = parseDelimited(text, delim)
-        }
+      if (detected === "xlsx") table = await parseXlsxBytes(bytes)
+      else if (detected === "json") table = parseJson(text)
+      else if (detected === "jsonl") table = parseJsonLines(text)
+      else if (detected === "xml") table = parseXml(text)
+      else {
+        const delim = sniffDelimiter(text)
+        table = parseDelimited(text, delim)
       }
       if (!table.headers.length) {
         setError(iw.noColumns)
