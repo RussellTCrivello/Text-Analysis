@@ -88,10 +88,12 @@ interface RunStyle {
 }
 
 function runProps(s: RunStyle): string {
+  // Order follows CT_ParaRPr (rFonts, b, i, caps, color, sz, rtl, lang …);
+  // Word rejects out-of-order properties when it repairs documents.
   const parts: string[] = [];
-  if (s.caps) parts.push('<w:caps/>');
   if (s.b) parts.push('<w:b/><w:bCs/>');
   if (s.i) parts.push('<w:i/><w:iCs/>');
+  if (s.caps) parts.push('<w:caps/>');
   if (s.color) parts.push(`<w:color w:val="${s.color}"/>`);
   if (s.sz) parts.push(`<w:sz w:val="${s.sz}"/><w:szCs w:val="${s.sz}"/>`);
   if (s.rtl) parts.push('<w:rtl/>');
@@ -108,13 +110,14 @@ function runRaw(inner: string): string {
 
 /** Word field with an optional cached result (shown until fields refresh). */
 function fieldRun(instr: string, result?: string, style: RunStyle = {}): string {
-  const props = runProps(style);
+  // rPr must be the FIRST child of every run (CT_RPrBase ordering rule).
+  const field = (inner: string) => `<w:r>${runProps(style)}${inner}</w:r>`;
   return (
-    runRaw(`<w:fldChar w:fldCharType="begin"/>${props}`) +
-    runRaw(`<w:instrText xml:space="preserve">${instr}</w:instrText>${props}`) +
-    runRaw(`<w:fldChar w:fldCharType="separate"/>${props}`) +
+    field('<w:fldChar w:fldCharType="begin"/>') +
+    field(`<w:instrText xml:space="preserve">${instr}</w:instrText>`) +
+    field('<w:fldChar w:fldCharType="separate"/>') +
     (result !== undefined ? run(result, style) : '') +
-    runRaw(`<w:fldChar w:fldCharType="end"/>${props}`)
+    field('<w:fldChar w:fldCharType="end"/>')
   );
 }
 
@@ -247,9 +250,9 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="240" w:after="100"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:bCs/><w:color w:val="${INK}"/><w:sz w:val="26"/><w:szCs w:val="26"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="220" w:after="60"/><w:outlineLvl w:val="2"/></w:pPr><w:rPr><w:b/><w:bCs/><w:color w:val="${INK}"/><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr><w:spacing w:after="60"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:spacing w:before="80" w:after="160"/><w:pBdr><w:left w:val="single" w:sz="14" w:space="8" w:color="${ACCENT}"/></w:pBdr><w:ind w:left="360" w:right="360"/></w:pPr><w:rPr><w:i/><w:iCs/><w:color w:val="${MUTED}"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:pBdr><w:left w:val="single" w:sz="14" w:space="8" w:color="${ACCENT}"/></w:pBdr><w:spacing w:before="80" w:after="160"/><w:ind w:left="360" w:right="360"/></w:pPr><w:rPr><w:i/><w:iCs/><w:color w:val="${MUTED}"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Caption"><w:name w:val="caption"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="20" w:after="120"/></w:pPr><w:rPr><w:i/><w:iCs/><w:color w:val="${FAINT}"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Header"><w:name w:val="header"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="0" w:after="0"/><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="2" w:color="${RULE}"/></w:pBdr></w:pPr><w:rPr><w:color w:val="${FAINT}"/><w:sz w:val="17"/><w:szCs w:val="17"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Header"><w:name w:val="header"/><w:basedOn w:val="Normal"/><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="2" w:color="${RULE}"/></w:pBdr><w:spacing w:before="0" w:after="0"/></w:pPr><w:rPr><w:color w:val="${FAINT}"/><w:sz w:val="17"/><w:szCs w:val="17"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:rPr><w:color w:val="${FAINT}"/><w:sz w:val="17"/><w:szCs w:val="17"/></w:rPr></w:style>
 <w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/></w:style>
 <w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:tblPr><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>
@@ -394,14 +397,14 @@ class ReportBuilder {
   }
 
   tocField(): void {
+    // A single w:p whose pPr carries the dot-leader tab and whose runs carry
+    // the TOC field. (A nested w:p here makes Word reject the whole package.)
     this.push(
-      para(
-        para('', {
-          bidi: this.rtl,
-          tabs: [{ pos: this.usable, val: 'right', leader: 'dot' }],
-        }) + fieldRun(' TOC \\o "1-2" \\h \\z \\u ', undefined, { sz: 19, color: FAINT }),
-        { bidi: this.rtl, spacing: { before: 40, after: 40 } },
-      ),
+      para(fieldRun(' TOC \\o "1-2" \\h \\z \\u ', undefined, { sz: 19, color: FAINT }), {
+        bidi: this.rtl,
+        tabs: [{ pos: this.usable, val: 'right', leader: 'dot' }],
+        spacing: { before: 40, after: 40 },
+      }),
     );
   }
 }
@@ -625,7 +628,7 @@ export function buildWordDocument(
     ? '<w:headerReference w:type="default" r:id="rId3"/><w:footerReference w:type="default" r:id="rId4"/>'
     : '';
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${bodyXml}<w:sectPr>${references}<w:pgSz w:w="${page.w}" w:h="${page.h}"${orient}/><w:pgMar w:top="${report ? PAGE_MARGIN : 720}" w:right="${report ? PAGE_MARGIN : 720}" w:bottom="${report ? PAGE_MARGIN : 720}" w:left="${report ? PAGE_MARGIN : 720}"${report ? ` w:header="${Math.round(PAGE_MARGIN * 0.55)}" w:footer="${Math.round(PAGE_MARGIN * 0.5)}" w:gutter="0"/>` : '/'}<w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>`;
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${bodyXml}<w:sectPr>${references}<w:pgSz w:w="${page.w}" w:h="${page.h}"${orient}/><w:pgMar w:top="${report ? PAGE_MARGIN : 720}" w:right="${report ? PAGE_MARGIN : 720}" w:bottom="${report ? PAGE_MARGIN : 720}" w:left="${report ? PAGE_MARGIN : 720}"${report ? ` w:header="${Math.round(PAGE_MARGIN * 0.55)}" w:footer="${Math.round(PAGE_MARGIN * 0.5)}" w:gutter="0"` : ''}/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr></w:body></w:document>`;
 
   const usable = page.w - 2 * PAGE_MARGIN;
   const entries: ZipEntry[] = [

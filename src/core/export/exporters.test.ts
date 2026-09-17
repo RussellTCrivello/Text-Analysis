@@ -99,6 +99,8 @@ test('docx report is a table-free OOXML document with headings, TOC and page fur
   assert.ok(doc.includes('Overview') && doc.includes('Field guide') && doc.includes('Document number'), 'structured sections');
   const footer = new TextDecoder().decode(entries.find((e) => e.name === 'word/footer1.xml')!.data);
   assert.ok(footer.includes('PAGE') && footer.includes('NUMPAGES'), 'Page X of Y fields');
+  assert.ok(!/\/><w:rPr>/.test(footer) && !/\/><w:rPr>/.test(doc), 'rPr must be the first child of every run');
+  assert.ok(doc.includes('<w:tab w:val="right" w:leader="dot"'), 'dot-leader tab lives in the paragraph properties');
   assert.ok(footer.includes('Internal use only'), 'footer text honoured');
   const header = new TextDecoder().decode(entries.find((e) => e.name === 'word/header1.xml')!.data);
   assert.ok(header.includes('DOC-42'), 'document number appears in the page header');
@@ -113,6 +115,7 @@ test('docx report mirrors Arabic content to right-to-left and still keeps the gr
   const grid = exportData(rows, { columns, format: 'docx', title: 'Source list', docxLayout: 'table' });
   const gridDoc = new TextDecoder().decode(readZip(grid.content as Uint8Array).find((e) => e.name === 'word/document.xml')!.data);
   assert.match(gridDoc, /<w:tbl>/);
+  assert.match(gridDoc, /w:left="720"\/><w:cols/, 'pgMar must close before the next sectPr child');
   assert.equal((gridDoc.match(/<w:tr>/g) ?? []).length, 3); // header + 2 rows
 });
 

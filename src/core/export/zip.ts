@@ -90,6 +90,55 @@ export function createZip(entries: ZipEntry[]): Uint8Array {
   return out;
 }
 
+/** Inflate a raw-deflate payload (method 8) using the platform stream API. */
+async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
+  const ds = new DecompressionStream('deflate-raw');
+  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/**
+ * Decode a zip archive via its central directory (names + payloads),
+ * transparently inflating DEFLATE entries. This is the reader to use for
+ * files produced by other tools (Word/Excel compress entries); the sync
+ * `readZip` remains for archives this app itself writes (STORE only).
+ */
+export async function readZipAsync(bytes: Uint8Array): Promise<{ name: string; data: Uint8Array }[]> {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  // locate EOCD (signature 0x06054b50), searching back from the end
+  let eocd = -1;
+  const scanMin = Math.max(0, bytes.length - 22 - 65535);
+  for (let i = bytes.length - 22; i >= scanMin; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('Not a zip archive (missing end-of-central-directory record)');
+  const count = view.getUint16(eocd + 10, true);
+  let ptr = view.getUint32(eocd + 16, true);
+  const out: { name: string; data: Uint8Array }[] = [];
+  for (let n = 0; n < count; n++) {
+    if (view.getUint32(ptr, true) !== 0x02014b50) break;
+    const method = view.getUint16(ptr + 10, true);
+    const compSize = view.getUint32(ptr + 20, true);
+    const nameLen = view.getUint16(ptr + 28, true);
+    const extraLen = view.getUint16(ptr + 30, true);
+    const commentLen = view.getUint16(ptr + 32, true);
+    const localOffset = view.getUint32(ptr + 42, true);
+    const name = new TextDecoder().decode(bytes.subarray(ptr + 46, ptr + 46 + nameLen));
+    // pull the payload from the local header (its name/extra lengths can differ)
+    const lnameLen = view.getUint16(localOffset + 26, true);
+    const lextraLen = view.getUint16(localOffset + 28, true);
+    const start = localOffset + 30 + lnameLen + lextraLen;
+    const raw = bytes.subarray(start, start + compSize);
+    let data: Uint8Array;
+    if (method === 0) data = raw.slice();
+    else if (method === 8) data = await inflateRaw(raw);
+    else throw new Error(`Unsupported compression method ${method} in zip entry "${name}"`);
+    out.push({ name, data });
+    ptr += 46 + nameLen + extraLen + commentLen;
+  }
+  return out;
+}
+
 /** Decode a zip archive's entry names + payloads (used when importing .xlsx files). */
 export function readZip(bytes: Uint8Array): { name: string; data: Uint8Array }[] {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

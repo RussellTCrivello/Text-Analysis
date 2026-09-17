@@ -2,7 +2,7 @@
  * Import parsing: CSV/TSV (RFC 4180), JSON, JSON Lines, XML and XLSX.
  * Parsers are deterministic and pure so they can be unit-tested and reused.
  */
-import { readZip } from '../export/zip';
+import { readZip, readZipAsync } from '../export/zip';
 import type { Row } from '../repository';
 
 export type ImportFileFormat = 'csv' | 'tsv' | 'json' | 'jsonl' | 'xml' | 'xlsx';
@@ -163,8 +163,23 @@ export function parseXml(text: string): ParsedTable {
   return rowsFromObjects(rows, 'xml', problems);
 }
 
-export function parseXlsxBytes(bytes: Uint8Array): ParsedTable {
-  const entries = readZip(bytes);
+/** Async: handles zips saved by Word/Excel (DEFLATE), not just STORE. */
+export async function parseXlsxBytes(bytes: Uint8Array): Promise<ParsedTable> {
+  let entries: { name: string; data: Uint8Array }[];
+  try {
+    entries = await readZipAsync(bytes);
+  } catch (err) {
+    // fall back to the lenient local-header reader for files we write ourselves
+    entries = readZip(bytes);
+    void err;
+  }
+  if (!entries.some((e) => e.name === 'xl/workbook.xml')) {
+    throw new Error('This is an OOXML package, but not an Excel workbook (.xlsx) — other Office files cannot be imported as rows.');
+  }
+  return parseXlsxEntries(entries);
+}
+
+function parseXlsxEntries(entries: { name: string; data: Uint8Array }[]): ParsedTable {
   const decode = (name: string) => new TextDecoder().decode(entries.find((e) => e.name === name)?.data ?? new Uint8Array());
 
   const shared = decode('xl/sharedStrings.xml');

@@ -102,7 +102,7 @@ export function validateRecord(
     const value = record[field.key];
 
     if (field.required && isBlank(value)) {
-      issues.push({ field: field.key, level: 'error', code: 'required', message: `${field.labelKey} is required` });
+      issues.push({ field: field.key, level: 'error', code: 'required', message: 'is required' });
       continue;
     }
     if (isBlank(value)) continue;
@@ -114,25 +114,25 @@ export function validateRecord(
           field: field.key,
           level: 'error',
           code: 'minLength',
-          message: `${field.labelKey} needs at least ${field.minLength} characters`,
+          message: `needs at least ${field.minLength} characters`,
         });
       }
     }
 
     if (field.kind === 'url' && !isValidUrl(String(value))) {
-      issues.push({ field: field.key, level: 'error', code: 'url', message: `${field.labelKey} must be a valid URL` });
+      issues.push({ field: field.key, level: 'error', code: 'url', message: 'must be a valid URL' });
     }
 
     if (field.kind === 'number') {
       const n = toNumber(value);
       if (n === null) {
-        issues.push({ field: field.key, level: 'error', code: 'range', message: `${field.labelKey} must be a number` });
+        issues.push({ field: field.key, level: 'error', code: 'range', message: 'must be a number' });
       } else if ((field.min !== undefined && n < field.min) || (field.max !== undefined && n > field.max)) {
         issues.push({
           field: field.key,
           level: 'error',
           code: 'range',
-          message: `${field.labelKey} must be between ${field.min} and ${field.max}`,
+          message: `must be between ${field.min} and ${field.max}`,
         });
       }
       // Percent fields are stored on a 0..1 scale. A raw value above 1 is read

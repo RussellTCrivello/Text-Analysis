@@ -206,7 +206,10 @@ export function SourcesView({
     if (!result.ok || hasErrors(result.issues)) {
       const messages = result.issues
         .filter((i: ValidationIssue) => i.level === "error")
-        .map((i: ValidationIssue) => i.message)
+        .map(
+          (i: ValidationIssue) =>
+            `${(t.fields as Record<string, string>)[i.field] ?? i.field}: ${i.message}`,
+        )
       onToast(messages[0] ?? t.messages.saved)
       return
     }

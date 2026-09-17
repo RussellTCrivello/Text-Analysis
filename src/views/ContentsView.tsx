@@ -198,7 +198,7 @@ export function ContentsView({
       if (issue.level === "error") errs[issue.field] = issue.message
     for (const issue of issues) {
       if (issue.level === "warning" && !errs[issue.field])
-        onToast(`${issue.field}: ${issue.message}`)
+        onToast(`${(t.fields as Record<string, string>)[issue.field] ?? issue.field}: ${issue.message}`)
     }
     return errs
   }

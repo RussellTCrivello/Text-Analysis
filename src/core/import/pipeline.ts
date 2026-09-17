@@ -50,7 +50,7 @@ export interface ImportPlan {
 /** Suggest a target field for each header using schema aliases + fuzzy similarity. */
 export function autoMap(headers: string[], parsed: ParsedTable, entity: EntityName): ColumnMapping[] {
   const fields = importTargets(entity);
-  return headers.map((header) => {
+  const drafts = headers.map((header) => {
     const scored = fields
       .map((field) => ({ field: field.key, score: scoreHeader(header, field) }))
       .filter((s) => s.score > 0)
@@ -59,12 +59,26 @@ export function autoMap(headers: string[], parsed: ParsedTable, entity: EntityNa
     const sample = String(parsed.rows[0]?.[header] ?? '').slice(0, 60);
     return {
       header,
-      field: best && best.score >= 0.5 ? best.field : null,
-      confidence: best ? Number(best.score.toFixed(2)) : 0,
-      suggestions: scored.slice(0, 4).map((s) => ({ field: s.field, score: Number(s.score.toFixed(2)) })),
+      best,
       sample,
+      scored,
     };
   });
+  // Claim each target field at most once: two file columns mapped to the same
+  // field would silently overwrite each other's values (and duplicate React
+  // keys in the review table). The highest-scoring header wins the field.
+  const claimed = new Map<string, string>();
+  const order = [...drafts].sort((a, b) => (b.best?.score ?? 0) - (a.best?.score ?? 0));
+  for (const d of order) {
+    if (d.best && d.best.score >= 0.5 && !claimed.has(d.best.field)) claimed.set(d.best.field, d.header);
+  }
+  return drafts.map((d) => ({
+    header: d.header,
+    field: d.best && claimed.get(d.best.field) === d.header ? d.best.field : null,
+    confidence: d.best ? Number(d.best.score.toFixed(2)) : 0,
+    suggestions: d.scored.slice(0, 4).map((x) => ({ field: x.field, score: Number(x.score.toFixed(2)) })),
+    sample: d.sample,
+  }));
 }
 
 function scoreHeader(header: string, field: FieldSpec): number {

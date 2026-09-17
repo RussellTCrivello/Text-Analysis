@@ -166,7 +166,7 @@ export function ImportWizard({
       let table: ParsedTable
       if (detected === "xlsx") {
         const bytes = new Uint8Array(await chosen.arrayBuffer())
-        table = parseXlsxBytes(bytes)
+        table = await parseXlsxBytes(bytes)
       } else {
         const text = await chosen.text()
         if (detected === "json") table = parseJson(text)
@@ -288,7 +288,9 @@ export function ImportWizard({
       icon: <ImportArrow size="xs" />,
     },
   ]
-  const planCols = plan?.mapped.map((m) => m.field) ?? []
+  // Deduped: two file columns never map to the same field now (autoMap/manual
+  // both guard it), but keep the review table resilient either way.
+  const planCols = [...new Set(plan?.mapped.map((m) => m.field) ?? [])]
   const canNext =
     step === 2
       ? mapping.some((m) => m.field)
@@ -751,7 +753,15 @@ export function ImportWizard({
                         : "var(--muted-fg)",
                   }}
                 >
-                  {row.issues.map((i) => i.message).join(" · ") || "—"}
+                  {row.issues
+                    .map(
+                      (i) =>
+                        `${
+                          (t.fields as Record<string, string>)[i.field] ??
+                          i.field
+                        }: ${i.message}`,
+                    )
+                    .join(" · ") || "—"}
                 </td>
               </tr>
             ))}
