@@ -26,6 +26,7 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write # needed only for the release step, gated by the tag condition below
+      pull-requests: write # verification summary comment on PRs
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,7 +48,13 @@ jobs:
 
       - name: List release output
         shell: pwsh
-        run: Get-ChildItem release | Format-Table Name, Length
+        run: |
+          Get-ChildItem release | Format-Table Name, Length
+          $setup = Get-ChildItem 'release\*Setup*.exe' | Select-Object -First 1
+          $sig = Get-AuthenticodeSignature $setup.FullName
+          "## Desktop (Windows) verification`n" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          "* Installer: ``$($setup.Name)`` ($([math]::Round($setup.Length/1MB,1)) MB), Authenticode: **$($sig.Status)**" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          "* Electron $(node -p "require('electron/package.json').version"), electron-builder $(node -p "require('electron-builder/package.json').version"), Node $(node -v)" | Out-File -Append $env:GITHUB_STEP_SUMMARY
 
       # ---- Verify the *unpacked* app: renders over app://, sandbox, storage ----
       - name: Smoke-test packaged app (launch 1 - fresh profile)
@@ -67,6 +74,8 @@ jobs:
           $p = Start-Process -FilePath $exe.FullName -ArgumentList '--smoke-test',"--smoke-out=$out" -PassThru -Wait
           $r = Get-Content $out | ConvertFrom-Json
           $r | ConvertTo-Json -Depth 5
+          "* Unpacked app: origin ``$($r.checks.origin)``, secureContext=$($r.checks.isSecureContext), rootChildren=$($r.checks.rootChildren), stylesheets=$($r.checks.stylesheets), nodeGlobals=$($r.checks.hasRequire -or $r.checks.hasProcess -or $r.checks.hasNodeBuffer), preload=``$($r.checks.desktopKeys -join ',')``" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          "* Persistence across restart: localStorage=$([bool]$r.checks.lsPrevious), IndexedDB=$([bool]$r.checks.idb.previous); userData ``$($r.userData)``" | Out-File -Append $env:GITHUB_STEP_SUMMARY
           if ($p.ExitCode -ne 0) { throw "smoke run 2 failed" }
           if (-not $r.checks.lsPrevious) { throw "localStorage did not persist across restart" }
           if (-not $r.checks.idb.previous) { throw "IndexedDB did not persist across restart" }
@@ -110,6 +119,7 @@ jobs:
           if (-not $r.isPackaged) { throw 'installed app does not report isPackaged' }
           if (-not $r.checks.lsPrevious) { throw 'installed app lost localStorage' }
           Write-Host "Installed app OK; userData=$($r.userData)"
+          "* Installed to ``$installDir`` (per-user); shortcuts: Desktop ✔ Start Menu ✔; uninstall entry ``$($reg.DisplayName) $($reg.DisplayVersion)`` (HKCU); installed app isPackaged=$($r.isPackaged), data visible=$([bool]$r.checks.lsPrevious)" | Out-File -Append $env:GITHUB_STEP_SUMMARY
 
       - name: Single-instance check
         shell: pwsh
@@ -122,6 +132,7 @@ jobs:
           if (-not $second.HasExited) { Stop-Process -Id $second.Id -Force; throw 'second instance did not exit (single-instance lock failed)' }
           if ($first.HasExited) { throw 'first instance died unexpectedly' }
           Write-Host 'Second instance exited immediately; first instance still running.'
+          "* Single instance: second process exited in $([int]($second.ExitTime - $second.StartTime).TotalMilliseconds) ms, first still alive ✔" | Out-File -Append $env:GITHUB_STEP_SUMMARY
           Stop-Process -Id $first.Id -Force
 
       - name: Uninstall silently and verify user data survives
@@ -138,6 +149,17 @@ jobs:
           if (Test-Path $desktop) { throw 'desktop shortcut still present after uninstall' }
           if (-not (Test-Path $userData)) { throw 'uninstall deleted user data (should be preserved)' }
           Write-Host "Uninstalled cleanly; user data preserved at $userData"
+          "* Silent uninstall: binaries + shortcuts removed ✔, user data preserved at ``$userData`` ✔" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+
+      - name: Post verification summary on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync(process.env.GITHUB_STEP_SUMMARY, 'utf8') +
+              `\n_Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId} (windows-latest)_`;
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
 
       - uses: actions/upload-artifact@v4
         with:
