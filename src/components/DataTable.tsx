@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react"
-import { Sort, SortAsc, SortDesc, EmptyFile } from "./icons"
+import { Sort, SortAsc, SortDesc, EmptyFile, ChevronU, ChevronD } from "./icons"
 import { RowCheckbox } from "./ui"
 import { fieldsOf, type EntityName } from "../core/schema"
 import { docTypeMetadata } from "../core/framework"
@@ -213,8 +213,8 @@ export function DataTable<T extends { id: string }>({
                 <button type="button" className="ms-auto text-[10px] underline" onClick={(event) => { event.preventDefault(); setPinnedColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]) }}>
                   {pinnedColumns.includes(key) ? "Unpin" : "Pin"}
                 </button>
-                <button type="button" className="text-[10px]" title="Move field earlier" onClick={(event) => { event.preventDefault(); setColumnOrder((current) => { const base = current.length ? current : columns.map((item) => String(item.key)); const index = base.indexOf(key); if (index <= 0) return base; const next = [...base]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next }) }}>↑</button>
-                <button type="button" className="text-[10px]" title="Move field later" onClick={(event) => { event.preventDefault(); setColumnOrder((current) => { const base = current.length ? current : columns.map((item) => String(item.key)); const index = base.indexOf(key); if (index < 0 || index >= base.length - 1) return base; const next = [...base]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next }) }}>↓</button>
+                <button type="button" className="text-[10px]" title="Move field earlier" aria-label={`Move ${column.header} field earlier`} onClick={(event) => { event.preventDefault(); setColumnOrder((current) => { const base = current.length ? current : columns.map((item) => String(item.key)); const index = base.indexOf(key); if (index <= 0) return base; const next = [...base]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next }) }}><ChevronU size="xs" /></button>
+                <button type="button" className="text-[10px]" title="Move field later" aria-label={`Move ${column.header} field later`} onClick={(event) => { event.preventDefault(); setColumnOrder((current) => { const base = current.length ? current : columns.map((item) => String(item.key)); const index = base.indexOf(key); if (index < 0 || index >= base.length - 1) return base; const next = [...base]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next }) }}><ChevronD size="xs" /></button>
               </label>
             })}
             <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
