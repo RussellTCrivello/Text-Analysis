@@ -488,89 +488,40 @@ export function SourcesView({
     }
   }, [data.sources])
 
+  const frameworkSourceFields = useMemo(() => {
+    const specialized = new Set(["type", "importance"])
+    const metadata = docTypeMetadata("sources").fields.filter((field) => field.form && !specialized.has(field.key))
+    const byKey = new Map(metadata.map((field) => [field.key, field]))
+    const orderedKeys = sourceLayout.order.filter((key, index, all) => byKey.has(key) && all.indexOf(key) === index)
+    const missing = metadata.map((field) => field.key).filter((key) => !orderedKeys.includes(key))
+    return [...orderedKeys, ...missing].map((key) => byKey.get(key)!).filter((field) => showSourceField(field.key))
+  }, [sourceLayout])
+
   const renderForm = () => (
     <div className="flex flex-col gap-3.5">
       <div className="flex justify-end">
         <Btn size="xs" variant="ghost" onClick={() => { formEngine.reset(); setImportancePct(showEdit && selected ? (selected.importance * 100).toFixed(2) : "75.00") }}>Reset form</Btn>
       </div>
-      <div className="form-section">
-        <span>{t.sections.sources.formIdentity}</span>
-        <i />
-      </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
-        <MetadataField
-          field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "name")!, readOnly: sourceFieldReadOnly("name") } }
-          value={form.name}
-          onChange={(value) => setForm((f) => ({ ...f, name: String(value) }))}
-          error={errors.name}
-        />
+        {frameworkSourceFields.map((field) => (
+          <MetadataField
+            key={field.key}
+            field={{ ...field, readOnly: sourceFieldReadOnly(field.key) }}
+            value={form[field.key as keyof typeof form]}
+            onChange={(value) => setForm((current) => ({ ...current, [field.key]: value }))}
+            error={errors[field.key]}
+          />
+        ))}
+      </div>
+      <div className="form-section"><span>{t.sections.sources.formIdentity}</span><i /></div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
         <Field label={t.fields.type} required>
-          <ComboField
-            id="source-type"
-            value={form.type}
-            onChange={(next) => setForm((f) => ({ ...f, type: next }))}
-            options={typeOptions}
-            usage={typeUsage}
-            placeholder="Type or pick a type…"
-            error={!!errors.type}
-            onCreate={(value) => {
-              addVocabularyValue(TYPE_VOCABULARY, value)
-              onToast(
-                t.sections.dictionary.vocabAdded
-                  .replace("{v}", value)
-                  .replace("{k}", TYPE_VOCABULARY),
-              )
-            }}
-            onRemove={(value) => {
-              const result = removeVocabularyValue(
-                TYPE_VOCABULARY,
-                value,
-                typeUsage[value.toLowerCase()] ?? 0,
-              )
-              onToast(
-                result.ok
-                  ? `Removed “${value}”`
-                  : `Cannot remove “${value}”: ${result.reason ?? "in use"}`,
-              )
-            }}
-          />
+          <ComboField id="source-type" value={form.type} onChange={(next) => setForm((f) => ({ ...f, type: next }))} options={typeOptions} usage={typeUsage} placeholder="Type or pick a type…" error={!!errors.type}
+            onCreate={(value) => { addVocabularyValue(TYPE_VOCABULARY, value); onToast(t.sections.dictionary.vocabAdded.replace("{v}", value).replace("{k}", TYPE_VOCABULARY)) }}
+            onRemove={(value) => { const result = removeVocabularyValue(TYPE_VOCABULARY, value, typeUsage[value.toLowerCase()] ?? 0); onToast(result.ok ? `Removed “${value}”` : `Cannot remove “${value}”: ${result.reason ?? "in use"}`) }} />
         </Field>
-        {showSourceField("link_sources") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "link_sources")!, readOnly: sourceFieldReadOnly("link_sources") } } value={form.link_sources} onChange={(value) => setForm((f) => ({ ...f, link_sources: String(value) }))} error={errors.link_sources} />}
-        <Field
-          label={`${t.fields.importance} (0–100%)`}
-          required
-          error={errors.importance}
-        >
-          <ImportanceControl
-            value={importancePct}
-            onChange={setImportancePct}
-            error={!!errors.importance}
-          />
-        </Field>
+        <Field label={`${t.fields.importance} (0–100%)`} required error={errors.importance}><ImportanceControl value={importancePct} onChange={setImportancePct} error={!!errors.importance} /></Field>
       </div>
-      <div className="form-section">
-        <span>{t.sections.sources.formContext}</span>
-        <i />
-      </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
-        {showSourceField("country") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "country")!, readOnly: sourceFieldReadOnly("country") } } value={form.country} onChange={(value) => setForm((f) => ({ ...f, country: String(value) }))} />}
-        {showSourceField("city") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "city")!, readOnly: sourceFieldReadOnly("city") } } value={form.city} onChange={(value) => setForm((f) => ({ ...f, city: String(value) }))} />}
-        <Field label={t.fields.date_entry} required>
-          <DateTimeInput
-            value={form.date_entry}
-            onChange={(v) => setForm((f) => ({ ...f, date_entry: v }))}
-            hint="Date and time of entry"
-          />
-        </Field>
-        {showSourceField("ownership") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "ownership")!, readOnly: sourceFieldReadOnly("ownership") } } value={form.ownership} onChange={(value) => setForm((f) => ({ ...f, ownership: String(value) }))} />}
-      </div>
-      <div className="form-section">
-        <span>{t.sections.sources.formNotes}</span>
-        <i />
-      </div>
-      {showSourceField("accounts") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "accounts")!, readOnly: sourceFieldReadOnly("accounts") } } value={form.accounts} onChange={(value) => setForm((f) => ({ ...f, accounts: String(value) }))} />}
-      {showSourceField("description") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "description")!, readOnly: sourceFieldReadOnly("description") } } value={form.description} onChange={(value) => setForm((f) => ({ ...f, description: String(value) }))} />}
-      {showSourceField("note") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "note")!, readOnly: sourceFieldReadOnly("note") } } value={form.note} onChange={(value) => setForm((f) => ({ ...f, note: String(value) }))} />}
     </div>
   )
 
