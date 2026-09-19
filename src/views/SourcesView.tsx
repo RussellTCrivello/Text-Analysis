@@ -485,6 +485,9 @@ export function SourcesView({
 
   const renderForm = () => (
     <div className="flex flex-col gap-3.5">
+      <div className="flex justify-end">
+        <Btn size="xs" variant="ghost" onClick={() => { formEngine.reset(); setImportancePct(showEdit && selected ? (selected.importance * 100).toFixed(2) : "75.00") }}>Reset form</Btn>
+      </div>
       <div className="form-section">
         <span>{t.sections.sources.formIdentity}</span>
         <i />
