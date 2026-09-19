@@ -103,7 +103,7 @@ const findButton = (label: string, exact = false) =>
 const click = async (el: Element | undefined | null) => {
   if (!el) throw new Error("click target missing")
   await act(async () => {
-    el.addEventListener("click", (event) => event.preventDefault(), { once: true })
+    if (el.tagName === "A") el.addEventListener("click", (event) => event.preventDefault(), { once: true })
     el.dispatchEvent(
       new dom.window.MouseEvent("click", {
         bubbles: true,
@@ -262,6 +262,12 @@ async function main() {
     !!dialog &&
       (dialog as HTMLElement).textContent?.includes("Add Source") === true,
   )
+  const sourceLabels = Array.from(dialog?.querySelectorAll("label") ?? []).map((label) => text(label))
+  check("sources ordinary fields use shared form rendering", ["Name", "Link", "Country", "City", "Description", "Note"].every((label) => sourceLabels.some((value) => value.startsWith(label))))
+  check("sources specialized controls remain present", sourceLabels.some((value) => value.startsWith("Type")) && sourceLabels.some((value) => value.includes("Importance")))
+  const sourceFieldOrder = ["Name", "Link", "Country", "City", "Description", "Accounts", "Note", "Ownership", "Date Entry"]
+  const sourceOrderIndexes = sourceFieldOrder.map((label) => sourceLabels.findIndex((value) => value.startsWith(label))).filter((index) => index >= 0)
+  check("sources form fields have deterministic DOM order", sourceOrderIndexes.every((index, i, all) => i === 0 || index > all[i - 1]))
   // Type into the form by locating each Field via its <label> — immune to DOM
   // index drift and to combo/number fields sharing the input element type.
   const byLabel = (wanted: string): HTMLInputElement | undefined => {
@@ -298,6 +304,22 @@ async function main() {
       (lastDialog()?.textContent ?? "none").slice(0, 160),
     )
   check("record saved via form", saved, "name not found in table")
+  await closeAllDialogs()
+
+  const layoutButton = findButton("Form layout")
+  await click(layoutButton)
+  const layoutDialog = lastDialog()
+  check("sources form layout editor opens", !!layoutDialog && text(layoutDialog).includes("Sources form layout"))
+  const countryRow = Array.from(layoutDialog?.querySelectorAll("div") ?? []).find((node) => /^Country\s/.test(text(node)) && node.querySelectorAll("input").length >= 2)
+  const countryToggle = countryRow?.querySelector("input") as HTMLInputElement | undefined
+  if (countryToggle) {
+    await click(countryToggle)
+    const hiddenAfter = (countryRow?.querySelector("input") as HTMLInputElement | null)?.checked
+    check("sources layout visibility mutation is reflected", hiddenAfter === false)
+    await click(countryRow?.querySelector("input"))
+    const shownAfter = (countryRow?.querySelector("input") as HTMLInputElement | null)?.checked
+    check("sources layout visibility can be restored", shownAfter === true)
+  } else check("sources country layout control exists", false)
   await closeAllDialogs()
 
   // 6b. Contents: attachments are managed right next to the field, in-form
