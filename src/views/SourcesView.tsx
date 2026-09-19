@@ -46,6 +46,8 @@ import { AdvancedSearch } from "../components/AdvancedSearch"
 import { FilterBuilder } from "../components/FilterBuilder"
 import { applyFilterGroups, type FilterGroup } from "../core/filterBuilder"
 import { ComboField, usageMap } from "../components/ComboField"
+import { MetadataField } from "../components/MetadataField"
+import { docTypeMetadata } from "../core/framework"
 import { formatDateTime, nowIso } from "../core/text"
 import { BulkOperations } from "../components/BulkOperations"
 import { ImportWizard } from "../components/ImportWizard"
@@ -484,13 +486,12 @@ export function SourcesView({
         <i />
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
-        <Field label={t.fields.name} required error={errors.name}>
-          <Input
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            error={!!errors.name}
-          />
-        </Field>
+        <MetadataField
+          field={docTypeMetadata("sources").fields.find((field) => field.key === "name")!}
+          value={form.name}
+          onChange={(value) => setForm((f) => ({ ...f, name: String(value) }))}
+          error={errors.name}
+        />
         <Field label={t.fields.type} required>
           <ComboField
             id="source-type"
