@@ -47,9 +47,10 @@ import { FilterBuilder } from "../components/FilterBuilder"
 import { applyFilterGroups, type FilterGroup } from "../core/filterBuilder"
 import { ComboField, usageMap } from "../components/ComboField"
 import { MetadataField } from "../components/MetadataField"
+import { FormLayoutEditor } from "../components/FormLayoutEditor"
 import { useFormEngine } from "../components/useFormEngine"
 import { docTypeMetadata } from "../core/framework"
-import { normalizeFormLayout } from "../core/formEngine"
+import { formFields, normalizeFormLayout, defaultFormLayout } from "../core/formEngine"
 import { formatDateTime, nowIso } from "../core/text"
 import { BulkOperations } from "../components/BulkOperations"
 import { ImportWizard } from "../components/ImportWizard"
@@ -89,10 +90,12 @@ export function SourcesView({
   autoOpenAdd?: number
 }) {
   const { t } = useTranslation()
-  const { settings } = useSettings()
+  const { settings, updateFormLayout } = useSettings()
+  const [showFormLayout, setShowFormLayout] = useState(false)
   const sourceLayout = normalizeFormLayout("sources", (settings.formLayouts.sources ?? {}) as Record<string, unknown>)
   const showSourceField = (key: string) => !sourceLayout.hidden.includes(key)
   const sourceFieldReadOnly = (key: string) => sourceLayout.readOnly.includes(key)
+  const sourceLayoutFields = formFields("sources").filter((field) => !["type", "importance"].includes(field.key)).sort((a, b) => sourceLayout.order.indexOf(a.key) - sourceLayout.order.indexOf(b.key))
   const {
     data,
     addSource,
@@ -534,9 +537,12 @@ export function SourcesView({
         icon={<NavSources size="md" />}
         count={{ value: data.sources.length, label: t.messages.records }}
         actions={
-          <Btn variant="primary" onClick={openAdd} icon={<Plus size="sm" />}>
-            {t.sections.sources.add}
-          </Btn>
+          <div className="flex gap-2">
+            <Btn variant="ghost" onClick={() => setShowFormLayout(true)}>Form layout</Btn>
+            <Btn variant="primary" onClick={openAdd} icon={<Plus size="sm" />}>
+              {t.sections.sources.add}
+            </Btn>
+          </div>
         }
       />
 
@@ -805,6 +811,15 @@ export function SourcesView({
           label={t.messages.selected}
         />
       )}
+
+      <InfoModal isOpen={showFormLayout} title="Sources form layout" onClose={() => setShowFormLayout(false)} size="lg">
+        <FormLayoutEditor
+          fields={sourceLayoutFields}
+          layout={sourceLayout}
+          onChange={(next) => updateFormLayout("sources", next)}
+          onReset={() => updateFormLayout("sources", defaultFormLayout("sources"))}
+        />
+      </InfoModal>
 
       {/* Add dialog */}
       <FormModal
