@@ -35,6 +35,7 @@ import {
   ChevronR,
 } from "../components/icons"
 import { TimelineExportDialog } from "../components/TimelineExportDialog"
+import { ComboField } from "../components/ComboField"
 import { useAppData } from "../store/AppContext"
 import { useTranslation } from "../i18n"
 import { formatDateTime } from "../core/text"
@@ -220,24 +221,9 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
           onChange={setSearch}
           placeholder={t.messages.searchPlaceholder}
         />
-        <Select
-          value={classFilter}
-          onChange={(e) => setClassFilter(e.target.value)}
-          options={classOpts}
-          className="!w-36"
-        />
-        <Select
-          value={peopleFilter}
-          onChange={(e) => setPeopleFilter(e.target.value)}
-          options={peopleOpts}
-          className="!w-36"
-        />
-        <Select
-          value={placesFilter}
-          onChange={(e) => setPlacesFilter(e.target.value)}
-          options={placesOpts}
-          className="!w-36"
-        />
+        <ComboField value={classFilter} onChange={setClassFilter} options={classOpts} allowCreate={false} placeholder="Search classification…" />
+        <ComboField value={peopleFilter} onChange={setPeopleFilter} options={peopleOpts} allowCreate={false} placeholder="Search people…" />
+        <ComboField value={placesFilter} onChange={setPlacesFilter} options={placesOpts} allowCreate={false} placeholder="Search places…" />
         <DateInput
           label={t.messages.dateFrom}
           value={dateFrom}
