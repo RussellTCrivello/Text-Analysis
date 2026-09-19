@@ -62,13 +62,14 @@ export function DataTable<T extends { id: string }>({
   const completeColumns = [...configuredColumns, ...schemaColumns.filter((column) => !configuredKeys.has(String(column.key)))]
   const columns = completeColumns
   const preferenceKey = `text-analysis.table.${columns.map((column) => String(column.key)).join(",")}`
+  const frameworkLayout = (settings.tableLayouts[preferenceKey] ?? {}) as Record<string, any>
   const [sortRules, setSortRules] = useState<Array<{ key: string; dir: "asc" | "desc" }>>(() => {
-    try { return JSON.parse(localStorage.getItem(`${preferenceKey}.sort`) ?? "[]") } catch { return [] }
+    try { return frameworkLayout.sort ?? JSON.parse(localStorage.getItem(`${preferenceKey}.sort`) ?? "[]") } catch { return [] }
   })
   const savedLayout = entity ? normalizeTableLayout(entity) : null
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(`${preferenceKey}.hidden`) ?? "null")
+      const saved = frameworkLayout.hidden ?? JSON.parse(localStorage.getItem(`${preferenceKey}.hidden`) ?? "null")
       return Array.isArray(saved) ? saved : (savedLayout?.hidden ?? [])
     } catch { return savedLayout?.hidden ?? [] }
   })
@@ -226,7 +227,7 @@ export function DataTable<T extends { id: string }>({
               <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>Saved layouts</div>
               <div className="flex gap-1">
                 <input className="ctrl min-w-0 flex-1 text-xs" placeholder="Layout name" value={profileName} onChange={(event) => setProfileName(event.target.value)} />
-                <button type="button" className="text-xs underline" onClick={() => { const name = profileName.trim(); if (!name) return; const next = { ...profiles, [name]: { hidden: hiddenColumns, widths: columnWidths, pinned: pinnedColumns, order: columnOrder, density: tableDensity, sort: sortRules } }; setProfiles(next); localStorage.setItem(`${preferenceKey}.profiles`, JSON.stringify(next)); setProfileName("") }}>Save</button>
+                <button type="button" className="text-xs underline" onClick={() => { const name = profileName.trim(); if (!name) return; const next = { ...profiles, [name]: { hidden: hiddenColumns, widths: columnWidths, pinned: pinnedColumns, order: columnOrder, density: tableDensity, sort: sortRules } }; setProfiles(next); localStorage.setItem(`${preferenceKey}.profiles`, JSON.stringify(next)); saveSettings({ tableLayouts: { ...settings.tableLayouts, [preferenceKey]: { ...(settings.tableLayouts[preferenceKey] as object), profiles: next } } }); setProfileName("") }}>Save</button>
               </div>
               {Object.keys(profiles).map((name) => <span key={name} className="mt-1 me-1 inline-flex items-center rounded" style={{ background: "var(--surface-2)" }}><button type="button" className="px-1.5 py-1 text-[10px]" onClick={() => { const profile = profiles[name]; setHiddenColumns(profile.hidden); setColumnWidths(profile.widths); setPinnedColumns(profile.pinned); setColumnOrder(profile.order); setTableDensity(profile.density); setSortRules(profile.sort) }}>{name}</button><button type="button" className="px-1 text-[10px]" aria-label={`Delete ${name} layout`} onClick={() => { const next = { ...profiles }; delete next[name]; setProfiles(next); localStorage.setItem(`${preferenceKey}.profiles`, JSON.stringify(next)) }}>×</button></span>)}
             </div>
