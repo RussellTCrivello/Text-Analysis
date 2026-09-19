@@ -180,9 +180,10 @@ export function SourcesView({
     setShowEdit(true)
   }
 
-  const validateForm = (f: typeof form): Record<string, string> => {
+  // Form Engine owns schema/required validation. These are the only
+  // Sources-specific presentation/workflow checks that remain here.
+  const validateSourcesSpecific = (f: typeof form): Record<string, string> => {
     const errs: Record<string, string> = {}
-    if (!f.name.trim()) errs.name = t.messages.required
     if (f.link_sources && !/^https?:\/\//.test(f.link_sources))
       errs.link_sources = t.messages.urlInvalid
     const imp = parseFloat(importancePct)
@@ -194,7 +195,9 @@ export function SourcesView({
   const handleSave = () => {
     const imp = parseFloat(importancePct) / 100
     const payload = { ...form, importance: imp }
-    const localErrors = validateForm(payload)
+    const sharedErrors = formEngine.validate()
+    const specificErrors = validateSourcesSpecific(payload)
+    const localErrors = { ...sharedErrors, ...specificErrors }
     if (Object.keys(localErrors).length > 0) {
       setErrors(localErrors)
       return
