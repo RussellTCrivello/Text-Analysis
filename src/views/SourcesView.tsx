@@ -229,6 +229,7 @@ export function SourcesView({
       onToast(messages[0] ?? t.messages.saved)
       return
     }
+    formEngine.commit(payload)
     setShowAdd(false)
     setShowEdit(false)
     onToast(
