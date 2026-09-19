@@ -4,6 +4,7 @@ import { RowCheckbox } from "./ui"
 import { fieldsOf, type EntityName } from "../core/schema"
 import { docTypeMetadata } from "../core/framework"
 import { normalizeTableLayout } from "../core/tableLayout"
+import { useSettings } from "../store/SettingsContext"
 
 export interface Column<T> {
   key: keyof T | string
@@ -48,6 +49,7 @@ export function DataTable<T extends { id: string }>({
   density = "comfortable",
   entity,
 }: DataTableProps<T>) {
+  const { settings, saveSettings } = useSettings()
   const schemaColumns = entity
     ? fieldsOf(entity).map((field) => ({
         key: field.key,
@@ -118,6 +120,7 @@ export function DataTable<T extends { id: string }>({
       localStorage.setItem(`${preferenceKey}.sort`, JSON.stringify(sortRules))
       localStorage.setItem(`${preferenceKey}.pinned`, JSON.stringify(pinnedColumns))
       localStorage.setItem(`${preferenceKey}.order`, JSON.stringify(columnOrder))
+      saveSettings({ tableLayouts: { ...settings.tableLayouts, [preferenceKey]: { hidden: hiddenColumns, widths: columnWidths, pinned: pinnedColumns, order: columnOrder, density: tableDensity, sort: sortRules } } })
     } catch { /* private browsing or SSR */ }
   }, [preferenceKey, hiddenColumns, tableDensity, columnWidths, sortRules, pinnedColumns, columnOrder])
 

@@ -29,6 +29,7 @@ const defaults: AppSettings = {
   defaultPageSize: 50,
   autoSave: true,
   autoSaveInterval: 30,
+  tableLayouts: {},
 }
 
 function load(): AppSettings {
