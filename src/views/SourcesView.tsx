@@ -824,6 +824,7 @@ export function SourcesView({
         ) : (
           <DataTable
             columns={columns}
+            entity="sources"
             data={paged}
             selectedId={selectedId ?? undefined}
             selectedIds={selectedIds}

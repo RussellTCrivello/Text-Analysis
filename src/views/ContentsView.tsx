@@ -819,6 +819,7 @@ export function ContentsView({
         ) : (
           <DataTable
             columns={columns}
+            entity="contents"
             data={paged}
             selectedId={selectedId ?? undefined}
             selectedIds={selectedIds}

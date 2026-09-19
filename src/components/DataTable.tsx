@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react"
 import { Sort, SortAsc, SortDesc, EmptyFile } from "./icons"
 import { RowCheckbox } from "./ui"
+import { fieldsOf, type EntityName } from "../core/schema"
 
 export interface Column<T> {
   key: keyof T | string
@@ -28,10 +29,12 @@ interface DataTableProps<T extends { id: string }> {
   emptyText?: string
   rowNumberOffset?: number
   density?: "compact" | "comfortable" | "expansive"
+  /** Schema entity enables every database field to be opted into the display. */
+  entity?: EntityName
 }
 
 export function DataTable<T extends { id: string }>({
-  columns,
+  columns: configuredColumns,
   data,
   selectedId,
   selectedIds = [],
@@ -41,7 +44,19 @@ export function DataTable<T extends { id: string }>({
   emptyText = "No records.",
   rowNumberOffset = 0,
   density = "comfortable",
+  entity,
 }: DataTableProps<T>) {
+  const schemaColumns = entity
+    ? fieldsOf(entity).map((field) => ({
+        key: field.key,
+        header: field.key,
+        sortable: field.kind !== "textarea",
+        render: (row: T) => <span className="truncate" title={String((row as Record<string, unknown>)[field.key] ?? "")}>{String((row as Record<string, unknown>)[field.key] ?? "—")}</span>,
+      })) as Column<T>[]
+    : []
+  const configuredKeys = new Set(configuredColumns.map((column) => String(column.key)))
+  const completeColumns = [...configuredColumns, ...schemaColumns.filter((column) => !configuredKeys.has(String(column.key)))]
+  const columns = completeColumns
   const [sortKey, setSortKey] = useState<string>("")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
   const preferenceKey = `text-analysis.table.${columns.map((column) => String(column.key)).join(",")}`

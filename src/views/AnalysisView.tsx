@@ -983,6 +983,7 @@ export function AnalysisView({
         ) : (
           <DataTable
             columns={columns}
+            entity="analyses"
             data={paged}
             selectedId={selectedId ?? undefined}
             selectedIds={selectedIds}
