@@ -44,8 +44,16 @@ export function DataTable<T extends { id: string }>({
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string>("")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([])
+  const preferenceKey = `text-analysis.table.${columns.map((column) => String(column.key)).join(",")}`
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(`${preferenceKey}.hidden`) ?? "[]") } catch { return [] }
+  })
+  const [tableDensity, setTableDensity] = useState<"compact" | "comfortable" | "expansive">(density)
   const visibleColumns = columns.filter((column) => !hiddenColumns.includes(String(column.key)))
+
+  React.useEffect(() => {
+    localStorage.setItem(`${preferenceKey}.hidden`, JSON.stringify(hiddenColumns))
+  }, [preferenceKey, hiddenColumns])
 
   const handleSort = useCallback(
     (key: string) => {
@@ -70,7 +78,7 @@ export function DataTable<T extends { id: string }>({
   }, [data, sortKey, sortDir])
 
   const rowPy =
-    density === "compact" ? "py-1" : density === "expansive" ? "py-3" : "py-2"
+    tableDensity === "compact" ? "py-1" : tableDensity === "expansive" ? "py-3" : "py-2"
 
   const handleRowClick = (row: T, e: React.MouseEvent) => {
     if (onSelectionChange) {
@@ -133,7 +141,13 @@ export function DataTable<T extends { id: string }>({
                 <span>{column.header}</span>
               </label>
             })}
-            <button type="button" className="mt-1 text-xs underline" onClick={() => setHiddenColumns([])}>Show all fields</button>
+            <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
+              <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>Row density</div>
+              <div className="flex gap-1">
+                {(["compact", "comfortable", "expansive"] as const).map((option) => <button key={option} type="button" className="rounded px-1.5 py-1 text-[10px]" style={{ background: tableDensity === option ? "var(--primary)" : "var(--surface-2)", color: tableDensity === option ? "var(--primary-fg)" : "var(--fg)" }} onClick={() => setTableDensity(option)}>{option}</button>)}
+              </div>
+            </div>
+            <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`) }}>Reset table layout</button>
           </div>
         </details>
       </div>
