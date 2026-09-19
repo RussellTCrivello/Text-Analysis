@@ -9,6 +9,8 @@ export function useFormEngine<T extends Record<string, unknown>>(entity: EntityN
     return Object.keys(values).reduce((result, key) => setFormValue(result, key, values[key]), { ...current, values: { ...current.values } })
   }), [])
   const setValue = useCallback((field: string, value: unknown) => setState((current) => setFormValue(current, field, value)), [])
+  const setErrors = useCallback((errors: Record<string, string>) => setState((current) => ({ ...current, errors })), [])
+  const load = useCallback((values: T, nextMode: FormMode) => setState(createFormState(entity, nextMode, values)), [entity])
   const reset = useCallback(() => setState((current) => resetForm(current)), [])
   const validate = useCallback(() => {
     const errors = validateForm(entity, state)
@@ -16,5 +18,5 @@ export function useFormEngine<T extends Record<string, unknown>>(entity: EntityN
     return errors
   }, [entity, state])
   const form = state.values as T
-  return useMemo(() => ({ state, form, setValues, setValue, reset, validate }), [state, form, setValues, setValue, reset, validate])
+  return useMemo(() => ({ state, form, setValues, setValue, setErrors, load, reset, validate }), [state, form, setValues, setValue, setErrors, load, reset, validate])
 }

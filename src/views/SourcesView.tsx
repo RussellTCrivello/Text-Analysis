@@ -124,7 +124,8 @@ export function SourcesView({
   const formEngine = useFormEngine("sources", emptySource())
   const form = formEngine.form as ReturnType<typeof emptySource>
   const setForm = formEngine.setValues
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const errors = formEngine.state.errors
+  const setErrors = formEngine.setErrors
   const [importancePct, setImportancePct] = useState("75.00")
   const [advancedIds, setAdvancedIds] = useState<string[] | null>(null)
 
@@ -159,14 +160,14 @@ export function SourcesView({
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
 
   const openAdd = () => {
-    setForm(emptySource())
+    formEngine.load(emptySource(), "create")
     setImportancePct("75.00")
     setErrors({})
     setShowAdd(true)
   }
   const openEdit = () => {
     if (!selected) return
-    setForm({ ...selected })
+    formEngine.load({ ...selected }, "edit")
     setImportancePct((selected.importance * 100).toFixed(2))
     setErrors({})
     setShowEdit(true)
