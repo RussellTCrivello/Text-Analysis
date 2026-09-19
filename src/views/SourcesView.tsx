@@ -47,6 +47,7 @@ import { FilterBuilder } from "../components/FilterBuilder"
 import { applyFilterGroups, type FilterGroup } from "../core/filterBuilder"
 import { ComboField, usageMap } from "../components/ComboField"
 import { MetadataField } from "../components/MetadataField"
+import { useFormEngine } from "../components/useFormEngine"
 import { docTypeMetadata } from "../core/framework"
 import { formatDateTime, nowIso } from "../core/text"
 import { BulkOperations } from "../components/BulkOperations"
@@ -120,7 +121,9 @@ export function SourcesView({
   const [showBulkOps, setShowBulkOps] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showStats, setShowStats] = useState(false)
-  const [form, setForm] = useState(emptySource())
+  const formEngine = useFormEngine("sources", emptySource())
+  const form = formEngine.form as ReturnType<typeof emptySource>
+  const setForm = formEngine.setValues
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [importancePct, setImportancePct] = useState("75.00")
   const [advancedIds, setAdvancedIds] = useState<string[] | null>(null)
