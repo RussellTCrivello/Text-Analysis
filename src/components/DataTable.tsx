@@ -63,6 +63,10 @@ export function DataTable<T extends { id: string }>({
     window.addEventListener("mouseup", stop)
   }
 
+  // Global application density remains authoritative; the table menu can
+  // temporarily refine it and the preference is kept per table.
+  React.useEffect(() => { setTableDensity(density) }, [density])
+
   React.useEffect(() => {
     try {
       localStorage.setItem(`${preferenceKey}.hidden`, JSON.stringify(hiddenColumns))
