@@ -43,6 +43,8 @@ import {
 } from "../components/icons"
 import { ExportDialog } from "../components/ExportDialog"
 import { AdvancedSearch } from "../components/AdvancedSearch"
+import { FilterBuilder } from "../components/FilterBuilder"
+import { applyFilterGroups, type FilterGroup } from "../core/filterBuilder"
 import { ComboField, usageMap } from "../components/ComboField"
 import { formatDateTime, nowIso } from "../core/text"
 import { BulkOperations } from "../components/BulkOperations"
@@ -112,6 +114,7 @@ export function SourcesView({
   const [showDelete, setShowDelete] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [showAdvSearch, setShowAdvSearch] = useState(false)
+  const [showFilterBuilder, setShowFilterBuilder] = useState(false)
   const [showBulkOps, setShowBulkOps] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showStats, setShowStats] = useState(false)
@@ -426,6 +429,11 @@ export function SourcesView({
       label: t.actions.advancedSearch,
       icon: <SearchCodeIcon size="xs" />,
       onClick: () => setShowAdvSearch(true),
+    },
+    {
+      label: "Filter builder",
+      icon: <SearchCodeIcon size="xs" />,
+      onClick: () => setShowFilterBuilder(true),
     },
     {
       label: t.actions.bulkOperations,
@@ -929,6 +937,17 @@ export function SourcesView({
       />
 
       {/* Advanced Search */}
+      {showFilterBuilder && (
+        <InfoModal isOpen title="Source filter builder" onClose={() => setShowFilterBuilder(false)} size="lg">
+          <FilterBuilder entity="sources" onApply={(groups: FilterGroup[]) => {
+            const rows = applyFilterGroups(data.sources as unknown as Record<string, unknown>[], groups)
+            setAdvancedIds(rows.map((row) => String(row.id)))
+            setPage(1)
+            setShowFilterBuilder(false)
+            onToast(`Applied filter builder: ${rows.length} records`)
+          }} onClear={() => { setAdvancedIds(null); setShowFilterBuilder(false) }} />
+        </InfoModal>
+      )}
       <AdvancedSearch
         isOpen={showAdvSearch}
         onClose={() => setShowAdvSearch(false)}

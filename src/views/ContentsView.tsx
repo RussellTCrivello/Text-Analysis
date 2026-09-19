@@ -46,6 +46,8 @@ import {
 import { ExportDialog } from "../components/ExportDialog"
 import { ImportWizard } from "../components/ImportWizard"
 import { AdvancedSearch } from "../components/AdvancedSearch"
+import { FilterBuilder } from "../components/FilterBuilder"
+import { applyFilterGroups, type FilterGroup } from "../core/filterBuilder"
 import { ComboField, usageMap } from "../components/ComboField"
 import {
   AttachmentField,
@@ -107,6 +109,7 @@ export function ContentsView({
   const [showStats, setShowStats] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showAdvSearch, setShowAdvSearch] = useState(false)
+  const [showFilterBuilder, setShowFilterBuilder] = useState(false)
   const [advancedIds, setAdvancedIds] = useState<string[] | null>(null)
   const attachRef = useRef<AttachmentFieldHandle>(null)
 
@@ -471,6 +474,11 @@ export function ContentsView({
       label: t.actions.advancedSearch,
       icon: <SearchCodeIcon size="xs" />,
       onClick: () => setShowAdvSearch(true),
+    },
+    {
+      label: "Filter builder",
+      icon: <SearchCodeIcon size="xs" />,
+      onClick: () => setShowFilterBuilder(true),
     },
     {
       label: t.actions.importContents,
@@ -919,6 +927,17 @@ export function ContentsView({
         targetType="content"
         onToast={onToast}
       />
+      {showFilterBuilder && (
+        <InfoModal isOpen title="Content filter builder" onClose={() => setShowFilterBuilder(false)} size="lg">
+          <FilterBuilder entity="contents" onApply={(groups: FilterGroup[]) => {
+            const rows = applyFilterGroups(data.contents as unknown as Record<string, unknown>[], groups)
+            setAdvancedIds(rows.map((row) => String(row.id)))
+            setPage(1)
+            setShowFilterBuilder(false)
+            onToast(`Applied filter builder: ${rows.length} records`)
+          }} onClear={() => { setAdvancedIds(null); setShowFilterBuilder(false) }} />
+        </InfoModal>
+      )}
       <AdvancedSearch
         isOpen={showAdvSearch}
         onClose={() => setShowAdvSearch(false)}
