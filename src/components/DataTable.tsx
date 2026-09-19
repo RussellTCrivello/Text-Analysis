@@ -44,6 +44,8 @@ export function DataTable<T extends { id: string }>({
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string>("")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([])
+  const visibleColumns = columns.filter((column) => !hiddenColumns.includes(String(column.key)))
 
   const handleSort = useCallback(
     (key: string) => {
@@ -117,6 +119,24 @@ export function DataTable<T extends { id: string }>({
 
   return (
     <div className="w-full h-full overflow-auto">
+      <div className="sticky top-0 z-10 flex justify-end px-2 py-1" style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
+        <details className="relative">
+          <summary className="cursor-pointer select-none rounded px-2 py-1 text-xs font-semibold" style={{ color: "var(--muted-fg)", border: "1px solid var(--border)" }}>
+            Manage columns
+          </summary>
+          <div className="absolute end-0 mt-1 z-20 min-w-52 rounded p-2 shadow-lg" style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}>
+            <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>Displayed fields</div>
+            {columns.map((column) => {
+              const key = String(column.key)
+              return <label key={key} className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer">
+                <input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => setHiddenColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} />
+                <span>{column.header}</span>
+              </label>
+            })}
+            <button type="button" className="mt-1 text-xs underline" onClick={() => setHiddenColumns([])}>Show all fields</button>
+          </div>
+        </details>
+      </div>
       <table
         className="w-full border-collapse"
         style={{ tableLayout: "fixed", fontFamily: "var(--font-body)" }}
@@ -124,7 +144,7 @@ export function DataTable<T extends { id: string }>({
         <colgroup>
           {onSelectionChange && <col style={{ width: 36 }} />}
           <col style={{ width: 36 }} />
-          {columns.map((col) => (
+          {visibleColumns.map((col) => (
             <col key={String(col.key)} style={{ width: col.width ?? "auto" }} />
           ))}
         </colgroup>
@@ -175,7 +195,7 @@ export function DataTable<T extends { id: string }>({
             >
               #
             </th>
-            {columns.map((col) => (
+            {visibleColumns.map((col) => (
               <th
                 key={String(col.key)}
                 scope="col"
@@ -222,13 +242,13 @@ export function DataTable<T extends { id: string }>({
               </th>
             ))}
           </tr>
-          {columns.some((col) => col.filter) && (
+          {visibleColumns.some((col) => col.filter) && (
             <tr aria-label="Column filters">
               {onSelectionChange && (
                 <th style={{ background: "var(--thead-glass)" }} aria-hidden="true" />
               )}
               <th style={{ background: "var(--thead-glass)" }} aria-hidden="true" />
-              {columns.map((col) => (
+              {visibleColumns.map((col) => (
                 <th
                   key={`filter-${String(col.key)}`}
                   className="px-1 pb-1.5 align-top"
@@ -327,7 +347,7 @@ export function DataTable<T extends { id: string }>({
                   >
                     {rowNumberOffset + idx + 1}
                   </td>
-                  {columns.map((col) => (
+                  {visibleColumns.map((col) => (
                     <td
                       key={String(col.key)}
                       className="px-3 overflow-hidden"
