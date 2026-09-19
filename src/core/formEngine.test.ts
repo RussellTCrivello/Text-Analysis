@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { createFormState, defaultFormLayout, formFields, normalizeFormLayout, resetForm, setFormValue, validateForm } from "./formEngine"
+import { createFormState, defaultFormLayout, formFields, normalizeFormLayout, orderedVisibleFormFields, resetForm, setFormValue, validateForm } from "./formEngine"
 
 test("form definitions derive from schema metadata", () => {
   const fields = formFields("contents")
@@ -11,6 +11,17 @@ test("form definitions derive from schema metadata", () => {
   assert.equal(repaired.order[0], "name")
   assert.equal(repaired.order.includes("unknown"), false)
   assert.deepEqual(repaired.hidden, ["note"])
+})
+
+test("ordered visible form fields are unique, schema-safe, and exclude specialized controls", () => {
+  const layout = normalizeFormLayout("sources", { order: ["note", "name", "name", "unknown"], hidden: ["city"] })
+  const fields = orderedVisibleFormFields("sources", layout, ["type", "importance"])
+  const keys = fields.map((field) => field.key)
+  assert.equal(keys[0], "note")
+  assert.equal(keys.includes("unknown"), false)
+  assert.equal(keys.includes("city"), false)
+  assert.equal(new Set(keys).size, keys.length)
+  assert.equal(keys.includes("type"), false)
 })
 
 test("form state centrally handles values, dirty, validation and reset", () => {

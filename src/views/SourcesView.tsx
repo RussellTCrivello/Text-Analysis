@@ -50,7 +50,7 @@ import { MetadataField } from "../components/MetadataField"
 import { FormLayoutEditor } from "../components/FormLayoutEditor"
 import { useFormEngine } from "../components/useFormEngine"
 import { docTypeMetadata } from "../core/framework"
-import { formFields, normalizeFormLayout, defaultFormLayout } from "../core/formEngine"
+import { orderedVisibleFormFields, normalizeFormLayout, defaultFormLayout } from "../core/formEngine"
 import { formatDateTime, nowIso } from "../core/text"
 import { BulkOperations } from "../components/BulkOperations"
 import { ImportWizard } from "../components/ImportWizard"
@@ -95,7 +95,7 @@ export function SourcesView({
   const sourceLayout = normalizeFormLayout("sources", (settings.formLayouts.sources ?? {}) as Record<string, unknown>)
   const showSourceField = (key: string) => !sourceLayout.hidden.includes(key)
   const sourceFieldReadOnly = (key: string) => sourceLayout.readOnly.includes(key)
-  const sourceLayoutFields = formFields("sources").filter((field) => !["type", "importance"].includes(field.key)).sort((a, b) => sourceLayout.order.indexOf(a.key) - sourceLayout.order.indexOf(b.key))
+  const sourceLayoutFields = orderedVisibleFormFields("sources", sourceLayout, ["type", "importance"])
   const {
     data,
     addSource,

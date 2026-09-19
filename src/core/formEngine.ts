@@ -5,6 +5,14 @@ export type FormMode = "create" | "edit" | "view"
 export type FormLayout = { entity: EntityName; order: string[]; hidden: string[]; readOnly: string[] }
 export type FormState = { mode: FormMode; values: Record<string, unknown>; initial: Record<string, unknown>; errors: Record<string, string>; dirty: boolean; submitting: boolean }
 
+export function orderedVisibleFormFields(entity: EntityName, layout: FormLayout, excluded: string[] = []): FieldMetadata[] {
+  const fields = formFields(entity, layout).filter((field) => !excluded.includes(field.key))
+  const byKey = new Map(fields.map((field) => [field.key, field]))
+  const ordered = layout.order.filter((key, index, all) => byKey.has(key) && all.indexOf(key) === index)
+  const missing = fields.map((field) => field.key).filter((key) => !ordered.includes(key))
+  return [...ordered, ...missing].map((key) => byKey.get(key)!).filter(Boolean)
+}
+
 export function formFields(entity: EntityName, layout?: Partial<FormLayout>): FieldMetadata[] {
   const metadata = docTypeMetadata(entity).fields
   const hidden = new Set(layout?.hidden ?? [])
