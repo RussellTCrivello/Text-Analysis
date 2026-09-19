@@ -59,8 +59,7 @@ export function DataTable<T extends { id: string }>({
   const configuredKeys = new Set(configuredColumns.map((column) => String(column.key)))
   const completeColumns = [...configuredColumns, ...schemaColumns.filter((column) => !configuredKeys.has(String(column.key)))]
   const columns = completeColumns
-  const [sortKey, setSortKey] = useState<string>("")
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+  const [sortRules, setSortRules] = useState<Array<{ key: string; dir: "asc" | "desc" }>>([])
   const preferenceKey = `text-analysis.table.${columns.map((column) => String(column.key)).join(",")}`
   const savedLayout = entity ? normalizeTableLayout(entity) : null
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => {
@@ -96,27 +95,27 @@ export function DataTable<T extends { id: string }>({
     } catch { /* private browsing or SSR */ }
   }, [preferenceKey, hiddenColumns, tableDensity, columnWidths])
 
-  const handleSort = useCallback(
-    (key: string) => {
-      if (sortKey === key) {
-        setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-      } else {
-        setSortKey(key)
-        setSortDir("asc")
-      }
-    },
-    [sortKey],
-  )
+  const handleSort = useCallback((key: string, additive = false) => {
+    setSortRules((current) => {
+      const found = current.find((rule) => rule.key === key)
+      const nextDir = found ? (found.dir === "asc" ? "desc" : "asc") : "asc"
+      const next = additive ? current.filter((rule) => rule.key !== key) : []
+      return [...next, { key, dir: nextDir }]
+    })
+  }, [])
 
   const sorted = React.useMemo(() => {
-    if (!sortKey) return data
+    if (!sortRules.length) return data
     return [...data].sort((a, b) => {
-      const av = String((a as Record<string, unknown>)[sortKey] ?? "")
-      const bv = String((b as Record<string, unknown>)[sortKey] ?? "")
-      const cmp = av.localeCompare(bv, undefined, { numeric: true })
-      return sortDir === "asc" ? cmp : -cmp
+      for (const rule of sortRules) {
+        const av = String((a as Record<string, unknown>)[rule.key] ?? "")
+        const bv = String((b as Record<string, unknown>)[rule.key] ?? "")
+        const cmp = av.localeCompare(bv, undefined, { numeric: true })
+        if (cmp) return rule.dir === "asc" ? cmp : -cmp
+      }
+      return 0
     })
-  }, [data, sortKey, sortDir])
+  }, [data, sortRules])
 
   const rowPy =
     tableDensity === "compact" ? "py-1" : tableDensity === "expansive" ? "py-3" : "py-2"
@@ -154,12 +153,12 @@ export function DataTable<T extends { id: string }>({
 
   const SortIcon = ({ col }: { col: Column<T> }) => {
     if (!col.sortable) return null
-    const active = sortKey === String(col.key)
+    const active = sortRules.find((rule) => rule.key === String(col.key))
     if (!active)
       return (
         <Sort className="opacity-0 group-hover:opacity-60 transition-opacity" />
       )
-    return sortDir === "asc" ? (
+    return active.dir === "asc" ? (
       <SortAsc style={{ opacity: 1, color: "var(--primary)" }} />
     ) : (
       <SortDesc style={{ opacity: 1, color: "var(--primary)" }} />
@@ -257,8 +256,8 @@ export function DataTable<T extends { id: string }>({
                 scope="col"
                 aria-sort={
                   col.sortable
-                    ? sortKey === String(col.key)
-                      ? sortDir === "asc"
+                    ? sortRules.find((rule) => rule.key === String(col.key))
+                      ? sortRules.find((rule) => rule.key === String(col.key))!.dir === "asc"
                         ? "ascending"
                         : "descending"
                       : "none"
@@ -282,7 +281,7 @@ export function DataTable<T extends { id: string }>({
                 {col.sortable ? (
                   <button
                     type="button"
-                    onClick={() => handleSort(String(col.key))}
+                    onClick={(event) => handleSort(String(col.key), event.shiftKey)}
                     className="group inline-flex items-center gap-1 cursor-pointer rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] hover:text-[var(--fg)] transition-colors"
                     style={{
                       color: "inherit",
