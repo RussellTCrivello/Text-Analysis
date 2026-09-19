@@ -74,6 +74,10 @@ export function DataTable<T extends { id: string }>({
     try { return (localStorage.getItem(`${preferenceKey}.density`) as "compact" | "comfortable" | "expansive") || density } catch { return density }
   })
   const [columnQuery, setColumnQuery] = useState("")
+  const [profileName, setProfileName] = useState("")
+  const [profiles, setProfiles] = useState<Record<string, { hidden: string[]; widths: Record<string, number>; pinned: string[]; order: string[]; density: "compact" | "comfortable" | "expansive"; sort: Array<{ key: string; dir: "asc" | "desc" }> }>>(() => {
+    try { return JSON.parse(localStorage.getItem(`${preferenceKey}.profiles`) ?? "{}") } catch { return {} }
+  })
   const [pinnedColumns, setPinnedColumns] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(`${preferenceKey}.pinned`) ?? "[]") } catch { return [] }
   })
@@ -214,6 +218,14 @@ export function DataTable<T extends { id: string }>({
               <div className="flex gap-1">
                 {(["compact", "comfortable", "expansive"] as const).map((option) => <button key={option} type="button" className="rounded px-1.5 py-1 text-[10px]" style={{ background: tableDensity === option ? "var(--primary)" : "var(--surface-2)", color: tableDensity === option ? "var(--primary-fg)" : "var(--fg)" }} onClick={() => setTableDensity(option)}>{option}</button>)}
               </div>
+            </div>
+            <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
+              <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>Saved layouts</div>
+              <div className="flex gap-1">
+                <input className="ctrl min-w-0 flex-1 text-xs" placeholder="Layout name" value={profileName} onChange={(event) => setProfileName(event.target.value)} />
+                <button type="button" className="text-xs underline" onClick={() => { const name = profileName.trim(); if (!name) return; const next = { ...profiles, [name]: { hidden: hiddenColumns, widths: columnWidths, pinned: pinnedColumns, order: columnOrder, density: tableDensity, sort: sortRules } }; setProfiles(next); localStorage.setItem(`${preferenceKey}.profiles`, JSON.stringify(next)); setProfileName("") }}>Save</button>
+              </div>
+              {Object.keys(profiles).map((name) => <button key={name} type="button" className="mt-1 me-1 rounded px-1.5 py-1 text-[10px]" style={{ background: "var(--surface-2)" }} onClick={() => { const profile = profiles[name]; setHiddenColumns(profile.hidden); setColumnWidths(profile.widths); setPinnedColumns(profile.pinned); setColumnOrder(profile.order); setTableDensity(profile.density); setSortRules(profile.sort) }}>{name}</button>)}
             </div>
             <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setColumnWidths({}); setSortRules([]); setPinnedColumns([]); setColumnOrder([]); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`); localStorage.removeItem(`${preferenceKey}.widths`); localStorage.removeItem(`${preferenceKey}.density`); localStorage.removeItem(`${preferenceKey}.sort`); localStorage.removeItem(`${preferenceKey}.order`) }}>Reset table layout</button>
           </div>
