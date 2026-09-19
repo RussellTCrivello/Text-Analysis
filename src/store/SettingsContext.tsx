@@ -5,6 +5,7 @@ import React, {
   useState,
   type ReactNode,
 } from "react"
+import type { TableLayout } from "../core/tableLayout"
 import type {
   AppSettings,
   ColorBlindMode,
@@ -47,6 +48,7 @@ interface SettingsCtx {
   setFontSize: (n: number) => void
   setDensity: (d: Density) => void
   saveSettings: (s: Partial<AppSettings>) => void
+  updateTableLayout: (key: string, layout: Partial<TableLayout>) => void
 }
 
 const SettingsContext = createContext<SettingsCtx>({
@@ -56,6 +58,7 @@ const SettingsContext = createContext<SettingsCtx>({
   setFontSize: () => {},
   setDensity: () => {},
   saveSettings: () => {},
+  updateTableLayout: () => {},
 })
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -87,6 +90,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSettings((s) => ({ ...s, density }))
   const saveSettings = (patch: Partial<AppSettings>) =>
     setSettings((s) => ({ ...s, ...patch }))
+  const updateTableLayout = (key: string, layout: Partial<TableLayout>) =>
+    setSettings((s) => ({ ...s, tableLayouts: { ...s.tableLayouts, [key]: { ...(s.tableLayouts[key] as object ?? {}), ...layout } } }))
 
   return (
     <SettingsContext.Provider
@@ -97,6 +102,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setFontSize,
         setDensity,
         saveSettings,
+        updateTableLayout,
       }}
     >
       {children}

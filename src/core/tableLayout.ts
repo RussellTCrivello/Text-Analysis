@@ -10,6 +10,7 @@ export type TableLayout = {
   density: "compact" | "comfortable" | "expansive"
   sort: Array<{ field: string; direction: "asc" | "desc" }>
   filters: Record<string, string>
+  profiles?: Record<string, unknown>
 }
 
 export function defaultTableLayout(entity: EntityName): TableLayout {
