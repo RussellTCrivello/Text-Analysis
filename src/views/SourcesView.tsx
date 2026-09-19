@@ -535,7 +535,7 @@ export function SourcesView({
             }}
           />
         </Field>
-        <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "link_sources")!, readOnly: sourceFieldReadOnly("link_sources") } } value={form.link_sources} onChange={(value) => setForm((f) => ({ ...f, link_sources: String(value) }))} error={errors.link_sources} />
+        {showSourceField("link_sources") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "link_sources")!, readOnly: sourceFieldReadOnly("link_sources") } } value={form.link_sources} onChange={(value) => setForm((f) => ({ ...f, link_sources: String(value) }))} error={errors.link_sources} />}
         <Field
           label={`${t.fields.importance} (0–100%)`}
           required
@@ -553,8 +553,8 @@ export function SourcesView({
         <i />
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
-        <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "country")!, readOnly: sourceFieldReadOnly("country") } } value={form.country} onChange={(value) => setForm((f) => ({ ...f, country: String(value) }))} />
-        <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "city")!, readOnly: sourceFieldReadOnly("city") } } value={form.city} onChange={(value) => setForm((f) => ({ ...f, city: String(value) }))} />
+        {showSourceField("country") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "country")!, readOnly: sourceFieldReadOnly("country") } } value={form.country} onChange={(value) => setForm((f) => ({ ...f, country: String(value) }))} />}
+        {showSourceField("city") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "city")!, readOnly: sourceFieldReadOnly("city") } } value={form.city} onChange={(value) => setForm((f) => ({ ...f, city: String(value) }))} />}
         <Field label={t.fields.date_entry} required>
           <DateTimeInput
             value={form.date_entry}
@@ -562,15 +562,15 @@ export function SourcesView({
             hint="Date and time of entry"
           />
         </Field>
-        <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "ownership")!, readOnly: sourceFieldReadOnly("ownership") } } value={form.ownership} onChange={(value) => setForm((f) => ({ ...f, ownership: String(value) }))} />
+        {showSourceField("ownership") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "ownership")!, readOnly: sourceFieldReadOnly("ownership") } } value={form.ownership} onChange={(value) => setForm((f) => ({ ...f, ownership: String(value) }))} />}
       </div>
       <div className="form-section">
         <span>{t.sections.sources.formNotes}</span>
         <i />
       </div>
-      <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "accounts")!, readOnly: sourceFieldReadOnly("accounts") } } value={form.accounts} onChange={(value) => setForm((f) => ({ ...f, accounts: String(value) }))} />
-      <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "description")!, readOnly: sourceFieldReadOnly("description") } } value={form.description} onChange={(value) => setForm((f) => ({ ...f, description: String(value) }))} />
-      <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "note")!, readOnly: sourceFieldReadOnly("note") } } value={form.note} onChange={(value) => setForm((f) => ({ ...f, note: String(value) }))} />
+      {showSourceField("accounts") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "accounts")!, readOnly: sourceFieldReadOnly("accounts") } } value={form.accounts} onChange={(value) => setForm((f) => ({ ...f, accounts: String(value) }))} />}
+      {showSourceField("description") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "description")!, readOnly: sourceFieldReadOnly("description") } } value={form.description} onChange={(value) => setForm((f) => ({ ...f, description: String(value) }))} />}
+      {showSourceField("note") && <MetadataField field={ { ...docTypeMetadata("sources").fields.find((field) => field.key === "note")!, readOnly: sourceFieldReadOnly("note") } } value={form.note} onChange={(value) => setForm((f) => ({ ...f, note: String(value) }))} />}
     </div>
   )
 
