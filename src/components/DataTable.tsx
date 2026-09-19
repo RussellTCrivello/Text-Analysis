@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react"
 import { Sort, SortAsc, SortDesc, EmptyFile } from "./icons"
 import { RowCheckbox } from "./ui"
 import { fieldsOf, type EntityName } from "../core/schema"
+import { docTypeMetadata } from "../core/framework"
 
 export interface Column<T> {
   key: keyof T | string
@@ -49,7 +50,7 @@ export function DataTable<T extends { id: string }>({
   const schemaColumns = entity
     ? fieldsOf(entity).map((field) => ({
         key: field.key,
-        header: field.key,
+        header: docTypeMetadata(entity).fields.find((item) => item.key === field.key)?.label ?? field.key,
         sortable: field.kind !== "textarea",
         render: (row: T) => <span className="truncate" title={String((row as Record<string, unknown>)[field.key] ?? "")}>{String((row as Record<string, unknown>)[field.key] ?? "—")}</span>,
       })) as Column<T>[]
