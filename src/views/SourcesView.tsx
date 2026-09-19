@@ -523,16 +523,7 @@ export function SourcesView({
             }}
           />
         </Field>
-        <Field label={t.fields.link_sources} error={errors.link_sources}>
-          <Input
-            value={form.link_sources}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, link_sources: e.target.value }))
-            }
-            placeholder="https://"
-            error={!!errors.link_sources}
-          />
-        </Field>
+        <MetadataField field={docTypeMetadata("sources").fields.find((field) => field.key === "link_sources")!} value={form.link_sources} onChange={(value) => setForm((f) => ({ ...f, link_sources: String(value) }))} error={errors.link_sources} />
         <Field
           label={`${t.fields.importance} (0–100%)`}
           required
@@ -550,20 +541,8 @@ export function SourcesView({
         <i />
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
-        <Field label={t.fields.country}>
-          <Input
-            value={form.country}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, country: e.target.value }))
-            }
-          />
-        </Field>
-        <Field label={t.fields.city}>
-          <Input
-            value={form.city}
-            onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-          />
-        </Field>
+        <MetadataField field={docTypeMetadata("sources").fields.find((field) => field.key === "country")!} value={form.country} onChange={(value) => setForm((f) => ({ ...f, country: String(value) }))} />
+        <MetadataField field={docTypeMetadata("sources").fields.find((field) => field.key === "city")!} value={form.city} onChange={(value) => setForm((f) => ({ ...f, city: String(value) }))} />
         <Field label={t.fields.date_entry} required>
           <DateTimeInput
             value={form.date_entry}
@@ -571,45 +550,15 @@ export function SourcesView({
             hint="Date and time of entry"
           />
         </Field>
-        <Field label={t.fields.ownership}>
-          <Input
-            value={form.ownership}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, ownership: e.target.value }))
-            }
-          />
-        </Field>
+        <MetadataField field={docTypeMetadata("sources").fields.find((field) => field.key === "ownership")!} value={form.ownership} onChange={(value) => setForm((f) => ({ ...f, ownership: String(value) }))} />
       </div>
       <div className="form-section">
         <span>{t.sections.sources.formNotes}</span>
         <i />
       </div>
-      <Field
-        label={t.fields.accounts}
-        hint="Separate multiple accounts with semicolons"
-      >
-        <Input
-          value={form.accounts}
-          onChange={(e) => setForm((f) => ({ ...f, accounts: e.target.value }))}
-        />
-      </Field>
-      <Field label={t.fields.description}>
-        <Textarea
-          value={form.description}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, description: e.target.value }))
-          }
-          rows={4}
-          placeholder={t.fields.description}
-        />
-      </Field>
-      <Field label={t.fields.note}>
-        <Textarea
-          value={form.note}
-          onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-          rows={2}
-        />
-      </Field>
+      <MetadataField field={docTypeMetadata("sources").fields.find((field) => field.key === "accounts")!} value={form.accounts} onChange={(value) => setForm((f) => ({ ...f, accounts: String(value) }))} />
+      <MetadataField field={docTypeMetadata("sources").fields.find((field) => field.key === "description")!} value={form.description} onChange={(value) => setForm((f) => ({ ...f, description: String(value) }))} />
+      <MetadataField field={docTypeMetadata("sources").fields.find((field) => field.key === "note")!} value={form.note} onChange={(value) => setForm((f) => ({ ...f, note: String(value) }))} />
     </div>
   )
 
