@@ -59,8 +59,10 @@ export function DataTable<T extends { id: string }>({
   const configuredKeys = new Set(configuredColumns.map((column) => String(column.key)))
   const completeColumns = [...configuredColumns, ...schemaColumns.filter((column) => !configuredKeys.has(String(column.key)))]
   const columns = completeColumns
-  const [sortRules, setSortRules] = useState<Array<{ key: string; dir: "asc" | "desc" }>>([])
   const preferenceKey = `text-analysis.table.${columns.map((column) => String(column.key)).join(",")}`
+  const [sortRules, setSortRules] = useState<Array<{ key: string; dir: "asc" | "desc" }>>(() => {
+    try { return JSON.parse(localStorage.getItem(`${preferenceKey}.sort`) ?? "[]") } catch { return [] }
+  })
   const savedLayout = entity ? normalizeTableLayout(entity) : null
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => {
     try {
@@ -92,8 +94,9 @@ export function DataTable<T extends { id: string }>({
       localStorage.setItem(`${preferenceKey}.hidden`, JSON.stringify(hiddenColumns))
       localStorage.setItem(`${preferenceKey}.density`, tableDensity)
       localStorage.setItem(`${preferenceKey}.widths`, JSON.stringify(columnWidths))
+      localStorage.setItem(`${preferenceKey}.sort`, JSON.stringify(sortRules))
     } catch { /* private browsing or SSR */ }
-  }, [preferenceKey, hiddenColumns, tableDensity, columnWidths])
+  }, [preferenceKey, hiddenColumns, tableDensity, columnWidths, sortRules])
 
   const handleSort = useCallback((key: string, additive = false) => {
     setSortRules((current) => {
@@ -188,7 +191,7 @@ export function DataTable<T extends { id: string }>({
                 {(["compact", "comfortable", "expansive"] as const).map((option) => <button key={option} type="button" className="rounded px-1.5 py-1 text-[10px]" style={{ background: tableDensity === option ? "var(--primary)" : "var(--surface-2)", color: tableDensity === option ? "var(--primary-fg)" : "var(--fg)" }} onClick={() => setTableDensity(option)}>{option}</button>)}
               </div>
             </div>
-            <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setColumnWidths({}); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`); localStorage.removeItem(`${preferenceKey}.widths`); localStorage.removeItem(`${preferenceKey}.density`) }}>Reset table layout</button>
+            <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setColumnWidths({}); setSortRules([]); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`); localStorage.removeItem(`${preferenceKey}.widths`); localStorage.removeItem(`${preferenceKey}.density`); localStorage.removeItem(`${preferenceKey}.sort`) }}>Reset table layout</button>
           </div>
         </details>
       </div>
