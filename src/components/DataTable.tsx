@@ -52,14 +52,24 @@ export function DataTable<T extends { id: string }>({
     try { return (localStorage.getItem(`${preferenceKey}.density`) as "compact" | "comfortable" | "expansive") || density } catch { return density }
   })
   const [columnQuery, setColumnQuery] = useState("")
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem(`${preferenceKey}.widths`) ?? "{}") } catch { return {} }
+  })
   const visibleColumns = columns.filter((column) => !hiddenColumns.includes(String(column.key)))
+  const resizeColumn = (key: string, startX: number, startWidth: number) => {
+    const move = (event: MouseEvent) => setColumnWidths((current) => ({ ...current, [key]: Math.max(72, Math.round(startWidth + event.clientX - startX)) }))
+    const stop = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", stop) }
+    window.addEventListener("mousemove", move)
+    window.addEventListener("mouseup", stop)
+  }
 
   React.useEffect(() => {
     try {
       localStorage.setItem(`${preferenceKey}.hidden`, JSON.stringify(hiddenColumns))
       localStorage.setItem(`${preferenceKey}.density`, tableDensity)
+      localStorage.setItem(`${preferenceKey}.widths`, JSON.stringify(columnWidths))
     } catch { /* private browsing or SSR */ }
-  }, [preferenceKey, hiddenColumns, tableDensity])
+  }, [preferenceKey, hiddenColumns, tableDensity, columnWidths])
 
   const handleSort = useCallback(
     (key: string) => {
@@ -154,19 +164,19 @@ export function DataTable<T extends { id: string }>({
                 {(["compact", "comfortable", "expansive"] as const).map((option) => <button key={option} type="button" className="rounded px-1.5 py-1 text-[10px]" style={{ background: tableDensity === option ? "var(--primary)" : "var(--surface-2)", color: tableDensity === option ? "var(--primary-fg)" : "var(--fg)" }} onClick={() => setTableDensity(option)}>{option}</button>)}
               </div>
             </div>
-            <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`) }}>Reset table layout</button>
+            <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setColumnWidths({}); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`); localStorage.removeItem(`${preferenceKey}.widths`); localStorage.removeItem(`${preferenceKey}.density`) }}>Reset table layout</button>
           </div>
         </details>
       </div>
       <table
         className="w-full border-collapse"
-        style={{ tableLayout: "fixed", fontFamily: "var(--font-body)" }}
+        style={{ tableLayout: "fixed", minWidth: Math.max(720, visibleColumns.length * 140 + 72), fontFamily: "var(--font-body)" }}
       >
         <colgroup>
           {onSelectionChange && <col style={{ width: 36 }} />}
           <col style={{ width: 36 }} />
           {visibleColumns.map((col) => (
-            <col key={String(col.key)} style={{ width: col.width ?? "auto" }} />
+            <col key={String(col.key)} style={{ width: columnWidths[String(col.key)] ?? col.width ?? 160, minWidth: columnWidths[String(col.key)] ?? col.width ?? 72 }} />
           ))}
         </colgroup>
 
@@ -241,6 +251,7 @@ export function DataTable<T extends { id: string }>({
                   letterSpacing: "0.005em",
                   textAlign: col.align ?? "start",
                   userSelect: "none",
+                  position: "relative",
                 }}
               >
                 {col.sortable ? (
@@ -260,6 +271,16 @@ export function DataTable<T extends { id: string }>({
                 ) : (
                   <span>{col.header}</span>
                 )}
+                <span
+                  role="separator"
+                  aria-label={`Resize ${col.header} column`}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    resizeColumn(String(col.key), event.clientX, (event.currentTarget.parentElement?.getBoundingClientRect().width ?? 160))
+                  }}
+                  onDoubleClick={() => setColumnWidths((current) => { const next = { ...current }; delete next[String(col.key)]; return next })}
+                  className="absolute end-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--primary)]"
+                />
               </th>
             ))}
           </tr>
