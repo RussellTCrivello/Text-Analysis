@@ -11,7 +11,7 @@ export function useFormEngine<T extends Record<string, unknown>>(entity: EntityN
   const setValue = useCallback((field: string, value: unknown) => setState((current) => setFormValue(current, field, value)), [])
   const setErrors = useCallback((errors: Record<string, string>) => setState((current) => ({ ...current, errors })), [])
   const load = useCallback((values: T, nextMode: FormMode) => setState(createFormState(entity, nextMode, values)), [entity])
-  const commit = useCallback((values: T) => setState((current) => ({ ...createFormState(entity, current.mode, values), submitting: false })), [entity])
+  const commit = useCallback((values: T) => setState((current) => ({ ...createFormState(entity, current.mode, values), errors: {}, submitting: false })), [entity])
   const reset = useCallback(() => setState((current) => resetForm(current)), [])
   const validate = useCallback(() => {
     const errors = validateForm(entity, state)

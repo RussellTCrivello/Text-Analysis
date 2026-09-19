@@ -36,7 +36,10 @@ export function createFormState(entity: EntityName, mode: FormMode, values: Reco
 }
 
 export function setFormValue(state: FormState, field: string, value: unknown): FormState {
-  return { ...state, values: { ...state.values, [field]: value }, dirty: state.initial[field] !== value || state.dirty }
+  const values = { ...state.values, [field]: value }
+  const keys = new Set([...Object.keys(state.initial), ...Object.keys(values)])
+  const dirty = [...keys].some((key) => values[key] !== state.initial[key])
+  return { ...state, values, dirty }
 }
 
 export function resetForm(state: FormState): FormState {
