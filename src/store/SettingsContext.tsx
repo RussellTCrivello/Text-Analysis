@@ -50,6 +50,7 @@ interface SettingsCtx {
   setDensity: (d: Density) => void
   saveSettings: (s: Partial<AppSettings>) => void
   updateTableLayout: (key: string, layout: Partial<TableLayout>) => void
+  updateFormLayout: (key: string, layout: Record<string, unknown>) => void
 }
 
 const SettingsContext = createContext<SettingsCtx>({
@@ -60,6 +61,7 @@ const SettingsContext = createContext<SettingsCtx>({
   setDensity: () => {},
   saveSettings: () => {},
   updateTableLayout: () => {},
+  updateFormLayout: () => {},
 })
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -93,6 +95,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSettings((s) => ({ ...s, ...patch }))
   const updateTableLayout = (key: string, layout: Partial<TableLayout>) =>
     setSettings((s) => ({ ...s, tableLayouts: { ...s.tableLayouts, [key]: { ...(s.tableLayouts[key] as object ?? {}), ...layout } } }))
+  const updateFormLayout = (key: string, layout: Record<string, unknown>) =>
+    setSettings((s) => ({ ...s, formLayouts: { ...s.formLayouts, [key]: { ...(s.formLayouts[key] as object ?? {}), ...layout } } }))
 
   return (
     <SettingsContext.Provider
@@ -104,6 +108,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setDensity,
         saveSettings,
         updateTableLayout,
+        updateFormLayout,
       }}
     >
       {children}
