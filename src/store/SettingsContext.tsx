@@ -3,6 +3,7 @@ import React, {
   useContext,
   useEffect,
   useState,
+  useCallback,
   type ReactNode,
 } from "react"
 import type { TableLayout } from "../core/tableLayout"
@@ -93,10 +94,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSettings((s) => ({ ...s, density }))
   const saveSettings = (patch: Partial<AppSettings>) =>
     setSettings((s) => ({ ...s, ...patch }))
-  const updateTableLayout = (key: string, layout: Partial<TableLayout>) =>
-    setSettings((s) => ({ ...s, tableLayouts: { ...s.tableLayouts, [key]: { ...(s.tableLayouts[key] as object ?? {}), ...layout } } }))
-  const updateFormLayout = (key: string, layout: Record<string, unknown>) =>
-    setSettings((s) => ({ ...s, formLayouts: { ...s.formLayouts, [key]: { ...(s.formLayouts[key] as object ?? {}), ...layout } } }))
+  const updateTableLayout = useCallback((key: string, layout: Partial<TableLayout>) =>
+    setSettings((s) => {
+      const next = { ...(s.tableLayouts[key] as object ?? {}), ...layout }
+      if (JSON.stringify(s.tableLayouts[key]) === JSON.stringify(next)) return s
+      return { ...s, tableLayouts: { ...s.tableLayouts, [key]: next } }
+    }), [])
+  const updateFormLayout = useCallback((key: string, layout: Record<string, unknown>) =>
+    setSettings((s) => {
+      const next = { ...(s.formLayouts[key] as object ?? {}), ...layout }
+      if (JSON.stringify(s.formLayouts[key]) === JSON.stringify(next)) return s
+      return { ...s, formLayouts: { ...s.formLayouts, [key]: next } }
+    }), [])
 
   return (
     <SettingsContext.Provider
