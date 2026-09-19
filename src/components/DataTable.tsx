@@ -3,6 +3,7 @@ import { Sort, SortAsc, SortDesc, EmptyFile } from "./icons"
 import { RowCheckbox } from "./ui"
 import { fieldsOf, type EntityName } from "../core/schema"
 import { docTypeMetadata } from "../core/framework"
+import { normalizeTableLayout } from "../core/tableLayout"
 
 export interface Column<T> {
   key: keyof T | string
@@ -61,8 +62,12 @@ export function DataTable<T extends { id: string }>({
   const [sortKey, setSortKey] = useState<string>("")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
   const preferenceKey = `text-analysis.table.${columns.map((column) => String(column.key)).join(",")}`
+  const savedLayout = entity ? normalizeTableLayout(entity) : null
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem(`${preferenceKey}.hidden`) ?? "[]") } catch { return [] }
+    try {
+      const saved = JSON.parse(localStorage.getItem(`${preferenceKey}.hidden`) ?? "null")
+      return Array.isArray(saved) ? saved : (savedLayout?.hidden ?? [])
+    } catch { return savedLayout?.hidden ?? [] }
   })
   const [tableDensity, setTableDensity] = useState<"compact" | "comfortable" | "expansive">(() => {
     try { return (localStorage.getItem(`${preferenceKey}.density`) as "compact" | "comfortable" | "expansive") || density } catch { return density }
