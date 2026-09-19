@@ -74,10 +74,19 @@ export function DataTable<T extends { id: string }>({
     try { return (localStorage.getItem(`${preferenceKey}.density`) as "compact" | "comfortable" | "expansive") || density } catch { return density }
   })
   const [columnQuery, setColumnQuery] = useState("")
+  const [pinnedColumns, setPinnedColumns] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(`${preferenceKey}.pinned`) ?? "[]") } catch { return [] }
+  })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem(`${preferenceKey}.widths`) ?? "{}") } catch { return {} }
   })
   const visibleColumns = columns.filter((column) => !hiddenColumns.includes(String(column.key)))
+  const pinStyle = (key: string): React.CSSProperties => {
+    const position = pinnedColumns.indexOf(key)
+    if (position < 0) return {}
+    const left = pinnedColumns.slice(0, position).reduce((total, item) => total + (columnWidths[item] ?? 160), 0) + 72
+    return { position: "sticky", left, zIndex: 3, background: "var(--card-bg)", boxShadow: "2px 0 4px rgba(0,0,0,.08)" }
+  }
   const resizeColumn = (key: string, startX: number, startWidth: number) => {
     const move = (event: MouseEvent) => setColumnWidths((current) => ({ ...current, [key]: Math.max(72, Math.round(startWidth + event.clientX - startX)) }))
     const stop = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", stop) }
@@ -95,8 +104,9 @@ export function DataTable<T extends { id: string }>({
       localStorage.setItem(`${preferenceKey}.density`, tableDensity)
       localStorage.setItem(`${preferenceKey}.widths`, JSON.stringify(columnWidths))
       localStorage.setItem(`${preferenceKey}.sort`, JSON.stringify(sortRules))
+      localStorage.setItem(`${preferenceKey}.pinned`, JSON.stringify(pinnedColumns))
     } catch { /* private browsing or SSR */ }
-  }, [preferenceKey, hiddenColumns, tableDensity, columnWidths, sortRules])
+  }, [preferenceKey, hiddenColumns, tableDensity, columnWidths, sortRules, pinnedColumns])
 
   const handleSort = useCallback((key: string, additive = false) => {
     setSortRules((current) => {
@@ -182,7 +192,10 @@ export function DataTable<T extends { id: string }>({
               const key = String(column.key)
               return <label key={key} className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer">
                 <input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => setHiddenColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} />
-                <span>{column.header}</span>
+                <span className="truncate">{column.header}</span>
+                <button type="button" className="ms-auto text-[10px] underline" onClick={(event) => { event.preventDefault(); setPinnedColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]) }}>
+                  {pinnedColumns.includes(key) ? "Unpin" : "Pin"}
+                </button>
               </label>
             })}
             <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
@@ -191,7 +204,7 @@ export function DataTable<T extends { id: string }>({
                 {(["compact", "comfortable", "expansive"] as const).map((option) => <button key={option} type="button" className="rounded px-1.5 py-1 text-[10px]" style={{ background: tableDensity === option ? "var(--primary)" : "var(--surface-2)", color: tableDensity === option ? "var(--primary-fg)" : "var(--fg)" }} onClick={() => setTableDensity(option)}>{option}</button>)}
               </div>
             </div>
-            <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setColumnWidths({}); setSortRules([]); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`); localStorage.removeItem(`${preferenceKey}.widths`); localStorage.removeItem(`${preferenceKey}.density`); localStorage.removeItem(`${preferenceKey}.sort`) }}>Reset table layout</button>
+            <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setColumnWidths({}); setSortRules([]); setPinnedColumns([]); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`); localStorage.removeItem(`${preferenceKey}.widths`); localStorage.removeItem(`${preferenceKey}.density`); localStorage.removeItem(`${preferenceKey}.sort`) }}>Reset table layout</button>
           </div>
         </details>
       </div>
@@ -277,6 +290,7 @@ export function DataTable<T extends { id: string }>({
                   fontWeight: 600,
                   letterSpacing: "0.005em",
                   textAlign: col.align ?? "start",
+                  ...pinStyle(String(col.key)),
                   userSelect: "none",
                   position: "relative",
                 }}
@@ -423,6 +437,7 @@ export function DataTable<T extends { id: string }>({
                       style={{
                         borderBottom: "1px solid var(--border)",
                         textAlign: col.align ?? "start",
+                        ...pinStyle(String(col.key)),
                         maxWidth: col.width ?? 200,
                         fontSize: "0.94rem",
                         lineHeight: 1.5,
