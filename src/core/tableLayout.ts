@@ -8,7 +8,7 @@ export type TableLayout = {
   widths: Record<string, number>
   pinned: string[]
   density: "compact" | "comfortable" | "expansive"
-  sort: Array<{ field: string; direction: "asc" | "desc" }>
+  sort: Array<{ key: string; dir: "asc" | "desc" }>
   filters: Record<string, string>
   profiles?: Record<string, unknown>
 }
@@ -35,7 +35,7 @@ export function normalizeTableLayout(entity: EntityName, input?: Partial<TableLa
   const hidden = (input?.hidden ?? defaults.hidden).filter((field) => known.has(field))
   const pinned = (input?.pinned ?? []).filter((field) => known.has(field) && !hidden.includes(field))
   const widths = Object.fromEntries(Object.entries(input?.widths ?? {}).filter(([field, width]) => known.has(field) && Number.isFinite(width) && width >= 72))
-  const sort = (input?.sort ?? []).filter((item) => known.has(item.field))
+  const sort = (input?.sort ?? []).filter((item) => known.has(item.key))
   const filters = Object.fromEntries(Object.entries(input?.filters ?? {}).filter(([field]) => known.has(field)))
   return { ...defaults, ...input, entity, order, hidden, pinned, widths, sort, filters }
 }

@@ -47,6 +47,8 @@ const DEFAULTS: AppSettings = {
   defaultPageSize: 50,
   autoSave: true,
   autoSaveInterval: 30,
+  tableLayouts: {},
+  formLayouts: {},
 }
 
 type Section = "appearance" | "interface" | "accessibility" | "data"

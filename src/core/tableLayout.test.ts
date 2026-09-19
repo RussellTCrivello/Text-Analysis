@@ -15,13 +15,13 @@ test("schema changes repair invalid saved layout data", () => {
     hidden: ["unknown", "note"],
     pinned: ["unknown", "title"],
     widths: { unknown: 20, title: 240 },
-    sort: [{ field: "unknown", direction: "asc" }, { field: "title", direction: "desc" }],
+    sort: [{ key: "unknown", dir: "asc" }, { key: "title", dir: "desc" }],
     filters: { unknown: "x", title: "brief" },
   })
   assert.deepEqual(layout.order.slice(0, 2), ["title", "id"])
   assert.deepEqual(layout.pinned, ["title"])
   assert.deepEqual(layout.widths, { title: 240 })
-  assert.deepEqual(layout.sort, [{ field: "title", direction: "desc" }])
+  assert.deepEqual(layout.sort, [{ key: "title", dir: "desc" }])
   assert.deepEqual(layout.filters, { title: "brief" })
 })
 

@@ -1,4 +1,5 @@
-import { docTypeMetadata, type EntityName } from "./framework"
+import { docTypeMetadata } from "./framework"
+import type { EntityName } from "./schema"
 import { normalizeTableLayout, type TableLayout } from "./tableLayout"
 
 export type LegacyTablePreferences = {
