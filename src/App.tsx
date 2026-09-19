@@ -75,6 +75,7 @@ function Workspace() {
           <ContentsView
             onToast={handleToast}
             onLinkToAnalysis={handleLinkToAnalysis}
+            onQuickAddSource={() => handleQuickAdd("sources")}
             autoOpenAdd={openAdd === "contents" ? openAddNonce : 0}
           />
         )

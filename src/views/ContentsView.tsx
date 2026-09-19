@@ -46,6 +46,7 @@ import {
 import { ExportDialog } from "../components/ExportDialog"
 import { ImportWizard } from "../components/ImportWizard"
 import { AdvancedSearch } from "../components/AdvancedSearch"
+import { ComboField, usageMap } from "../components/ComboField"
 import {
   AttachmentField,
   type AttachmentFieldHandle,
@@ -83,10 +84,12 @@ function emptyContent(
 export function ContentsView({
   onToast,
   onLinkToAnalysis,
+  onQuickAddSource,
   autoOpenAdd = 0,
 }: {
   onToast: (m: string) => void
   onLinkToAnalysis?: (contentId: string) => void
+  onQuickAddSource?: () => void
   autoOpenAdd?: number
 }) {
   const { t } = useTranslation()
@@ -295,7 +298,16 @@ export function ContentsView({
     { value: "", label: "— All sources —" },
     ...data.sources.map((s) => ({ value: s.id, label: s.name })),
   ]
-  const srcFormOpts = data.sources.map((s) => ({ value: s.id, label: s.name }))
+  const srcFormOpts = data.sources.map((s) => ({
+    value: s.id,
+    // The picker searches this display string, so every useful source column
+    // is available without exposing implementation IDs to the user.
+    label: [s.name, s.type, s.country, s.city, s.ownership].filter(Boolean).join(" · "),
+  }))
+  const sourceUsage = useMemo(
+    () => usageMap(data.contents as unknown as Record<string, unknown>[], "sources_id"),
+    [data.contents],
+  )
 
   const handlePrint = () => {
     const html = buildPrintDocument({
@@ -502,14 +514,23 @@ export function ContentsView({
           </Field>
         </div>
         <Field label={t.fields.sources_id} required error={errors.sources_id}>
-          <Select
+          <div className="flex items-start gap-2">
+          <ComboField
+            id="content-source"
             value={form.sources_id}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, sources_id: e.target.value }))
-            }
+            onChange={(next) => setForm((f) => ({ ...f, sources_id: next }))}
             options={srcFormOpts}
-            placeholder="Select source..."
+            usage={sourceUsage}
+            allowCreate={false}
+            placeholder="Search source by name, type or country…"
+            error={!!errors.sources_id}
           />
+          {onQuickAddSource && (
+            <Btn type="button" size="sm" variant="ghost" onClick={onQuickAddSource} title="Add a new source without losing your place">
+              <Plus size="xs" />
+            </Btn>
+          )}
+          </div>
         </Field>
         <Field
           label={`${t.fields.importance} (0–100%)`}
