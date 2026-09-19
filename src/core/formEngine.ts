@@ -17,6 +17,19 @@ export function defaultFormLayout(entity: EntityName): FormLayout {
   return { entity, order: docTypeMetadata(entity).defaults.form, hidden: [], readOnly: [] }
 }
 
+/** Repairs persisted form presentation preferences after schema changes. */
+export function normalizeFormLayout(entity: EntityName, input?: Partial<FormLayout>): FormLayout {
+  const defaults = defaultFormLayout(entity)
+  const known = new Set(docTypeMetadata(entity).fields.map((field) => field.key))
+  const order = [...(input?.order ?? []), ...defaults.order].filter((key, index, all) => known.has(key) && all.indexOf(key) === index)
+  return {
+    entity,
+    order,
+    hidden: (input?.hidden ?? []).filter((key) => known.has(key)),
+    readOnly: (input?.readOnly ?? []).filter((key) => known.has(key)),
+  }
+}
+
 export function createFormState(entity: EntityName, mode: FormMode, values: Record<string, unknown> = {}, defaults: Record<string, unknown> = {}): FormState {
   const initial = { ...defaults, ...values }
   return { mode, values: { ...initial }, initial, errors: {}, dirty: false, submitting: false }

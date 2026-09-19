@@ -31,6 +31,7 @@ const defaults: AppSettings = {
   autoSave: true,
   autoSaveInterval: 30,
   tableLayouts: {},
+  formLayouts: {},
 }
 
 function load(): AppSettings {
