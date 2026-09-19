@@ -48,12 +48,18 @@ export function DataTable<T extends { id: string }>({
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(`${preferenceKey}.hidden`) ?? "[]") } catch { return [] }
   })
-  const [tableDensity, setTableDensity] = useState<"compact" | "comfortable" | "expansive">(density)
+  const [tableDensity, setTableDensity] = useState<"compact" | "comfortable" | "expansive">(() => {
+    try { return (localStorage.getItem(`${preferenceKey}.density`) as "compact" | "comfortable" | "expansive") || density } catch { return density }
+  })
+  const [columnQuery, setColumnQuery] = useState("")
   const visibleColumns = columns.filter((column) => !hiddenColumns.includes(String(column.key)))
 
   React.useEffect(() => {
-    localStorage.setItem(`${preferenceKey}.hidden`, JSON.stringify(hiddenColumns))
-  }, [preferenceKey, hiddenColumns])
+    try {
+      localStorage.setItem(`${preferenceKey}.hidden`, JSON.stringify(hiddenColumns))
+      localStorage.setItem(`${preferenceKey}.density`, tableDensity)
+    } catch { /* private browsing or SSR */ }
+  }, [preferenceKey, hiddenColumns, tableDensity])
 
   const handleSort = useCallback(
     (key: string) => {
@@ -134,7 +140,8 @@ export function DataTable<T extends { id: string }>({
           </summary>
           <div className="absolute end-0 mt-1 z-20 min-w-52 rounded p-2 shadow-lg" style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}>
             <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>Displayed fields</div>
-            {columns.map((column) => {
+            <input className="ctrl mb-1 w-full text-xs" placeholder="Find a field…" value={columnQuery} onChange={(event) => setColumnQuery(event.target.value)} />
+            {columns.filter((column) => `${column.header} ${String(column.key)}`.toLowerCase().includes(columnQuery.toLowerCase())).map((column) => {
               const key = String(column.key)
               return <label key={key} className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer">
                 <input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => setHiddenColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} />
