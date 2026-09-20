@@ -323,6 +323,8 @@ export function AppShell({
           height: "var(--topbar-h)",
           color: "var(--topbar-fg)",
           borderBottom: "1px solid var(--border)",
+          position: "relative",
+          zIndex: 100,
         }}
       >
         {/* Brand + sidebar collapse */}
@@ -501,6 +503,9 @@ export function AppShell({
                   border: "1px solid var(--border)",
                   borderRadius: "var(--radius-lg)",
                   boxShadow: "var(--shadow-pop)",
+                  maxHeight: "min(70vh, 420px)",
+                  overflowY: "auto",
+                  overscrollBehavior: "contain",
                 }}
               >
                 <MenuItem
