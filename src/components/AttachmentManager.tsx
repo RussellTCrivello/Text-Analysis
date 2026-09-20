@@ -51,6 +51,10 @@ export function AttachmentManager({
   const [metas, setMetas] = useState<AttachmentMeta[]>([])
   const [loading, setLoading] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [recordSearch, setRecordSearch] = useState("")
+  const [fileSearch, setFileSearch] = useState("")
+  const [fileType, setFileType] = useState("")
+  const [sortFiles, setSortFiles] = useState<"recent" | "name" | "size">("recent")
   const fileRef = useRef<HTMLInputElement>(null)
 
   const refresh = useCallback(async () => {
@@ -72,9 +76,19 @@ export function AttachmentManager({
   const contents = useMemo(() => data.contents, [data.contents])
   const selectedContent =
     contents.find((c) => c.id === selectedContentId) ?? null
-  const filesForSelection = selectedContentId
-    ? metas.filter((m) => m.contentId === selectedContentId)
-    : []
+  const filteredContents = useMemo(() => {
+    const q = recordSearch.trim().toLocaleLowerCase()
+    return q ? contents.filter((c) => `${c.title} ${c.id}`.toLocaleLowerCase().includes(q)) : contents
+  }, [contents, recordSearch])
+  const filesForSelection = useMemo(() => {
+    const q = fileSearch.trim().toLocaleLowerCase()
+    const files = selectedContentId
+      ? metas.filter((m) => m.contentId === selectedContentId &&
+          (!q || `${m.name} ${m.mime} ${m.note ?? ""}`.toLocaleLowerCase().includes(q)) &&
+          (!fileType || m.mime.startsWith(fileType)))
+      : []
+    return [...files].sort((a, b) => sortFiles === "name" ? a.name.localeCompare(b.name) : sortFiles === "size" ? b.size - a.size : b.addedAt.localeCompare(a.addedAt))
+  }, [metas, selectedContentId, fileSearch, fileType, sortFiles])
   const countFor = (id: string) =>
     metas.filter((m) => m.contentId === id).length
   const totalBytes = metas.reduce((n, m) => n + m.size, 0)
@@ -165,8 +179,11 @@ export function AttachmentManager({
               {formatBytes(totalBytes)}
             </span>
           </div>
+          <div className="p-2 border-b" style={{ borderColor: "var(--border)" }}>
+            <input value={recordSearch} onChange={(e) => setRecordSearch(e.target.value)} placeholder="Search content records..." aria-label="Search content records" className="w-full rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }} />
+          </div>
           <div className="flex-1 overflow-y-auto">
-            {contents.length === 0 && (
+            {filteredContents.length === 0 && (
               <div
                 className="px-3 py-4 text-xs text-center"
                 style={{ color: "var(--muted-fg)" }}
@@ -174,7 +191,7 @@ export function AttachmentManager({
                 {t.sections.contents.noData}
               </div>
             )}
-            {contents.map((c) => (
+            {filteredContents.map((c) => (
               <button
                 key={c.id}
                 onClick={() => setSelectedContentId(c.id)}
@@ -223,6 +240,11 @@ export function AttachmentManager({
               : "Files"}
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 px-2 py-1.5 border-b" style={{ borderColor: "var(--border)" }}>
+            <input value={fileSearch} onChange={(e) => setFileSearch(e.target.value)} placeholder="Search attachments..." aria-label="Search attachments" className="min-w-0 flex-1 rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }} />
+            <select value={fileType} onChange={(e) => setFileType(e.target.value)} aria-label="Filter attachment type" className="rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }}><option value="">All types</option><option value="image/">Images</option><option value="application/pdf">PDF</option><option value="text/">Text</option></select>
+            <select value={sortFiles} onChange={(e) => setSortFiles(e.target.value as typeof sortFiles)} aria-label="Sort attachments" className="rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }}><option value="recent">Recent</option><option value="name">Name</option><option value="size">Size</option></select>
+          </div>
           <div
             className="flex-1 overflow-y-auto"
             onDragOver={(e) => {
