@@ -203,6 +203,15 @@ async function main() {
     "sample toast",
     document.body.textContent?.includes("Sample data loaded"),
   )
+  // AppShell owns the toast lifecycle. Keep the timer-driven clear inside an
+  // act boundary so the smoke harness observes the same settled state as a
+  // browser user, rather than allowing the timeout to update React later.
+  await act(async () => {
+    const deadline = Date.now() + 4000
+    while (document.body.textContent?.includes("Sample data loaded") && Date.now() < deadline) {
+      await sleep(50)
+    }
+  })
 
   // 3b. Dashboard fills itself from the loaded workspace
   await click(allButtons().find((b) => text(b).startsWith("Dashboard")))
@@ -289,7 +298,9 @@ async function main() {
     (b) => text(b).includes("Save") && b.closest('[role="dialog"]'),
   )
   await click(saveBtn)
-  await sleep(60)
+  await act(async () => {
+    await sleep(60)
+  })
   const saved = !!document
     .querySelector("main")
     ?.textContent?.includes("Dom Check Source")
@@ -304,6 +315,28 @@ async function main() {
       (lastDialog()?.textContent ?? "none").slice(0, 160),
     )
   check("record saved via form", saved, "name not found in table")
+  await act(async () => {
+    const deadline = Date.now() + 4000
+    while (document.querySelector('[role="status"]') && Date.now() < deadline) {
+      await sleep(50)
+    }
+  })
+  await closeAllDialogs()
+
+  const layoutButton = findButton("Form layout")
+  await click(layoutButton)
+  const layoutDialog = lastDialog()
+  check("sources form layout editor opens", !!layoutDialog && text(layoutDialog).includes("Sources form layout"))
+  const countryRow = Array.from(layoutDialog?.querySelectorAll("div") ?? []).find((node) => /^Country\s/.test(text(node)) && node.querySelectorAll("input").length >= 2)
+  const countryToggle = countryRow?.querySelector("input") as HTMLInputElement | undefined
+  if (countryToggle) {
+    await click(countryToggle)
+    const hiddenAfter = (countryRow?.querySelector("input") as HTMLInputElement | null)?.checked
+    check("sources layout visibility mutation is reflected", hiddenAfter === false)
+    await click(countryRow?.querySelector("input"))
+    const shownAfter = (countryRow?.querySelector("input") as HTMLInputElement | null)?.checked
+    check("sources layout visibility can be restored", shownAfter === true)
+  } else check("sources country layout control exists", false)
   await closeAllDialogs()
 
   const layoutButton = findButton("Form layout")

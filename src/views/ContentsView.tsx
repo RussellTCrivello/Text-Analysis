@@ -23,6 +23,7 @@ import {
   ColumnFilter,
   StatCard,
   PageHeader,
+  WorkspaceToolbar,
   EmptyState,
 } from "../components/ui"
 import {
@@ -706,6 +707,13 @@ export function ContentsView({
         )}
       </FilterRow>
 
+      <WorkspaceToolbar
+        selectionCount={selectedIds.length}
+        onClearSelection={() => {
+          setSelectedId(null)
+          setSelectedIds([])
+        }}
+      >
       <Toolbar>
         <Btn
           onClick={openEdit}
@@ -767,6 +775,7 @@ export function ContentsView({
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
+      </WorkspaceToolbar>
 
       <ResultsStrip
         total={data.contents.length}
@@ -963,6 +972,12 @@ export function ContentsView({
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
         content={selected}
+        onEdit={() => { setShowPreview(false); openEdit() }}
+        onAttach={() => {
+          if (selectedId) {
+            window.dispatchEvent(new window.CustomEvent("tam:open-attachments", { detail: { contentId: selectedId } }))
+          }
+        }}
         source={
           selected
             ? data.sources.find((s) => s.id === selected.sources_id)

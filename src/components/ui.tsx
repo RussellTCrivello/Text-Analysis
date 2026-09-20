@@ -2141,7 +2141,7 @@ export function Stepper({
 /* ============================================================================
    PAGE HEADER — the consistent workspace title bar
    ========================================================================== */
-export function PageHeader({
+export function WorkspaceHeader({
   title,
   subtitle,
   eyebrow,
@@ -2239,6 +2239,49 @@ export function PageHeader({
         </div>
       )}
     </header>
+  )
+}
+
+/** Backwards-compatible name for existing views while the shared workspace
+ * chrome is adopted across the application. */
+export const PageHeader = WorkspaceHeader
+
+export function WorkspaceToolbar({
+  children,
+  selectionCount,
+  onClearSelection,
+}: {
+  children: ReactNode
+  selectionCount?: number
+  onClearSelection?: () => void
+}) {
+  return (
+    <div
+      className="flex min-h-[46px] items-center gap-2 border-b px-3 py-2"
+      style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+      role="toolbar"
+    >
+      {selectionCount && selectionCount > 0 ? (
+        <>
+          <span className="text-xs font-semibold" style={{ color: "var(--fg)" }}>
+            {selectionCount} selected
+          </span>
+          <div className="flex flex-1 items-center gap-1.5">{children}</div>
+          {onClearSelection && (
+            <button
+              type="button"
+              className="text-xs px-2 py-1 rounded-[var(--radius)] hover:bg-[var(--surface-2)]"
+              style={{ color: "var(--muted-fg)" }}
+              onClick={onClearSelection}
+            >
+              Clear selection
+            </button>
+          )}
+        </>
+      ) : (
+        children
+      )}
+    </div>
   )
 }
 

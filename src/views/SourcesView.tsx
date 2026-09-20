@@ -22,6 +22,7 @@ import {
   Badge,
   StatCard,
   PageHeader,
+  WorkspaceToolbar,
   EmptyState,
 } from "../components/ui"
 import {
@@ -551,7 +552,14 @@ export function SourcesView({
 
       <div className="work-card mx-3 mb-3">
         {/* Command rail: record actions, live results meta, overflow */}
-        <div className="rail-row">
+        <WorkspaceToolbar
+          selectionCount={selectedIds.length}
+          onClearSelection={() => {
+            setSelectedId(null)
+            setSelectedIds([])
+          }}
+        >
+          <div className="rail-row w-full">
           <Btn onClick={openEdit} disabled={!selected} icon={<Pencil size="sm" />}>
             {t.actions.edit}
           </Btn>
@@ -602,7 +610,8 @@ export function SourcesView({
             />
             <MoreMenu items={moreItems} />
           </div>
-        </div>
+          </div>
+        </WorkspaceToolbar>
 
         {/* Filter rail */}
         <div className="rail-row rail-row--quiet" role="search">
