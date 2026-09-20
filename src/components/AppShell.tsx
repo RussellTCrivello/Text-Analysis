@@ -11,7 +11,7 @@ import { PrintHeaderSettings } from "./PrintHeaderSettings"
 import { AttachmentManager } from "./AttachmentManager"
 import { ImportWizard } from "./ImportWizard"
 import { InfoModal } from "./FormModal"
-import { SearchInput, Kbd, IconButton, ToggleChip } from "./ui"
+import { SearchInput, Kbd, IconButton, ToggleChip, Btn } from "./ui"
 import {
   NAV_ICONS,
   Alert,
@@ -966,6 +966,21 @@ export function AppShell({
               )}
             </nav>
             <div className="flex-1" />
+            {(["sources", "contents", "analysis"] as const).includes(activeSection as "sources" | "contents" | "analysis") && (
+              <Btn
+                variant="primary"
+                size="sm"
+                onClick={() => onQuickAdd?.(activeSection as "sources" | "contents" | "analysis")}
+                icon={<Plus size="xs" />}
+                aria-label={activeSection === "sources" ? t.sections.sources.add : activeSection === "contents" ? t.sections.contents.add : t.sections.analysis.add}
+              >
+                {activeSection === "sources"
+                  ? t.sections.sources.add
+                  : activeSection === "contents"
+                    ? t.sections.contents.add
+                    : t.sections.analysis.add}
+              </Btn>
+            )}
             <ToggleChip
               active={settings.theme === "dark"}
               onClick={() =>

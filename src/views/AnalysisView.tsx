@@ -786,11 +786,6 @@ export function AnalysisView({
         subtitle={t.sections.analysis.subtitle}
         icon={<NavAnalysis size="md" />}
         count={{ value: data.analyses.length, label: t.messages.records }}
-        actions={
-          <Btn variant="primary" onClick={openAdd} icon={<Plus size="sm" />}>
-            {t.sections.analysis.add}
-          </Btn>
-        }
       />
 
       <div className="work-card mx-3 mb-3">

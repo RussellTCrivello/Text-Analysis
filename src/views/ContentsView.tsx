@@ -535,7 +535,7 @@ export function ContentsView({
             error={!!errors.sources_id}
           />
           {onQuickAddSource && (
-            <Btn type="button" size="sm" variant="ghost" onClick={onQuickAddSource} title="Add a new source without losing your place">
+            <Btn type="button" size="sm" variant="ghost" onClick={onQuickAddSource} title="Add a new source without losing your place" aria-label="Add source">
               <Plus size="xs" />
             </Btn>
           )}
@@ -634,11 +634,6 @@ export function ContentsView({
         subtitle={t.sections.contents.subtitle}
         icon={<NavContents size="md" />}
         count={{ value: data.contents.length, label: t.messages.records }}
-        actions={
-          <Btn variant="primary" onClick={openAdd} icon={<Plus size="sm" />}>
-            {t.sections.contents.add}
-          </Btn>
-        }
       />
 
       <div className="work-card mx-3 mb-3">

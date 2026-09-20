@@ -543,9 +543,6 @@ export function SourcesView({
         actions={
           <div className="flex gap-2">
             <Btn variant="ghost" onClick={() => setShowFormLayout(true)}>Form layout</Btn>
-            <Btn variant="primary" onClick={openAdd} icon={<Plus size="sm" />}>
-              {t.sections.sources.add}
-            </Btn>
           </div>
         }
       />
