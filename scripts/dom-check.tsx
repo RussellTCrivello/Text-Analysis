@@ -339,22 +339,6 @@ async function main() {
   } else check("sources country layout control exists", false)
   await closeAllDialogs()
 
-  const layoutButton = findButton("Form layout")
-  await click(layoutButton)
-  const layoutDialog = lastDialog()
-  check("sources form layout editor opens", !!layoutDialog && text(layoutDialog).includes("Sources form layout"))
-  const countryRow = Array.from(layoutDialog?.querySelectorAll("div") ?? []).find((node) => /^Country\s/.test(text(node)) && node.querySelectorAll("input").length >= 2)
-  const countryToggle = countryRow?.querySelector("input") as HTMLInputElement | undefined
-  if (countryToggle) {
-    await click(countryToggle)
-    const hiddenAfter = (countryRow?.querySelector("input") as HTMLInputElement | null)?.checked
-    check("sources layout visibility mutation is reflected", hiddenAfter === false)
-    await click(countryRow?.querySelector("input"))
-    const shownAfter = (countryRow?.querySelector("input") as HTMLInputElement | null)?.checked
-    check("sources layout visibility can be restored", shownAfter === true)
-  } else check("sources country layout control exists", false)
-  await closeAllDialogs()
-
   // 6b. Contents: attachments are managed right next to the field, in-form
   await click(allButtons().find((b) => text(b).startsWith("Contents")))
   await sleep(30)
@@ -564,7 +548,9 @@ async function main() {
   )
   const rowsBefore = document.querySelectorAll("main tbody tr").length
   if (contentFilter) await setInputValue(contentFilter, "zzz-no-match")
-  await sleep(20)
+  await act(async () => {
+    await sleep(20)
+  })
   check(
     "column filter narrows analysis rows",
     rowsBefore > 0 &&
@@ -573,7 +559,9 @@ async function main() {
   // The no-match filter replaces the table with its empty state (the header
   // unmounts with it), so clearing goes through the view's own control.
   await click(findButton("Clear Filters"))
-  await sleep(30)
+  await act(async () => {
+    await sleep(30)
+  })
   check(
     "clear filters restores analysis rows",
     document.querySelectorAll("main tbody tr").length === rowsBefore,

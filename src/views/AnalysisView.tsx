@@ -22,6 +22,7 @@ import {
   ColumnFilter,
   StatCard,
   PageHeader,
+  WorkspaceToolbar,
   EmptyState,
 } from "../components/ui"
 import {
@@ -858,6 +859,13 @@ export function AnalysisView({
         )}
       </FilterRow>
 
+      <WorkspaceToolbar
+        selectionCount={selectedIds.length}
+        onClearSelection={() => {
+          setSelectedId(null)
+          setSelectedIds([])
+        }}
+      >
       <Toolbar>
         <Btn
           onClick={openEdit}
@@ -904,6 +912,7 @@ export function AnalysisView({
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
+      </WorkspaceToolbar>
 
       {orphanClasses.length > 0 && (
         <div
