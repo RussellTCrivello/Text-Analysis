@@ -339,6 +339,21 @@ async function main() {
   } else check("sources country layout control exists", false)
   await closeAllDialogs()
 
+  // 6a. Advanced Search is a dedicated query/results workspace.
+  await click(findButton("More"))
+  const advancedSearchAction = allButtons().find((b) => /Advanced Search/i.test(text(b)))
+  await click(advancedSearchAction)
+  const advancedDialog = lastDialog()
+  check(
+    "advanced search workspace opens",
+    !!advancedDialog && text(advancedDialog).includes("Results") && text(advancedDialog).length > 200,
+  )
+  check(
+    "advanced search query builder is visible",
+    !!advancedDialog?.querySelector('select[aria-label*="Field"]') && !!advancedDialog?.querySelector('select[aria-label*="Operator"]'),
+  )
+  await closeAllDialogs()
+
   // 6b. Contents: attachments are managed right next to the field, in-form
   await click(allButtons().find((b) => text(b).startsWith("Contents")))
   await sleep(30)
