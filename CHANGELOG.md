@@ -3,6 +3,20 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.2.0] — 2026-09-19 — Production release
+
+Production stabilization release for the shared workspace UI, attachment
+management, localized exports, and Reports runtime safety.
+
+### Added
+- CRM-style workspace composition across Sources, Contents, and Analysis.
+- Attachment search, type filtering, and sorting.
+- Localized export field labels across supported export formats.
+
+### Fixed
+- Reports no longer crashes when a transient `all_records` view is selected.
+- Workspace creation actions are consistently placed in the context bar.
+
 ## [2.1.0] — 2026-09-17 — Production release
 
 Release-readiness pass: product identity unified, the app icon designed and
