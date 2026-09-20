@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { InfoModal } from "./FormModal"
 import { Btn } from "./ui"
 import { Trash, TriangleAlert } from "./icons"
+import { useTranslation } from "../i18n"
 
 interface Props {
   isOpen: boolean
@@ -18,6 +19,7 @@ export function ResetDialog({
   onResetData,
   onResetAll,
 }: Props) {
+  const { t } = useTranslation()
   const [mode, setMode] = useState<Mode>("data")
   const [confirming, setConfirming] = useState(false)
 
@@ -35,7 +37,7 @@ export function ResetDialog({
   return (
     <InfoModal
       isOpen={isOpen}
-      title="Reset"
+      title={t.dialogs.reset.title}
       onClose={() => {
         setConfirming(false)
         onClose()
@@ -57,7 +59,7 @@ export function ResetDialog({
             <TriangleAlert size="md" />
           </span>
           <p className="text-sm font-bold" style={{ color: "var(--error)" }}>
-            WARNING: This operation cannot be undone!
+            {t.dialogs.reset.warning}
           </p>
         </div>
 
@@ -81,14 +83,13 @@ export function ResetDialog({
             />
             <div>
               <div className="text-sm font-semibold">
-                Reset Data Only (Delete all records)
+                {t.dialogs.reset.dataTitle}
               </div>
               <div
                 className="text-xs mt-0.5"
                 style={{ color: "var(--muted-fg)" }}
               >
-                Deletes every row from all three tables. Schema and
-                configuration are untouched.
+                {t.dialogs.reset.dataDesc}
               </div>
             </div>
           </label>
@@ -113,14 +114,13 @@ export function ResetDialog({
                 className="text-sm font-semibold"
                 style={{ color: "#dc2626" }}
               >
-                Reset All (Delete database and recreate)
+                {t.dialogs.reset.allTitle}
               </div>
               <div
                 className="text-xs mt-0.5"
                 style={{ color: "var(--muted-fg)" }}
               >
-                Creates a safety backup, then deletes and recreates the entire
-                database. All data and settings are lost.
+                {t.dialogs.reset.allDesc}
               </div>
             </div>
           </label>
@@ -135,9 +135,7 @@ export function ResetDialog({
               border: "1px solid #fecaca",
             }}
           >
-            {mode === "data"
-              ? "This will delete ALL data from the database. This cannot be undone! Click Reset again to confirm."
-              : "This will DELETE the entire database and recreate it. This cannot be undone! Click Reset again to confirm."}
+            {mode === "data" ? t.dialogs.reset.confirmData : t.dialogs.reset.confirmAll}
           </div>
         )}
 
@@ -149,7 +147,7 @@ export function ResetDialog({
             }}
             variant="ghost"
           >
-            Cancel
+            {t.actions.cancel}
           </Btn>
           <Btn
             onClick={handleReset}
@@ -158,7 +156,7 @@ export function ResetDialog({
               confirming ? <TriangleAlert size="xs" /> : <Trash size="xs" />
             }
           >
-            {confirming ? "Confirm Reset" : "Reset"}
+            {confirming ? t.dialogs.reset.confirmReset : t.actions.reset}
           </Btn>
         </div>
       </div>

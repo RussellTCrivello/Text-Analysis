@@ -63,6 +63,7 @@ interface UnifiedRecord {
 function OverviewBand() {
   const { t } = useTranslation()
   const { data } = useAppData()
+  const { settings } = useSettings()
   const metrics = useMemo(() => {
     const mk = (
       key: string,
@@ -93,8 +94,8 @@ function OverviewBand() {
         data.sources.map((sr) => sr.type),
         4,
         t.sections.allData.other,
-      ).map((sl) => ({ ...sl, color: paletteFor(sl.label) })),
-    [data.sources, t],
+      ).map((sl) => ({ ...sl, color: paletteFor(sl.label, settings.colorBlindMode) })),
+    [data.sources, t, settings.colorBlindMode],
   )
 
   return (
@@ -268,9 +269,12 @@ export function AllDataView({
         recordType: "analysis",
         sourceName: content ? sourceName(content.sources_id) : "—",
         title: content?.title ?? "—",
-        contentData: a.classification,
+        // Show the analysed content's text (falling back to the
+        // classification) — not the classification duplicated twice, and the
+        // parent content's importance rather than a hard-coded 0.
+        contentData: content?.content_data?.slice(0, 200) ?? a.classification,
         classification: a.classification,
-        importance: 0,
+        importance: content?.importance ?? 0,
         date: a.date_analysis,
         date_creation: a.date_creation,
         list_names_people: a.list_names_people,
@@ -299,6 +303,15 @@ export function AllDataView({
 
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
   const selected = filtered.find((r) => r.id === selectedId) ?? null
+  // The preview strip works on the real entity records, not the unified
+  // projection — resolve the selected unified row back to its source record.
+  const selectedReal = selected
+    ? selected.recordType === "source"
+      ? (data.sources.find((s) => s.id === selected.id) ?? null)
+      : selected.recordType === "content"
+        ? (data.contents.find((c) => c.id === selected.id) ?? null)
+        : (data.analyses.find((a) => a.id === selected.id) ?? null)
+    : null
 
   const typeOpts = [
     { value: "all", label: t.sections.allData.filterAll },
@@ -374,7 +387,7 @@ export function AllDataView({
   ]
 
   const exportColumns = [
-    { key: "id", label: "ID" },
+    { key: "id", label: t.fields.id },
     { key: "recordType", label: t.fields.recordType },
     { key: "sourceName", label: t.fields.sourceName },
     { key: "title", label: t.fields.title },
@@ -417,8 +430,10 @@ export function AllDataView({
       config: printConfig,
       title: `${t.nav.allData} — ${filtered.length} ${t.messages.records}`,
       subtitle: [
-        typeFilter !== "all" ? `type: ${typeFilter}` : "",
-        search ? `search: ${search}` : "",
+        typeFilter !== "all"
+          ? t.messages.printType.replace("{v}", typeOpts.find((o) => o.value === typeFilter)?.label ?? typeFilter)
+          : "",
+        search ? t.messages.printSearch.replace("{v}", search) : "",
       ]
         .filter(Boolean)
         .join(" · "),
@@ -550,15 +565,45 @@ export function AllDataView({
                 ? "noResults"
                 : "empty"
             }
-            title={t.sections.allData.noData}
-            description={
+            title={
               advancedIds ||
               search ||
               typeFilter !== "all" ||
               dateFrom ||
               dateTo
                 ? t.messages.noFilterMatches
-                : "Every source, content and analysis record appears here in one searchable view."
+                : t.sections.allData.noData
+            }
+            description={
+              advancedIds ||
+              search ||
+              typeFilter !== "all" ||
+              dateFrom ||
+              dateTo
+                ? undefined
+                : t.messages.allDataEmptyBody
+            }
+            action={
+              advancedIds ||
+              search ||
+              typeFilter !== "all" ||
+              dateFrom ||
+              dateTo ? (
+                <Btn
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => {
+                    setSearch("")
+                    setTypeFilter("all")
+                    setDateFrom("")
+                    setDateTo("")
+                    setAdvancedIds(null)
+                    setPage(1)
+                  }}
+                >
+                  {t.actions.clearFilters}
+                </Btn>
+              ) : undefined
             }
           />
         ) : (
@@ -578,7 +623,12 @@ export function AllDataView({
         )}
       </div>
 
-      <FullTextPreview record={null} recordType={null} />
+      <FullTextPreview
+        record={selectedReal}
+        recordType={selectedReal ? selected?.recordType ?? null : null}
+        sources={data.sources}
+        contents={data.contents}
+      />
       {filtered.length > 0 && (
         <PaginationBar
           total={filtered.length}
@@ -645,7 +695,7 @@ export function AllDataView({
                   className="text-xs uppercase tracking-wide font-semibold mb-2"
                   style={{ color: "var(--muted-fg)" }}
                 >
-                  Content
+                  {t.messages.contentLabel}
                 </p>
                 <p
                   className="text-sm leading-relaxed"
@@ -675,7 +725,7 @@ export function AllDataView({
         onApply={(rows) => {
           setAdvancedIds(rows.map((r) => String(r.id)))
           setPage(1)
-          onToast(`Advanced search applied: ${rows.length} rows`)
+          onToast(t.messages.advancedAppliedRows.replace("{n}", String(rows.length)))
         }}
       />
     </div>

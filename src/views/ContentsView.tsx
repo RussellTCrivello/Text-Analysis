@@ -59,6 +59,7 @@ import { ContentPreviewDialog } from "../components/ContentPreviewDialog"
 import { useAppData } from "../store/AppContext"
 import { useSettings } from "../store/SettingsContext"
 import { useTranslation } from "../i18n"
+import { formatValidationIssue } from "../i18n/validation"
 import type { Content } from "../types"
 import {
   applyColumnFilters,
@@ -237,7 +238,7 @@ export function ContentsView({
       if (issue.level === "error") errs[issue.field] = issue.message
     for (const issue of issues) {
       if (issue.level === "warning" && !errs[issue.field])
-        onToast(`${(t.fields as Record<string, string>)[issue.field] ?? issue.field}: ${issue.message}`)
+        onToast(formatValidationIssue(issue, t))
     }
     return errs
   }
@@ -251,16 +252,22 @@ export function ContentsView({
       return
     }
     let recordId = selectedId ?? ""
+    let result
     if (showAdd) {
-      const result = addContent(payload)
+      result = addContent(payload)
       recordId = String(result.record?.id ?? "")
     } else {
-      updateContent({
+      result = updateContent({
         ...payload,
         id: selectedId!,
         date_creation: selected!.date_creation,
         date_modified: "",
       })
+    }
+    if (!result.ok) {
+      const first = result.issues.find((i) => i.level === "error")
+      onToast(t.messages.saveFailed.replace("{m}", first?.message ?? ""))
+      return
     }
     // Flush any files staged while the record was still new.
     const staged = attachRef.current?.staged ?? []
@@ -276,7 +283,11 @@ export function ContentsView({
         ]),
       ].join("; ")
       updateContent({ id: recordId, attachments: merged })
-      onToast(`${saved.length} attachment(s) linked to “${payload.title}”`)
+      onToast(
+        t.messages.attachmentLinked
+          .replace("{n}", String(saved.length))
+          .replace("{title}", payload.title),
+      )
     }
     setShowAdd(false)
     setShowEdit(false)
@@ -299,7 +310,7 @@ export function ContentsView({
   }
 
   const srcOpts = [
-    { value: "", label: "— All sources —" },
+    { value: "", label: t.messages.allSources },
     ...data.sources.map((s) => ({ value: s.id, label: s.name })),
   ]
   const srcFormOpts = data.sources.map((s) => ({
@@ -329,7 +340,7 @@ export function ContentsView({
       config: printConfig,
       title: `${t.sections.contents.title} — ${filtered.length} ${t.messages.records}`,
       subtitle: [
-        search ? `search: ${search}` : "",
+        search ? t.messages.printSearch.replace("{v}", search) : "",
         srcFilter ? `source: ${sourceName(srcFilter)}` : "",
       ]
         .filter(Boolean)
@@ -453,7 +464,7 @@ export function ContentsView({
   ]
 
   const exportColumns = [
-    { key: "id", label: "ID" },
+    { key: "id", label: t.fields.id },
     { key: "title", label: t.fields.title },
     { key: "sources_id", label: t.fields.sources_id },
     { key: "content_data", label: t.fields.content_data },
@@ -477,7 +488,7 @@ export function ContentsView({
       onClick: () => setShowAdvSearch(true),
     },
     {
-      label: "Filter builder",
+      label: t.messages.contentFilterBuilder,
       icon: <SearchCodeIcon size="xs" />,
       onClick: () => setShowFilterBuilder(true),
     },
@@ -531,11 +542,11 @@ export function ContentsView({
             options={srcFormOpts}
             usage={sourceUsage}
             allowCreate={false}
-            placeholder="Search source by name, type or country…"
+            placeholder={t.messages.searchSourceBy}
             error={!!errors.sources_id}
           />
           {onQuickAddSource && (
-            <Btn type="button" size="sm" variant="ghost" onClick={onQuickAddSource} title="Add a new source without losing your place" aria-label="Add source">
+            <Btn type="button" size="sm" variant="ghost" onClick={onQuickAddSource} title={t.messages.addSourceHint} aria-label={t.messages.addSource}>
               <Plus size="xs" />
             </Btn>
           )}
@@ -567,7 +578,7 @@ export function ContentsView({
           <DateTimeInput
             value={form.date_content}
             onChange={(v) => setForm((f) => ({ ...f, date_content: v }))}
-            hint="Publication date and time"
+            hint={t.messages.contentDateHint}
           />
         </Field>
       </div>
@@ -582,7 +593,7 @@ export function ContentsView({
               onChange={(e) =>
                 setForm((f) => ({ ...f, attachments: e.target.value }))
               }
-              placeholder="file1.pdf; file2.docx"
+              placeholder={t.messages.attachmentsExample}
               className="flex-1"
             />
             <Btn
@@ -932,13 +943,13 @@ export function ContentsView({
         onToast={onToast}
       />
       {showFilterBuilder && (
-        <InfoModal isOpen title="Content filter builder" onClose={() => setShowFilterBuilder(false)} size="lg">
+        <InfoModal isOpen title={t.messages.contentFilterBuilder} onClose={() => setShowFilterBuilder(false)} size="lg">
           <FilterBuilder entity="contents" onApply={(groups: FilterGroup[]) => {
             const rows = applyFilterGroups(data.contents as unknown as Record<string, unknown>[], groups)
             setAdvancedIds(rows.map((row) => String(row.id)))
             setPage(1)
             setShowFilterBuilder(false)
-            onToast(`Applied filter builder: ${rows.length} records`)
+            onToast(t.messages.filterBuilderApplied.replace("{n}", String(rows.length)))
           }} onClear={() => { setAdvancedIds(null); setShowFilterBuilder(false) }} />
         </InfoModal>
       )}
@@ -1042,7 +1053,7 @@ export function ContentsView({
               className="text-[10px] uppercase tracking-wide font-semibold mb-1"
               style={{ color: "var(--muted-fg)" }}
             >
-              Importance bands
+              {t.messages.importanceBands}
             </div>
             {contentStats.importanceBands.map((b) => (
               <div key={b.label} className="flex items-center gap-2 py-0.5">
@@ -1059,7 +1070,7 @@ export function ContentsView({
             {contentStats.dateRange.to ?? "—"}
           </div>
           <div style={{ color: "var(--muted-fg)" }}>
-            Field coverage:{" "}
+            {t.messages.fieldCoverage}:{" "}
             {contentStats.fields
               .map((f) => `${f.field} ${f.filled}/${contentStats.total}`)
               .join(" · ")}

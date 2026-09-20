@@ -227,9 +227,27 @@ export function tokenize(text: string, language: 'en' | 'ar' = detectLanguage(te
   return text.match(pattern) ?? [];
 }
 
+// Sentence terminators: ASCII plus the Arabic question mark (؟) and the
+// Arabic full stop (U+06D4), which Arabic prose uses instead of '.'.
+// Without them, evidence spans in Arabic text started at the document
+// beginning and ballooned to the 220-char cap.
+const SENTENCE_END = /[.!?؟۔\n]/;
+
 function sentenceAround(text: string, start: number, end: number): string {
-  const from = text.lastIndexOf('.', start - 1) + 1;
-  let to = text.indexOf('.', end);
+  let from = 0;
+  for (let i = start - 1; i >= 0; i--) {
+    if (SENTENCE_END.test(text[i])) {
+      from = i + 1;
+      break;
+    }
+  }
+  let to = -1;
+  for (let i = end; i < text.length; i++) {
+    if (SENTENCE_END.test(text[i])) {
+      to = i;
+      break;
+    }
+  }
   if (to === -1) to = Math.min(text.length, end + 120);
   return normalizeWhitespace(text.slice(from, to)).slice(0, 220);
 }
@@ -504,11 +522,28 @@ function scoreTaxonomy(text: string, taxonomy: TaxonomyRule[]): Candidate[] {
     for (const kw of rule.keywords) {
       const needle = fold(kw);
       if (!needle) continue;
-      let idx = haystack.indexOf(needle);
-      while (idx !== -1) {
-        hits++;
+      let count: number;
+      if (/\s/.test(needle)) {
+        // Multi-word phrases keep plain substring counting.
+        let idx = haystack.indexOf(needle);
+        count = 0;
+        while (idx !== -1) {
+          count++;
+          idx = haystack.indexOf(needle, idx + needle.length);
+        }
+      } else {
+        // Single words must not match inside longer words ("gas" ≠ "eggs",
+        // "army" ≠ "armored"): unicode-aware boundaries on the folded text.
+        try {
+          const re = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(needle)}(?![\\p{L}\\p{N}])`, 'gu');
+          count = [...haystack.matchAll(re)].length;
+        } catch {
+          count = (haystack.match(new RegExp(escapeRe(needle), 'g')) ?? []).length;
+        }
+      }
+      if (count) {
+        hits += count;
         if (!matched.includes(kw)) matched.push(kw);
-        idx = haystack.indexOf(needle, idx + needle.length);
       }
     }
     if (!hits) continue;

@@ -82,7 +82,7 @@ Import, export and backup are explicit, user-initiated file operations.
 
 ## Status
 
-**Production — v2.1.0.** The feature set is complete and the release gates
+**Production — v2.2.0.** The feature set is complete and the release gates
 (`npm run check`, `npm run smoke:dom`, plus the Windows installer verification
 in CI) are green. See [CHANGELOG.md](CHANGELOG.md) for the release history and
 [docs/RELEASE.md](docs/RELEASE.md) for the shipping checklist.

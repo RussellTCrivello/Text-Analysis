@@ -1,4 +1,5 @@
 import { docTypeMetadata, type FieldMetadata } from "./framework"
+import { fold, isBlank, toNumber } from "./text"
 import type { EntityName } from "./schema"
 
 export type FilterOperator = "equals" | "notEquals" | "contains" | "startsWith" | "isEmpty" | "isNotEmpty" | "greaterThan" | "lessThan"
@@ -13,15 +14,24 @@ const compare = (raw: unknown, condition: FilterCondition): boolean => {
   const value = String(raw ?? "")
   const target = String(condition.value ?? "")
   switch (condition.operator) {
-    case "equals": return value.toLowerCase() === target.toLowerCase()
-    case "notEquals": return value.toLowerCase() !== target.toLowerCase()
-    case "contains": return value.toLowerCase().includes(target.toLowerCase())
-    case "startsWith": return value.toLowerCase().startsWith(target.toLowerCase())
-    case "isEmpty": return value.trim() === ""
-    case "isNotEmpty": return value.trim() !== ""
-    case "greaterThan": return value.localeCompare(target, undefined, { numeric: true }) > 0
-    case "lessThan": return value.localeCompare(target, undefined, { numeric: true }) < 0
+    case "equals": return fold(value) === fold(target)
+    case "notEquals": return fold(value) !== fold(target)
+    case "contains": return fold(value).includes(fold(target))
+    case "startsWith": return fold(value).startsWith(fold(target))
+    case "isEmpty": return isBlank(raw)
+    case "isNotEmpty": return !isBlank(raw)
+    case "greaterThan": return compareOrdered(value, target) > 0
+    case "lessThan": return compareOrdered(value, target) < 0
   }
+}
+
+/** Numeric-aware ordering: numbers compare numerically, everything else
+ *  falls back to numeric-aware string comparison (ISO dates order correctly). */
+function compareOrdered(a: string, b: string): number {
+  const na = toNumber(a)
+  const nb = toNumber(b)
+  if (na !== null && nb !== null) return na - nb
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
 }
 
 export function matchesFilter<T extends Record<string, unknown>>(row: T, group: FilterGroup): boolean {
@@ -33,9 +43,22 @@ export function applyFilterGroups<T extends Record<string, unknown>>(rows: T[], 
   return groups.reduce((result, group) => result.filter((row) => matchesFilter(row, group)), rows)
 }
 
-export function validateFilter(entity: EntityName, condition: FilterCondition): string | null {
+export interface FilterValidationMessages {
+  notFilterable?: (field: string) => string
+  requiresValue?: () => string
+}
+
+/**
+ * Optional localized message factory (the UI layer passes the active
+ * locale's strings); the English literals are the framework-free fallback.
+ */
+export function validateFilter(
+  entity: EntityName,
+  condition: FilterCondition,
+  messages: FilterValidationMessages = {},
+): string | null {
   const field = filterFields(entity).find((item) => item.key === condition.field)
-  if (!field) return `Field ${condition.field} is not filterable`
-  if (!["isEmpty", "isNotEmpty"].includes(condition.operator) && !String(condition.value ?? "").trim()) return "This operator requires a value"
+  if (!field) return messages.notFilterable ? messages.notFilterable(condition.field) : `Field ${condition.field} is not filterable`
+  if (!["isEmpty", "isNotEmpty"].includes(condition.operator) && !String(condition.value ?? "").trim()) return messages.requiresValue ? messages.requiresValue() : "This operator requires a value"
   return null
 }

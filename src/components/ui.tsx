@@ -364,6 +364,7 @@ export function Tag({
   color?: string
   onRemove?: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium"
@@ -378,7 +379,7 @@ export function Tag({
       {children}
       {onRemove && (
         <IconButton
-          label="Remove"
+          label={t.shared.remove}
           onClick={onRemove}
           size={16}
           className="!rounded-full opacity-60 hover:opacity-100"
@@ -394,6 +395,7 @@ export function Tag({
    IMPORTANCE
    ========================================================================== */
 export function ImportanceBar({ value }: { value: number }) {
+  const { t } = useTranslation()
   const v = Math.max(0, Math.min(1, value || 0))
   const pct = (v * 100).toFixed(1)
   const color =
@@ -408,7 +410,7 @@ export function ImportanceBar({ value }: { value: number }) {
     <div
       className="flex items-center gap-2"
       role="img"
-      aria-label={`Importance ${pct}%`}
+      aria-label={t.shared.importanceAria.replace("{pct}", pct)}
     >
       <span
         className="h-[5px] w-16 shrink-0 overflow-hidden rounded-full"
@@ -453,6 +455,7 @@ export function ImportanceControl({
   onChange: (v: string) => void
   error?: boolean
 }) {
+  const { t } = useTranslation()
   const n = parseFloat(value)
   const v = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0
   return (
@@ -465,7 +468,7 @@ export function ImportanceControl({
           step={0.01}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          aria-label="Importance percent"
+          aria-label={t.shared.importancePercent}
           style={{ textAlign: "center" }}
         />
         <span
@@ -484,7 +487,7 @@ export function ImportanceControl({
         step={0.01}
         value={v}
         onChange={(e) => onChange(String(parseFloat(e.target.value)))}
-        aria-label="Importance slider"
+        aria-label={t.shared.importanceSlider}
         style={{ "--fill": `${v}%` } as React.CSSProperties}
       />
       <span
@@ -508,7 +511,7 @@ export function ImportanceControl({
 export function SearchInput({
   value,
   onChange,
-  placeholder = "Search…",
+  placeholder,
   autoFocus,
 }: {
   value: string
@@ -516,6 +519,8 @@ export function SearchInput({
   placeholder?: string
   autoFocus?: boolean
 }) {
+  const { t } = useTranslation()
+  const ph = placeholder ?? t.shared.searchPlaceholder
   return (
     <div className="relative flex items-center" style={{ minWidth: 240 }}>
       <span
@@ -530,16 +535,16 @@ export function SearchInput({
         role="searchbox"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={ph}
         autoFocus={autoFocus}
-        aria-label={placeholder}
+        aria-label={ph}
         className="ctrl w-full ps-8 pe-7"
       />
       {value && (
         <button
           onClick={() => onChange("")}
-          aria-label="Clear search"
-          title="Clear search"
+          aria-label={t.shared.clearSearch}
+          title={t.shared.clearSearch}
           type="button"
           className="absolute end-1.5 flex items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           style={{ color: "var(--muted-fg)", width: 18, height: 18 }}
@@ -598,7 +603,7 @@ export function DateTimeInput({
         </span>
         <input
           type="datetime-local"
-          aria-label={label ?? "Date and time"}
+          aria-label={label ?? t.shared.dateAndTime}
           value={local}
           onChange={(e) => onChange(fromDateTimeLocal(e.target.value) ?? "")}
         />
@@ -616,8 +621,8 @@ export function DateTimeInput({
           <button
             type="button"
             onClick={() => onChange("")}
-            aria-label="Clear date"
-            title="Clear date"
+            aria-label={t.shared.clearDate}
+            title={t.shared.clearDate}
             className="fgroup-x"
           >
             <Close size="xs" />
@@ -633,8 +638,11 @@ export function DateTimeInput({
         <span
           className="tnum text-[10px]"
           style={{ color: "var(--muted-fg)", fontFamily: "var(--font-mono)" }}
+          // The input above edits the LOCAL wall-clock value, so the caption
+          // must show local time too (formatDateTime renders UTC).
+          title={formatDateTime(value)}
         >
-          {formatDateTime(value)}
+          {local ? `${local.slice(0, 10)} ${local.slice(11)}` : formatDateTime(value)}
         </span>
       )}
     </div>
@@ -650,6 +658,7 @@ export function DateInput({
   value: string
   onChange: (v: string) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="fgroup" style={{ width: 216 }}>
       <span className="fgroup-tag">{label}</span>
@@ -670,8 +679,8 @@ export function DateInput({
         <button
           type="button"
           onClick={() => onChange("")}
-          aria-label={`Clear ${label}`}
-          title={`Clear ${label}`}
+          aria-label={`${t.shared.clearDate}: ${label}`}
+          title={`${t.shared.clearDate}: ${label}`}
           className="fgroup-x"
         >
           <Close size="xs" />
@@ -784,7 +793,7 @@ export function SelectionBar({
   onClear,
   onBulkDelete,
   onBulkEdit,
-  label = "selected",
+  label,
 }: {
   count: number
   onClear: () => void
@@ -792,6 +801,7 @@ export function SelectionBar({
   onBulkEdit?: () => void
   label?: string
 }) {
+  const { t } = useTranslation()
   return (
     <div
       className="flex items-center gap-2 px-3 py-1.5 shrink-0"
@@ -815,7 +825,7 @@ export function SelectionBar({
         >
           {count}
         </span>
-        {count} {label}
+        {label ?? t.messages.selected}
       </span>
       <div className="flex-1" />
       {onBulkEdit && (
@@ -828,7 +838,7 @@ export function SelectionBar({
           }}
         >
           <Pencil size="xs" />
-          Edit All
+          {t.shared.editAll}
         </button>
       )}
       {onBulkDelete && (
@@ -838,17 +848,17 @@ export function SelectionBar({
           style={{ background: "var(--error)", color: "#fff" }}
         >
           <Trash size="xs" />
-          Delete All
+          {t.shared.deleteAll}
         </button>
       )}
       <button
         onClick={onClear}
-        aria-label="Clear selection"
+        aria-label={t.shared.clearSelection}
         className="inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded-[var(--radius-sm)] transition-colors hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
         style={{ color: "var(--primary)", fontFamily: "var(--font-mono)" }}
       >
         <Close size="xs" />
-        Clear
+        {t.shared.clear}
       </button>
     </div>
   )
@@ -897,6 +907,7 @@ export function PaginationBar({
     return pages
   }
 
+  const { t } = useTranslation()
   const cell =
     "flex h-[28px] min-w-[28px] items-center justify-center rounded-[var(--radius)] px-1.5 text-[0.82rem] font-medium tnum transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
 
@@ -955,13 +966,12 @@ export function PaginationBar({
         className="tnum text-[0.82rem]"
         style={{ color: "var(--muted-fg)" }}
       >
-        {showingLabel}{" "}
-        <span style={{ color: "var(--fg)", fontWeight: 600 }}>
-          {start}–{end}
-        </span>{" "}
-        {ofLabel}{" "}
-        <span style={{ color: "var(--fg)", fontWeight: 600 }}>{total}</span>{" "}
-        {total > 0 ? "" : ""}
+          {showingLabel}{" "}
+          <span style={{ color: "var(--fg)", fontWeight: 600 }}>
+            {start}–{end}
+          </span>{" "}
+          {ofLabel}{" "}
+          <span style={{ color: "var(--fg)", fontWeight: 600 }}>{total}</span>
       </span>
       <div className="flex-1" />
       <div
@@ -974,8 +984,8 @@ export function PaginationBar({
       >
         <nav aria-label={`${pageLabel} ${page} ${ofLabel} ${totalPages}`}>
           <div className="flex items-center gap-0.5">
-            {navBtn("First page", 1, page === 1, <ChevronsL size="xs" />)}
-            {navBtn("Previous page", page - 1, page === 1, <ChevronL size="xs" />)}
+            {navBtn(t.shared.firstPage, 1, page === 1, <ChevronsL size="xs" />)}
+            {navBtn(t.shared.previousPage, page - 1, page === 1, <ChevronL size="xs" />)}
             {getPages().map((p, i) =>
               p === "ellipsis" ? (
                 <span
@@ -991,13 +1001,13 @@ export function PaginationBar({
               ),
             )}
             {navBtn(
-              "Next page",
+              t.shared.nextPage,
               page + 1,
               page === totalPages,
               <ChevronR size="xs" />,
             )}
             {navBtn(
-              "Last page",
+              t.shared.lastPage,
               totalPages,
               page === totalPages,
               <ChevronsR size="xs" />,
@@ -1015,7 +1025,7 @@ export function PaginationBar({
         >
           {perPageLabel}
           <select
-            aria-label="Rows per page"
+            aria-label={t.shared.rowsPerPage}
             value={String(pageSize)}
             onChange={(e) => {
               onPageSize(Number(e.target.value))
@@ -1050,8 +1060,8 @@ export function FullTextPreview({
   recordType,
   sources = [],
   contents = [],
-  label = "Full Text Preview",
-  emptyLabel = "Select a record to preview its content here.",
+  label,
+  emptyLabel,
 }: {
   record: AnyRecord | null
   recordType: RecordType | null
@@ -1060,7 +1070,14 @@ export function FullTextPreview({
   label?: string
   emptyLabel?: string
 }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
+
+  // importance is nullable in the schema; guard so the panel never shows "NaN%".
+  const fmtPct = (v: number | null | undefined): string =>
+    typeof v === "number" && Number.isFinite(v)
+      ? `${(v * 100).toFixed(2)}%`
+      : "—"
 
   const getTitle = (): string => {
     if (!record) return ""
@@ -1092,31 +1109,31 @@ export function FullTextPreview({
     if (recordType === "source") {
       const s = record as Source
       return [
-        ["Type", s.type],
-        ["Importance", `${(s.importance * 100).toFixed(2)}%`],
-        ["Location", [s.city, s.country].filter(Boolean).join(", ")],
-        ["Entry Date", s.date_entry],
-        ["Accounts", s.accounts],
-        ["Ownership", s.ownership],
+        [t.fields.type, s.type],
+        [t.fields.importance, fmtPct(s.importance)],
+        [t.fields.location, [s.city, s.country].filter(Boolean).join(", ")],
+        [t.fields.date_entry, s.date_entry],
+        [t.fields.accounts, s.accounts],
+        [t.fields.ownership, s.ownership],
       ].filter(([, v]) => v) as [string, string][]
     }
     if (recordType === "content") {
       const c = record as Content
       const src = sources.find((s) => s.id === c.sources_id)
       return [
-        ["Source", src?.name ?? c.sources_id],
-        ["Importance", `${(c.importance * 100).toFixed(2)}%`],
-        ["Content Date", c.date_content],
-        ["Attachments", c.attachments],
+        [t.fields.source, src?.name ?? c.sources_id],
+        [t.fields.importance, fmtPct(c.importance)],
+        [t.fields.date_content, c.date_content],
+        [t.fields.attachments, c.attachments],
       ].filter(([, v]) => v) as [string, string][]
     }
     if (recordType === "analysis") {
       const a = record as Analysis
       return [
-        ["Classification", a.classification],
-        ["Sides", a.list_sides],
-        ["Coordinates", a.list_coordinates],
-        ["Analysis Date", a.date_analysis],
+        [t.fields.classification, a.classification],
+        [t.fields.list_sides, a.list_sides],
+        [t.fields.list_coordinates, a.list_coordinates],
+        [t.fields.date_analysis, a.date_analysis],
       ].filter(([, v]) => v) as [string, string][]
     }
     return []
@@ -1151,7 +1168,7 @@ export function FullTextPreview({
               display: "inline-block",
             }}
           />
-          {label}
+          {label ?? t.messages.fullTextPreview}
         </span>
         {record && recordType && (
           <>
@@ -1186,7 +1203,7 @@ export function FullTextPreview({
               <span style={{ color: "var(--muted-fg-2)", opacity: 0.55 }}>
                 <EmptyFile size="lg" />
               </span>
-              {emptyLabel}
+              {emptyLabel ?? t.messages.selectToPreview}
             </div>
           ) : (
             <>
@@ -1256,12 +1273,14 @@ export interface MenuItem {
 
 export function MoreMenu({
   items,
-  label = "More options",
+  label,
 }: {
   items: MenuItem[]
   label?: string
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const lbl = label ?? t.shared.moreOptions
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -1282,8 +1301,8 @@ export function MoreMenu({
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label={label}
-        title={label}
+        aria-label={lbl}
+        title={lbl}
         aria-haspopup="menu"
         aria-expanded={open}
         className="inline-flex h-[30px] items-center gap-1 px-2 text-xs font-medium rounded-[var(--radius)] transition-colors hover:bg-[var(--surface-2)] hover:border-[var(--muted-fg-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
@@ -1912,6 +1931,7 @@ export function Callout({
   action?: ReactNode
   onClose?: () => void
 }) {
+  const { t } = useTranslation()
   const map = {
     info: { c: "var(--info)", bg: "var(--info-soft)" },
     success: { c: "var(--success)", bg: "var(--success-soft)" },
@@ -1947,7 +1967,7 @@ export function Callout({
       </div>
       {action && <div className="shrink-0">{action}</div>}
       {onClose && (
-        <IconButton label="Dismiss" onClick={onClose} size={20}>
+        <IconButton label={t.shared.dismiss} onClick={onClose} size={20}>
           <Close size="xs" />
         </IconButton>
       )}
@@ -2045,8 +2065,12 @@ export function Stepper({
   current: number
   onStepClick?: (i: number) => void
 }) {
+  const { t } = useTranslation()
   return (
-    <ol className="flex items-center gap-1 w-full" aria-label="Progress">
+    <ol
+      className="flex items-center gap-1 w-full"
+      aria-label={t.shared.progress}
+    >
       {steps.map((s, i) => {
         const done = i < current
         const active = i === current
@@ -2256,6 +2280,7 @@ export function WorkspaceToolbar({
   selectionCount?: number
   onClearSelection?: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <div
       data-workspace-region="action-toolbar"
@@ -2265,8 +2290,11 @@ export function WorkspaceToolbar({
     >
       {selectionCount && selectionCount > 0 ? (
         <>
-          <span className="text-xs font-semibold" style={{ color: "var(--fg)" }}>
-            {selectionCount} selected
+          <span
+            className="text-xs font-semibold tnum"
+            style={{ color: "var(--fg)" }}
+          >
+            {t.shared.selectedCount.replace("{n}", String(selectionCount))}
           </span>
           <div className="flex flex-1 items-center gap-1.5">{children}</div>
           {onClearSelection && (
@@ -2276,7 +2304,7 @@ export function WorkspaceToolbar({
               style={{ color: "var(--muted-fg)" }}
               onClick={onClearSelection}
             >
-              Clear selection
+              {t.shared.clearSelection}
             </button>
           )}
         </>
@@ -2295,9 +2323,10 @@ export function Breadcrumbs({
 }: {
   items: { label: ReactNode; onClick?: () => void }[]
 }) {
+  const { t } = useTranslation()
   return (
     <nav
-      aria-label="Breadcrumb"
+      aria-label={t.shared.breadcrumb}
       className="flex items-center gap-1 text-[11px]"
       style={{ fontFamily: "var(--font-display)" }}
     >
@@ -2399,8 +2428,22 @@ export function Modal({
   headerExtra?: ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const lastActive = useRef<HTMLElement | null>(null)
+  const { t } = useTranslation()
   const titleId = React.useId()
   useFocusTrap(isOpen, ref)
+  // Remember the element that opened the dialog and return focus to it when
+  // the dialog closes, so keyboard/SR users are not stranded at <body>.
+  useEffect(() => {
+    if (!isOpen) return
+    lastActive.current = document.activeElement as HTMLElement | null
+    return () => {
+      if (lastActive.current && document.contains(lastActive.current)) {
+        lastActive.current.focus()
+      }
+      lastActive.current = null
+    }
+  }, [isOpen])
   useEffect(() => {
     if (!isOpen) return
     const h = (e: KeyboardEvent) => {
@@ -2501,7 +2544,7 @@ export function Modal({
                 : "ms-auto flex items-center gap-1"
             }
           >
-            <IconButton label="Close" onClick={onClose}>
+            <IconButton label={t.shared.dismiss} onClick={onClose}>
               <Close size="sm" />
             </IconButton>
           </div>
@@ -2540,6 +2583,7 @@ export interface ColumnFilterProps {
  * accepted); without, a plain contains-filter input. Escape clears.
  */
 export function ColumnFilter({ value, onChange, label, options }: ColumnFilterProps) {
+  const { t } = useTranslation()
   const listId = useId()
   return (
     <>
@@ -2560,7 +2604,7 @@ export function ColumnFilter({ value, onChange, label, options }: ColumnFilterPr
             if (e.key === "Escape") onChange("")
           }}
           aria-label={label}
-          placeholder="Filter…"
+          placeholder={t.shared.filterPlaceholder}
           title={label}
           className="ctrl ctrl-sm w-full"
         />

@@ -272,7 +272,10 @@ export function buildSql(spec: VisualQuerySpec): string {
 }
 
 /** Starter queries surfaced in the Reports workspace, validated against the live schema. */
-export function queryTemplates(db: Database): { label: string; sql: string }[] {
+export function queryTemplates(
+  db: Database,
+  localize?: (label: string) => string,
+): { label: string; sql: string }[] {
   const list: { label: string; sql: string }[] = [
     { label: 'All sources', sql: 'SELECT * FROM sources ORDER BY importance DESC' },
     { label: 'All contents', sql: 'SELECT * FROM contents ORDER BY date_content DESC' },
@@ -339,7 +342,7 @@ FROM sources GROUP BY band ORDER BY n DESC`,
     } catch {
       return false;
     }
-  }).map((t) => ({ ...t }));
+  }).map((t) => ({ ...t, label: localize ? localize(t.label) : t.label }));
 }
 
 /** Cheap "did you mean" helper reused by the SQL editor autocomplete. */

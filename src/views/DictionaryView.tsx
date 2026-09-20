@@ -204,7 +204,7 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Tikrit"
+                placeholder={d.phPlace}
               />
             </Field>
             <Field label={d.kind}>
@@ -218,7 +218,7 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
               <Input
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                placeholder="Iraq"
+                placeholder={d.phCountry}
               />
             </Field>
             <div className="grid grid-cols-2 gap-2">
@@ -241,7 +241,7 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
               <Input
                 value={aliases}
                 onChange={(e) => setAliases(e.target.value)}
-                placeholder="Tikrit, تكريت"
+                placeholder={d.phAliases}
               />
             </Field>
             <Btn variant="primary" onClick={addEntry}>
@@ -261,7 +261,7 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Filter gazetteer…"
+                placeholder={d.filterGazetteer}
               />
               <label className="flex items-center gap-1.5 text-xs cursor-pointer shrink-0">
                 <input
@@ -361,7 +361,7 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
               onClick={() =>
                 setTaxonomy([
                   ...taxonomy,
-                  { classification: "New category", keywords: [] },
+                  { classification: d.newCategory, keywords: [] },
                 ])
               }
               icon={<Plus size="xs" />}
@@ -489,7 +489,7 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
                 <Input
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}
-                  placeholder="e.g. satellite feed"
+                  placeholder={d.phVocabExample}
                 />
               </Field>
               <Btn
@@ -531,14 +531,14 @@ export function DictionaryView({ onToast }: { onToast: (m: string) => void }) {
                 <Input
                   value={renameFrom}
                   onChange={(e) => setRenameFrom(e.target.value)}
-                  placeholder="existing value"
+                  placeholder={d.phExistingValue}
                 />
               </Field>
               <Field label={d.vocabRenameTo}>
                 <Input
                   value={renameTo}
                   onChange={(e) => setRenameTo(e.target.value)}
-                  placeholder="new value"
+                  placeholder={d.phNewValue}
                 />
               </Field>
               <Btn

@@ -229,7 +229,7 @@ export function ExportDialog({
       try {
         const artifact = exportData(data, buildOptions())
         const ok = downloadArtifact(artifact)
-        if (!ok) throw new Error("The browser blocked the download.")
+        if (!ok) throw new Error(t.messages.downloadBlocked)
         setResult(artifact)
         if (artifact.warnings.length) setWarning(artifact.warnings[0])
         setPhase("done")
@@ -358,7 +358,7 @@ export function ExportDialog({
                     >
                       <Icon size="sm" />
                       <span className="truncate">
-                        {FORMAT_META[f].label.replace(/\s*\(.*\)$/, "")}
+                        {ed.formatNames[f] ?? FORMAT_META[f].label.replace(/\s*\(.*\)$/, "")}
                       </span>
                       {selected && (
                         <span className="ms-auto">

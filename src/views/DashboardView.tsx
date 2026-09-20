@@ -32,6 +32,7 @@ import {
 } from "../core/charts"
 import { formatDateTime } from "../core/text"
 import { useAppData } from "../store/AppContext"
+import { useSettings } from "../store/SettingsContext"
 import { useTranslation } from "../i18n"
 import type { NavSection } from "../types"
 import type { AuditEntry } from "../core/audit"
@@ -45,16 +46,20 @@ const KIND_COLORS: Record<"sources" | "contents" | "analysis", string> = {
   analysis: "#1d4ed8",
 }
 
+// Keyed by every AuditAction the repository actually writes — missing codes
+// here fall back to the neutral grey, which previously made bulk ops, merges
+// and resets indistinguishable.
 const ACTION_COLOR: Record<string, string> = {
   create: "#15803d",
   update: "#1d4ed8",
   delete: "#dc2626",
+  bulk_delete: "#b91c1c",
+  bulk_update: "#c2410c",
   import: "#7c3aed",
-  export: "#0369a1",
-  undo: "#b45309",
-  redo: "#b45309",
-  backup: "#0f766e",
-  restore: "#0f766e",
+  restore: "#0369a1",
+  merge: "#0e7490",
+  reset: "#57534e",
+  load_sample: "#57534e",
 }
 
 function Panel({
@@ -147,10 +152,16 @@ export function DashboardView({
   onToast: (m: string) => void
   onNavigate: (s: NavSection) => void
 }) {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const { data, repo } = useAppData()
+  const { settings } = useSettings()
 
   const d = t.dashboard
+  const au = t.audit
+  const actionLabel = (key: string) =>
+    (au.actions as Record<string, string>)[key] ?? key
+  const entityLabel = (key: string) =>
+    (au.entities as Record<string, string>)[key] ?? key
 
   const total =
     data.sources.length + data.contents.length + data.analyses.length
@@ -210,24 +221,27 @@ export function DashboardView({
       ),
     }
     const today = new Date()
+    // Axis labels follow the ACTIVE app language, not the OS default, so an
+    // Arabic session does not get English month names under an Arabic UI.
+    const locale = language === "ar" ? "ar" : "en"
     return Array.from({ length: days }, (_, i) => {
       const dt = new Date(today)
       dt.setDate(today.getDate() - (days - 1 - i))
       return {
-        label: dt.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        label: dt.toLocaleDateString(locale, { month: "short", day: "numeric" }),
         sources: per.sources[i],
         contents: per.contents[i],
         analysis: per.analysis[i],
       }
     })
-  }, [data])
+  }, [data, language])
 
   const mix = useMemo(
     () =>
       categoryCounts(data.sources.map((sr) => sr.type), 5, t.sections.allData.other).map(
-        (sl) => ({ ...sl, color: paletteFor(sl.label) }),
+        (sl) => ({ ...sl, color: paletteFor(sl.label, settings.colorBlindMode) }),
       ),
-    [data.sources, t],
+    [data.sources, t, settings.colorBlindMode],
   )
 
   const quality = useMemo(() => {
@@ -700,9 +714,9 @@ export function DashboardView({
                                     "var(--muted-fg)",
                                 }}
                               >
-                                {e.action}
+                                {actionLabel(e.action)}
                               </span>
-                              {e.title || e.summary || e.entity}
+                              {e.title || e.summary || entityLabel(e.entity)}
                             </div>
                             <div
                               className="text-[9.5px] tnum"
@@ -711,7 +725,7 @@ export function DashboardView({
                                 fontFamily: "var(--font-mono)",
                               }}
                             >
-                              {e.entity} · {formatDateTime(e.ts)}
+                              {entityLabel(e.entity)} · {formatDateTime(e.ts)}
                             </div>
                           </div>
                         </li>

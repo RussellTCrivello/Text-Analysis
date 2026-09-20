@@ -309,8 +309,12 @@ export function diffData(a: AppData, b: AppData): DataDiff {
     unchanged: { sources: 0, contents: 0, analyses: 0 },
   };
   for (const entity of ENTITY_ORDER) {
-    const left = new Map((a[entity] ?? []).map((r) => [String(r.id), r]));
-    const right = new Map((b[entity] ?? []).map((r) => [String(r.id), r]));
+    // Normalise both sides first: a stored row may predate the current
+    // schema (different casing, un-normalised lists), and the diff should
+    // reflect semantic differences only — otherwise every legacy record
+    // reads as "changed".
+    const left = new Map((a[entity] ?? []).map((r) => [String(r.id), normalizeRecord(entity, r)]));
+    const right = new Map((b[entity] ?? []).map((r) => [String(r.id), normalizeRecord(entity, r)]));
     for (const [id, row] of right) {
       const before = left.get(id);
       if (!before) out.added[entity]++;

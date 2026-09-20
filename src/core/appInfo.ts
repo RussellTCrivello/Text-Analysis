@@ -14,5 +14,5 @@ export const APP_VERSION: string = typeof __APP_VERSION__ === 'string' ? __APP_V
 
 export const APP_NAME: string = typeof __APP_NAME__ === 'string' ? __APP_NAME__ : 'Text Analysis Manager';
 
-/** Version rendered for display, e.g. `v2.1.0`. */
+/** Version rendered for display, e.g. `v2.2.0`. */
 export const APP_VERSION_LABEL = `v${APP_VERSION}`;

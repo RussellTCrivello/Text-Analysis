@@ -180,7 +180,7 @@ export function AttachmentManager({
             </span>
           </div>
           <div className="p-2 border-b" style={{ borderColor: "var(--border)" }}>
-            <input value={recordSearch} onChange={(e) => setRecordSearch(e.target.value)} placeholder="Search content records..." aria-label="Search content records" className="w-full rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }} />
+            <input value={recordSearch} onChange={(e) => setRecordSearch(e.target.value)} placeholder={t.sections.attachments.searchRecords} aria-label={t.sections.attachments.searchRecords} className="w-full rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }} />
           </div>
           <div className="flex-1 overflow-y-auto">
             {filteredContents.length === 0 && (
@@ -209,7 +209,7 @@ export function AttachmentManager({
                 }}
               >
                 <div className="font-medium truncate">
-                  {c.title || "(untitled)"}
+                  {c.title || t.sections.attachments.untitledRecord}
                 </div>
                 <div style={{ color: "var(--muted-fg)", fontSize: 10 }}>
                   {t.sections.attachments.storedCount.replace(
@@ -217,7 +217,7 @@ export function AttachmentManager({
                     String(countFor(c.id)),
                   )}
                   {c.attachments
-                    ? ` · list: ${c.attachments.split(";").filter(Boolean).length}`
+                    ? ` · ${t.sections.attachments.listLabel}: ${c.attachments.split(";").filter(Boolean).length}`
                     : ""}
                 </div>
               </button>
@@ -236,14 +236,17 @@ export function AttachmentManager({
             }}
           >
             {selectedContent
-              ? `Files — ${selectedContent.title || selectedContent.id}`
-              : "Files"}
+              ? t.sections.attachments.filesOf.replace(
+                  "{t}",
+                  selectedContent.title || selectedContent.id,
+                )
+              : t.sections.attachments.storedFiles}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 px-2 py-1.5 border-b" style={{ borderColor: "var(--border)" }}>
-            <input value={fileSearch} onChange={(e) => setFileSearch(e.target.value)} placeholder="Search attachments..." aria-label="Search attachments" className="min-w-0 flex-1 rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }} />
-            <select value={fileType} onChange={(e) => setFileType(e.target.value)} aria-label="Filter attachment type" className="rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }}><option value="">All types</option><option value="image/">Images</option><option value="application/pdf">PDF</option><option value="text/">Text</option></select>
-            <select value={sortFiles} onChange={(e) => setSortFiles(e.target.value as typeof sortFiles)} aria-label="Sort attachments" className="rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }}><option value="recent">Recent</option><option value="name">Name</option><option value="size">Size</option></select>
+            <input value={fileSearch} onChange={(e) => setFileSearch(e.target.value)} placeholder={t.sections.attachments.searchFiles} aria-label={t.sections.attachments.searchFiles} className="min-w-0 flex-1 rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }} />
+            <select value={fileType} onChange={(e) => setFileType(e.target.value)} aria-label={t.sections.attachments.filterType} className="rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }}><option value="">{t.messages.allTypes}</option><option value="image/">{t.sections.attachments.images}</option><option value="application/pdf">{t.sections.attachments.pdf}</option><option value="text/">{t.sections.attachments.textType}</option></select>
+            <select value={sortFiles} onChange={(e) => setSortFiles(e.target.value as typeof sortFiles)} aria-label={t.sections.attachments.sortFilesAria} className="rounded px-2 py-1 text-xs" style={{ background: "var(--card-bg)", color: "var(--fg)", border: "1px solid var(--border)" }}><option value="recent">{t.sections.attachments.recent}</option><option value="name">{t.fields.name}</option><option value="size">{t.sections.attachments.sizeSort}</option></select>
           </div>
           <div
             className="flex-1 overflow-y-auto"
@@ -358,8 +361,10 @@ export function AttachmentManager({
                     className="px-3 py-2 text-[11px]"
                     style={{ color: "var(--muted-fg)" }}
                   >
-                    Referenced in the record but not stored in this browser:{" "}
-                    {legacyNames.join(", ")}
+                    {t.sections.attachments.referencedNotStored.replace(
+                      "{n}",
+                      legacyNames.join(", "),
+                    )}
                   </div>
                 )}
               </>
@@ -456,14 +461,18 @@ export function AttachmentManager({
       )}
 
       <div className="flex items-center gap-2 pt-3">
-        <span className="text-[11px]" style={{ color: "var(--muted-fg)" }}>
-          {t.sections.attachments.stored} ·{" "}
-          {t.sections.attachments.linkedRecords.replace(
-            "{n}",
-            String(groupByRecord(metas).length),
-          )}{" "}
-          · refreshed {timestamp().slice(11, 19)}
-        </span>
+            <span className="text-[11px]" style={{ color: "var(--muted-fg)" }}>
+              {t.sections.attachments.stored} ·{" "}
+              {t.sections.attachments.linkedRecords.replace(
+                "{n}",
+                String(groupByRecord(metas).length),
+              )}{" "}
+              ·{" "}
+              {t.sections.attachments.refreshed.replace(
+                "{t}",
+                timestamp().slice(11, 19),
+              )}
+            </span>
         <div className="flex-1" />
         <Btn onClick={onClose}>{t.actions.close}</Btn>
       </div>

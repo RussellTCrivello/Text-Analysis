@@ -44,7 +44,13 @@ const ACTION_COLORS: Record<string, string> = {
 export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
   const { t } = useTranslation()
   const a = t.sections.activity
-  const { audit, repo, undo, redo, canUndo, canRedo } = useAppData()
+  const au = t.audit
+  const { audit, repo, stats, undo, redo, canUndo, canRedo } = useAppData()
+
+  const actionLabel = (key: string) =>
+    (au.actions as Record<string, string>)[key] ?? key
+  const entityLabel = (key: string) =>
+    (au.entities as Record<string, string>)[key] ?? key
 
   const [action, setAction] = useState<AuditAction | "all">("all")
   const [entity, setEntity] = useState<string>("all")
@@ -71,16 +77,16 @@ export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
       { value: "all", label: a.allEntities },
       ...[...new Set(audit.map((e) => e.entity))].map((e) => ({
         value: e,
-        label: e,
+        label: entityLabel(e),
       })),
     ],
-    [audit],
+    [audit, au],
   )
   const actionOpts = [
     { value: "all", label: a.allActions },
     ...Object.keys(counts).map((k) => ({
       value: k,
-      label: `${k} (${counts[k]})`,
+      label: `${actionLabel(k)} (${counts[k]})`,
     })),
   ]
 
@@ -110,10 +116,10 @@ export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
       format: "csv",
       filename: a.exportName,
       title: a.title,
-      subtitle: `${filtered.length} entries`,
+      subtitle: t.messages.entriesN.replace("{n}", String(filtered.length)),
     })
     downloadArtifact(artifact)
-    onToast(`${artifact.filename} exported`)
+    onToast(t.messages.exportedFile.replace("{file}", artifact.filename))
   }
 
   const day = (ts: string) => ts.slice(0, 10)
@@ -180,8 +186,11 @@ export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
         }}
       >
         <StatCard label={a.entriesShown} value={String(filtered.length)} />
-        <StatCard label={a.logCapacity} value={`${audit.length} / 2000`} />
-        <StatCard label={a.undoDepth} value={String(canUndo ? 1 : 0)} />
+        <StatCard
+          label={a.logCapacity}
+          value={`${audit.length} / ${repo.audit.capacity}`}
+        />
+        <StatCard label={a.undoDepth} value={String(stats.undoDepth)} />
         <div className="flex-1" />
         <Btn
           size="xs"
@@ -233,9 +242,9 @@ export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
                     color: ACTION_COLORS[entry.action] ?? "#57534e",
                   }}
                 >
-                  {entry.action.replace("_", " ")}
+                  {actionLabel(entry.action)}
                 </span>
-                <Badge size="xs">{entry.entity}</Badge>
+                <Badge size="xs">{entityLabel(entry.entity)}</Badge>
                 <span className="text-xs truncate flex-1">
                   {entry.title || entry.recordId}
                 </span>
@@ -253,7 +262,7 @@ export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
                   style={{ color: "var(--muted-fg)" }}
                 >
                   {entry.changes?.length
-                    ? `${entry.changes.length} field(s)`
+                    ? au.fieldsChanged.replace("{n}", String(entry.changes.length))
                     : ""}
                 </span>
                 <span
@@ -274,8 +283,10 @@ export function ActivityView({ onToast }: { onToast: (m: string) => void }) {
                   style={{ background: "var(--secondary-bg)" }}
                 >
                   <div style={{ color: "var(--muted-fg)" }}>
-                    {entry.summary} · actor {entry.actor} · record{" "}
-                    {entry.recordId}
+                    {entry.summary} ·{" "}
+                    {au.actorRecord
+                      .replace("{actor}", entry.actor)
+                      .replace("{id}", entry.recordId)}
                   </div>
                   {entry.changes && entry.changes.length > 0 && (
                     <table

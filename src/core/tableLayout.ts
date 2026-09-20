@@ -35,9 +35,15 @@ export function normalizeTableLayout(entity: EntityName, input?: Partial<TableLa
   const hidden = (input?.hidden ?? defaults.hidden).filter((field) => known.has(field))
   const pinned = (input?.pinned ?? []).filter((field) => known.has(field) && !hidden.includes(field))
   const widths = Object.fromEntries(Object.entries(input?.widths ?? {}).filter(([field, width]) => known.has(field) && Number.isFinite(width) && width >= 72))
-  const sort = (input?.sort ?? []).filter((item) => known.has(item.key))
+  const sort = (input?.sort ?? [])
+    .filter((item) => known.has(item.key) && (item.dir === "asc" || item.dir === "desc"))
+    .map((item) => ({ key: item.key, dir: item.dir as "asc" | "desc" }))
   const filters = Object.fromEntries(Object.entries(input?.filters ?? {}).filter(([field]) => known.has(field)))
-  return { ...defaults, ...input, entity, order, hidden, pinned, widths, sort, filters }
+  const density =
+    input?.density === "compact" || input?.density === "expansive"
+      ? input.density
+      : defaults.density
+  return { ...defaults, ...input, entity, order, hidden, pinned, widths, sort, filters, density }
 }
 
 export function resetTableLayout(entity: EntityName): TableLayout {

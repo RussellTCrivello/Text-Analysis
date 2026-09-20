@@ -4,6 +4,79 @@ const en = {
     tagline: "Research Intelligence Platform",
     version: "{version}",
   },
+  shared: {
+    manageColumns: "Manage columns",
+    displayedFields: "Displayed fields",
+    findField: "Find a field…",
+    pin: "Pin",
+    unpin: "Unpin",
+    rowDensity: "Row density",
+    densityCompact: "Compact",
+    densityComfortable: "Comfortable",
+    densityExpansive: "Expansive",
+    savedLayouts: "Saved layouts",
+    layoutName: "Layout name",
+    resetTableLayout: "Reset table layout",
+    sortBy: "Sort by {name}",
+    selectAllRows: "Select all rows",
+    deselectAllRows: "Deselect all rows",
+    selectRow: "Select row {n}",
+    moveFieldEarlier: "Move {name} field earlier",
+    moveFieldLater: "Move {name} field later",
+    editAll: "Edit All",
+    deleteAll: "Delete All",
+    clear: "Clear",
+    clearSelection: "Clear selection",
+    selectedCount: "{n} selected",
+    firstPage: "First page",
+    previousPage: "Previous page",
+    nextPage: "Next page",
+    lastPage: "Last page",
+    rowsPerPage: "Rows per page",
+    pageOf: "Page {page} of {total}",
+    clearSearch: "Clear search",
+    clearDate: "Clear date",
+    dateAndTime: "Date and time",
+    importancePercent: "Importance percent",
+    importanceSlider: "Importance slider",
+    importanceAria: "Importance {pct}%",
+    moreOptions: "More options",
+    remove: "Remove",
+    dismiss: "Dismiss",
+    progress: "Progress",
+    breadcrumb: "Breadcrumb",
+    mainNavigation: "Main navigation",
+    expandOptions: "Expand options",
+    collapseOptions: "Collapse options",
+    filterPlaceholder: "Filter…",
+    searchPlaceholder: "Search…",
+    resizeColumn: "Resize {name} column",
+    deleteLayout: "Delete {name} layout",
+    columnFilters: "Column filters",
+    rowNumber: "Row number",
+  },
+  audit: {
+    actions: {
+      create: "Create",
+      update: "Update",
+      delete: "Delete",
+      bulk_delete: "Bulk delete",
+      bulk_update: "Bulk update",
+      import: "Import",
+      restore: "Restore",
+      merge: "Merge",
+      reset: "Reset",
+      load_sample: "Sample data",
+    },
+    entities: {
+      sources: "Sources",
+      contents: "Contents",
+      analyses: "Analyses",
+      workspace: "Workspace",
+    },
+    actorRecord: "actor {actor} · record {id}",
+    fieldsChanged: "{n} field(s)",
+  },
   dashboard: {
     title: "Dashboard",
     subtitle: "Workspace momentum, coverage and the latest changes at a glance.",
@@ -174,6 +247,7 @@ const en = {
     importance: "Importance",
     country: "Country",
     city: "City",
+    location: "Location",
     description: "Description",
     accounts: "Accounts",
     note: "Note",
@@ -290,6 +364,35 @@ const en = {
       chartMonthly: "Monthly",
       chartClassification: "By Classification",
       analysisPanel: "Timeline Analysis",
+      sortClassification: "Classification",
+      sortPeople: "People",
+      sortPlaces: "Places",
+      daily: "Daily",
+      yearly: "Yearly",
+      chart: "Chart",
+      allPeople: "— All people —",
+      allPlaces: "— All places —",
+      searchClassification: "Search classification…",
+      searchPeople: "Search people…",
+      searchPlaces: "Search places…",
+      pageLine: "Page {page} of {pages} · showing {shown} of {total}",
+      busiest: "busiest {label} ({count})",
+      detailDate: "Date",
+      detailSource: "Source",
+      detailClassification: "Classification",
+      detailPeople: "People",
+      detailPlaces: "Places",
+      detailImportance: "Importance",
+      detailSummary: "Summary",
+      weekdays: [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ],
     },
     reports: {
       title: "Reports",
@@ -322,6 +425,63 @@ const en = {
       previewTitle: "Report Title",
       noPreview: "Execute a query to generate a preview.",
       tableOption: "Show Table",
+      json: "JSON",
+      schema: "Schema",
+      hideSchema: "Hide schema",
+      plan: "Plan",
+      table: "Table",
+      fields: "Fields",
+      value: "value",
+      generatedSql: "Generated SQL",
+      generateChart: "Generate Chart",
+      syntaxError: "SQL syntax error",
+      queryError: "Query error",
+      hint: "Hint:",
+      execPlan: "Execution plan · {n} rows scanned",
+      grouped: "grouped",
+      untitled: "Untitled Report",
+      nameToSave: "Name to save as…",
+      generatedOn: "Generated {date}",
+      recordsLabel: "Records",
+      columnsLabel: "Columns",
+      moreRows: "+ {n} more rows…",
+      loaded: "Loaded: {name}",
+      exported: "{file} exported",
+      chartBar: "Bar",
+      chartLine: "Line",
+      chartPie: "Pie",
+      chartArea: "Area",
+      chartRadar: "Radar",
+      chartScatter: "Scatter",
+      aggCount: "Count",
+      aggSum: "Sum",
+      aggAvg: "Avg",
+      aggMin: "Min",
+      aggMax: "Max",
+      schemeMixed: "Mixed",
+      schemeTeal: "Teal",
+      schemeBlue: "Blue",
+      schemeRed: "Red",
+      fieldDash: "— Field —",
+      autoDash: "— auto —",
+      allRecordsView: "all_records (view)",
+      viewSuffix: "view",
+      templateLabels: {
+        "All sources": "All sources",
+        "All contents": "All contents",
+        "All analyses": "All analyses",
+        "High importance sources": "High importance sources",
+        "Contents per source": "Contents per source",
+        "Analyses per content": "Analyses per content",
+        "Classification breakdown": "Classification breakdown",
+        "Sources by country": "Sources by country",
+        "Sources with no content": "Sources with no content",
+        "Analyses with coordinates": "Analyses with coordinates",
+        "People mentioned most often": "People mentioned most often",
+        "Recent activity (all records)": "Recent activity (all records)",
+        "Search across the workspace": "Search across the workspace",
+        "Importance distribution": "Importance distribution",
+      },
       chartOption: "Show Chart",
       orderBy: "Order By",
       orderAsc: "Ascending",
@@ -371,9 +531,18 @@ const en = {
       aliases: "Aliases",
       aliasesHint: "Comma-separated",
       customOnly: "Custom only",
+      phPlace: "Tikrit",
+      phCountry: "Iraq",
+      phAliases: "Tikrit, تكريت",
+      filterGazetteer: "Filter gazetteer…",
       builtIn: "built-in",
       shown: "shown",
+      newCategory: "New category",
       addCategory: "Add category",
+      phKeywords: "comma, separated, keywords",
+      phVocabExample: "e.g. satellite feed",
+      phExistingValue: "existing value",
+      phNewValue: "new value",
       resetDefaults: "Reset to defaults",
       taxonomyHint:
         "Extraction picks the category whose keywords score highest.",
@@ -453,7 +622,22 @@ const en = {
         "Attach files with the button or by dropping them below — the list and stored files stay in sync; rename or remove any file here.",
       stagedCount: "Staged ({n}) — attached when the record is saved",
       openFailed:
-        "This attachment has no stored file data (it may predate the attachment fix). Re-attach the file.",   },
+        "This attachment has no stored file data (it may predate the attachment fix). Re-attach the file.",
+      searchRecords: "Search content records",
+      untitledRecord: "(untitled)",
+      listLabel: "list",
+      filesOf: "Files — {t}",
+      searchFiles: "Search attachments",
+      filterType: "Filter attachment type",
+      sortFilesAria: "Sort attachments",
+      images: "Images",
+      pdf: "PDF",
+      textType: "Text",
+      recent: "Recent",
+      sizeSort: "Size",
+      referencedNotStored: "Referenced in the record but not stored in this browser: {n}",
+      refreshed: "refreshed {t}",
+    },
   },
   messages: {
     storageFull: "Storage is full — recent changes could not be saved. Export a backup, then delete old records or attachments to free space.",
@@ -462,6 +646,55 @@ const en = {
     runQueryFirst: "Run a query first.",
     chartGenerated: "Chart generated.",
     noResultsToExport: "No results to export.",
+    downloadBlocked: "The browser blocked the download.",
+    printType: "type: {v}",
+    printSearch: "search: {v}",
+    bulkFieldToSet: "Field to set",
+    bulkNewValue: "New value",
+    bulkPercentHint: "Enter a percentage; stored as a 0–1 fraction",
+    chartValueNotNumeric: "Values in “{f}” are not numeric — the chart shows zeros.",
+    entriesN: "{n} entries",
+    exportedFile: "{file} exported",
+    fbRemove: "Remove",
+    fbAddCondition: "Add condition",
+    fbAddGroup: "Add group",
+    fbApply: "Apply filters",
+    fbValue: "Value",
+    fbContains: "Contains",
+    fbEquals: "Equals",
+    fbNotEquals: "Does not equal",
+    fbStartsWith: "Starts with",
+    fbIsEmpty: "Is empty",
+    fbIsNotEmpty: "Is not empty",
+    fbGreaterThan: "Greater than",
+    fbLessThan: "Less than",
+    fbNotFilterable: "Field “{f}” is not filterable",
+    fbRequiresValue: "This operator requires a value",
+    contentPreviewTitle: "Content workspace",
+    contentPreviewEyebrow: "Contents / Preview",
+    noTitle: "(No Title)",
+    contentRecord: "Content record",
+    overview: "Overview",
+    emptyValue: "(empty)",
+    notes: "Notes",
+    contentBodyAria: "Content body",
+    analysisSummaryTitle: "Analysis Summary",
+    totalRecords: "Total records",
+    byClassification: "By Classification",
+    uniquePeople: "Unique people",
+    uniquePlaces: "Unique places",
+    withCoordinates: "With coordinates",
+    top5: "Top 5",
+    noValue: "(none)",
+    layoutHint: "Configure presentation only. Field meaning and validation remain controlled by the schema.",
+    moveUp: "Move {f} up",
+    moveDown: "Move {f} down",
+    compareTitle: "Compare Analysis Records",
+    comparingHint: "Comparing {n} filtered analysis records side by side.",
+    noAnalysisRecords: "No analysis records.",
+    show: "Show",
+    readOnlyLabel: "Read-only",
+    resetToDefault: "Reset to default",
     confirmDelete: "Delete this record permanently?",
     confirmDeleteMultiple: "Delete {n} selected records permanently?",
     confirmReset: "Type RESET to confirm clearing all data:",
@@ -496,6 +729,69 @@ const en = {
     urlInvalid: "Please enter a valid URL (e.g. https://example.com)",
     importanceRange: "Importance must be between 0 and 100.",
     required: "This field is required.",
+    validation: {
+      required: "{f} is required",
+      minLength: "{f} needs at least {n} characters",
+      url: "{f} must be a valid URL",
+      rangeNumber: "{f} must be a number",
+      rangeBetween: "{f} must be between {min} and {max}",
+      percentWarning: "{f} “{v}” was read as a percentage ({p}%)",
+      date: "{f} is not a recognisable date",
+      duplicate: "{f} already used by record {id}",
+      unknownRef: "{f} does not reference an existing record",
+      exactDuplicate: "Identical record already exists (ID {id})",
+    },
+    saveFailed: "Could not save: {m}",
+    filterBuilder: "Filter builder",
+    filterBuilderApplied: "Applied filter builder: {n} records",
+    advancedAppliedRows: "Advanced search applied: {n} rows",
+    sourceFormLayout: "Sources form layout",
+    sourceFilterBuilder: "Source filter builder",
+    contentFilterBuilder: "Content filter builder",
+    analysisFilterBuilder: "Analysis filter builder",
+    formLayout: "Form layout",
+    resetForm: "Reset form",
+    typeOrPick: "Type or pick a type…",
+    removedValue: "Removed “{v}”",
+    cannotRemove: "Cannot remove “{v}”: {reason}",
+    inUse: "in use",
+    fieldCoverage: "Field coverage",
+    allTypes: "— All types —",
+    allSources: "— All sources —",
+    allCategories: "— All —",
+    searchSourceBy: "Search source by name, type or country…",
+    searchContentBy: "Search content by title or source…",
+    contentDateHint: "Publication date and time",
+    attachmentsExample: "file1.pdf; file2.docx",
+    addSourceHint: "Add a new source without losing your place",
+    addSource: "Add source",
+    attachmentLinked: "{n} attachment(s) linked to “{title}”",
+    bySource: "By source",
+    importanceBands: "Importance bands",
+    geotagged: "Geotagged",
+    contentLabel: "Content",
+    extractionN: "Extracted {n} entities ({c} coordinates)",
+    classificationAdded: "Classification “{v}” added — add keywords in the Dictionary to enable auto-classification",
+    entityExtraction: "Entity extraction",
+    previewExtraction: "Preview extraction",
+    extractionPreview: "Extraction preview",
+    extractionWords: "{n} words · {lang} · {ms} ms",
+    extractionCounts: "{p} people · {pl} places · {o} organizations · {s} sides · {c} coordinates · {d} dates",
+    docTruncated: "document truncated",
+    noPeople: "no people",
+    noPlaces: "no places",
+    noCoordinates: "no coordinates",
+    applyMerge: "Apply to form (merge)",
+    fillEmpty: "Fill empty only",
+    commaNames: "Comma-separated names",
+    commaPlaces: "Comma-separated places",
+    latLon: "lat, lon",
+    coordExample: "e.g. 39.92, 32.85",
+    semiSeparated: "Semicolon-separated",
+    dateAnalysisHint: "Date and time of the analysis",
+    selectedSourceHint: "Selected content source appears here",
+    addClassTeach: "Add “{v}” and teach the extractor",
+    allDataEmptyBody: "Every source, content and analysis record appears here in one searchable view.",
     loadingSample: "Sample data loaded.",
     allCleared: "All data cleared.",
     fullTextPreview: "Full Text Preview",
@@ -596,6 +892,15 @@ const en = {
       chooseFile: "Choose file...",
       progress: "Processing...",
       done: "Done — {n} records processed.",
+      updated: "{n} record(s) updated · {f}",
+      fieldToSet: "Field to set",
+      newValue: "New value",
+      percentHint: "Enter a percentage; stored as a 0–1 fraction",
+      selectPlaceholder: "Select…",
+      appliesTo: "Applies to {n} record(s). Every change is audited and can be undone.",
+      deleteN: "Delete {n} records",
+      updateN: "Update {n} records",
+      warningsN: "{n} warning(s) during bulk update",
     },
     exportDialog: {
       title: "Export Data",
@@ -621,6 +926,21 @@ const en = {
       formatHeading: "File type",
       chooseFormatDesc:
         "Choose the target format — the preview and options adapt.",
+      formatNames: {
+        csv: "CSV",
+        tsv: "Tab separated",
+        json: "JSON",
+        jsonl: "JSON Lines",
+        xml: "XML",
+        html: "HTML",
+        markdown: "Markdown",
+        xlsx: "Excel workbook",
+        xls: "Excel 2003 XML",
+        docx: "Word document",
+        doc: "Word HTML",
+        pdf: "PDF",
+        txt: "Plain text",
+      },
       scopeHeading: "Scope",
       scopeDesc: "Exporting the {n} rows currently in view ({label}).",
       scopeAll: "all records",
@@ -666,6 +986,7 @@ const en = {
     },
     importWizard: {
       title: "Import Data",
+      progressAria: "Import progress",
       step1: "Select File",
       step2: "Map Columns",
       step3: "Preview & Validate",
@@ -730,6 +1051,10 @@ const en = {
       importPartialDesc:
         "{n} record(s) imported \u2014 {m} row(s) reported issues and were skipped.",
       viewImported: "View imported records",
+      insertedN: "{n} inserted",
+      issuesN: "{n} issues",
+      transactionNote:
+        "Every imported row was validated against the schema and written in a single audited transaction.",
       back: "Back",
       next: "Next",
       finish: "Finish",
@@ -761,6 +1086,21 @@ const en = {
       portrait: "Portrait",
       landscape: "Landscape",
       pageSize: "Page Size",
+    },
+    reset: {
+      title: "Reset",
+      warning: "WARNING: This operation cannot be undone!",
+      dataTitle: "Reset Data Only (Delete all records)",
+      dataDesc:
+        "Deletes every row from all three tables. Schema and configuration are untouched.",
+      allTitle: "Reset All (Delete database and recreate)",
+      allDesc:
+        "Creates a safety backup, then deletes and recreates the entire database. All data and settings are lost.",
+      confirmData:
+        "This will delete ALL data from the database. This cannot be undone! Click Reset again to confirm.",
+      confirmAll:
+        "This will DELETE the entire database and recreate it. This cannot be undone! Click Reset again to confirm.",
+      confirmReset: "Confirm Reset",
     },
   },
   settings: {
@@ -863,6 +1203,7 @@ const en = {
     notePlaceholder: "e.g. Before the Q3 import",
     workspaceHeading: "Current workspace",
     lastBackup: "Last backup",
+    lastSaved: "Last saved ",
     neverBackedUp: "Never",
     recordsAtRisk: "{n} record(s) would be replaced or merged.",
     policyLabel: "Conflict policy",
@@ -935,6 +1276,288 @@ const en = {
     details: "Technical details",
     copied: "Error details copied.",
     copy: "Copy details",
+  },
+  help: {
+    title: "Help — {app}",
+    footer: "{app} {version} — Press F1 to open Help at any time",
+    topics: {
+      gettingStarted: {
+        title: "Getting Started",
+        content: `Welcome to {app} {version}.
+
+This application helps you collect, organize, and analyze research sources and content.
+
+**Navigation**
+Use the sidebar (or Ctrl+1–8) to switch between the eight main workspaces:
+• Sources — Collect and organize information sources
+• Contents — Manage captured content items
+• Analysis — Structured analysis records
+• All Data — Unified read-only view across all records
+• Timeline — Chronological view of all events
+• Reports — Advanced query and chart builder
+• Activity — Audit trail of every change, with undo/redo
+• Dictionary — Editable gazetteer, taxonomy and extraction test bed
+
+**Quick Add**
+Click **Quick add** in the command bar (or press Ctrl+N) to create a record in the current workspace.
+
+**Settings**
+Access Settings from the sidebar Operations group or the Settings button in the command bar.`,
+      },
+      sources: {
+        title: "Sources Management",
+        content: `The Sources workspace manages the research sources that ground your work.
+
+**Fields**
+• Name (required) — Unique source title
+• Type (required) — Source category (website, person, organization, etc.)
+• Link (required) — URL validated on entry
+• Importance — 0–100% score (stored as 0.0–1.0)
+• Country (required), City — Geographic origin
+• Description, Accounts, Ownership, Note — Additional metadata
+• Entry Date — User-specified date for this source
+
+**Actions**
+• Add / Edit / Delete / Duplicate — Standard record management
+• Import Sources — CSV file import with column mapping
+• Export — Unified export dialog (CSV, JSON, XML, JSONL, Excel, Word, PDF)
+• Statistics — Aggregate stats over all loaded records
+• Advanced Search — Multi-condition search with saved searches
+• Bulk Operations — Delete or edit many records at once`,
+      },
+      contents: {
+        title: "Contents Management",
+        content: `The Contents workspace manages documents and extracts belonging to sources.
+
+**Fields**
+• Source (required) — Parent source this content belongs to
+• Title — Content title
+• Content Data (required) — Full text of the content
+• Importance — 0–100% score
+• Content Date — Publication/event date of the content
+• Attachments — Associated file names (semicolon-separated)
+• Note — Free-text note
+
+**Actions**
+• Link to Analysis — Shortcut to create an analysis for the selected content
+• Preview Content — Full-screen view of the content text
+• View Attachments — Manage attached files`,
+      },
+      analysis: {
+        title: "Content Analysis",
+        content: `The Analysis workspace holds structured analysis records linked to content.
+
+**Fields**
+• Content (required) — The content being analyzed
+• Classification (required) — Analysis category
+• People Names — Comma-separated list of people mentioned
+• Place Names — Comma-separated list of places mentioned
+• Coordinates — Lat/lon coordinate pairs
+• Sides/Parties — Parties or sides involved
+
+**Actions**
+• Auto-Extract — Automatically extract entities from the linked content text
+• View on Map — Open coordinates in Google Maps
+• Compare — Side-by-side comparison of filtered analysis records
+• Summary — Aggregate statistics over filtered records`,
+      },
+      timeline: {
+        title: "Timeline",
+        content: `The Timeline workspace shows all records that have a date in chronological order.
+
+**Event Cards**
+Each card shows the date, type (color-coded axis node), title, summary, and context badges.
+• Purple (large) — Analysis events
+• Blue (medium) — Content events
+• Green (small) — Source events
+
+**Charts**
+Switch between By Type, Monthly, Day of Week, and By Classification chart views.
+
+**Filters**
+Combine date range, full-text search, people, places, and classification filters.`,
+      },
+      reports: {
+        title: "Reports",
+        content: `The Reports workspace provides a full query builder and chart designer.
+
+**Query Builder**
+• SQL Mode — Write freeform SELECT statements with template buttons for common queries
+• Visual Mode — Guided builder with table/field/filter/order/limit controls
+
+**Chart Designer**
+Configure chart type (Bar, Line, Pie, Area, Radar), aggregation, color scheme, label and value fields.
+
+**Results**
+Paginated table showing query output. Click "Create Chart" to feed results to the Chart Designer.
+
+**Report Preview**
+Live HTML preview of the report document. Set a title, toggle chart inclusion, save/load reports.`,
+      },
+      export: {
+        title: "Export",
+        content: `The unified Export dialog is available from every table workspace.
+
+**Formats**
+• CSV — Comma-separated values
+• JSON — Structured JSON with metadata
+• JSON Lines — One object per line
+• XML — XML with record elements
+• Excel (.xlsx) — Native spreadsheet
+• Word (.docx) — Structured report (headings, contents, no tables) or classic grid
+• PDF — Print-formatted PDF
+
+**Options**
+• Select which columns to include
+• Toggle field name translation
+• Set output filename
+• Live preview of the first N rows`,
+      },
+      search: {
+        title: "Search & Filter",
+        content: `Every table workspace supports combined text and date filtering.
+
+**Text Search**
+Applied immediately; case-insensitive substring match across all fields including joined fields.
+
+**Date Range**
+Default: today − 1 year → today. Rows without any date are always kept.
+
+**Advanced Search**
+Multi-condition builder with 10+ operators (=, !=, LIKE, >, <, IS NULL, etc.). Results replace the table view until the next Refresh. Save searches for re-use.`,
+      },
+      bulk: {
+        title: "Bulk Operations",
+        content: `Bulk Operations allows acting on many records at once.
+
+**Modes**
+• Bulk Delete — Confirm and delete all selected records (with cascade)
+• Bulk Edit — Set field values across all selected records
+• Bulk Import — Append rows from a CSV file
+
+Access from the More menu in a table toolbar or from the selection action bar when rows are selected.`,
+      },
+      activity: {
+        title: "Activity & Audit Trail",
+        content: `Every create, update, delete, bulk, import, restore, merge and reset is recorded.
+
+**What is stored**
+• Timestamp, actor, action and entity
+• Record id and title
+• Field-level diffs (before → after) for updates
+
+**Working with the log**
+• Filter by action, entity, date range or free text
+• Expand an entry to read the exact field changes
+• Undo / Redo the most recent workspace mutations
+• Export the filtered log as CSV for reporting
+
+The log is capped at 2,000 entries and travels inside every backup envelope.`,
+      },
+      dictionary: {
+        title: "Data Dictionary (extensibility)",
+        content: `The vocabulary behind automated extraction is user-editable — nothing is hardcoded.
+
+**Gazetteer**
+• Places, organizations and keywords used for entity matching
+• Add names with kind, country, coordinates and aliases
+• Adding an existing name extends it instead of replacing it
+• Built-in entries can be extended but not deleted
+
+**Taxonomy**
+• Classification categories and their keyword lists
+• Add, rename, edit keywords or reset to the built-in set
+
+**Extraction test**
+• Paste any document and see people, places, organizations, sides,
+  coordinates, dates and the winning classification with confidence
+
+        Everything persists with the workspace and can be exported as JSON to share
+one vocabulary across a team.`,
+      },
+    },
+  },
+  perf: {
+    title: "Performance Monitor",
+    benchmarkHeader: "Query benchmark · {n} run(s) this session",
+    queriesExecuted: "Queries executed",
+    rowsScanned: "Rows scanned",
+    totalTime: "Total time",
+    avgTime: "Average time",
+    slowest: "Slowest query",
+    slowQueries: "Slow queries (> {n} ms)",
+    avgQueryTime: "Average query time",
+    rowsPerQuery: "Rows scanned per query",
+    workspace: "Workspace",
+    records: "Records",
+    recordsValue: "{s} sources · {c} contents · {a} analyses",
+    inMemory: "In-memory payload",
+    browserStorage: "Browser storage",
+    auditEntries: "Audit entries",
+    undoRedo: "Undo / redo depth",
+    checksum: "Integrity checksum",
+    lastPersisted: "Last persisted",
+    never: "never",
+    benchmarkDetail: "Benchmark detail",
+    thQuery: "Query",
+    thRows: "Rows",
+    thScanned: "Scanned",
+    error: "error",
+    recommendations: "Recommendations",
+    allClear: "No performance or integrity issues detected.",
+    orphanTitle: "Orphaned {entity}",
+    orphanDesc:
+      "{n} record(s) reference a missing parent. Use merge/restore with the referential check, or delete them.",
+    slowQuery: "Slow query: {label}",
+    slowDesc:
+      "{ms} ms over {rows} scanned rows. Consider narrowing the WHERE clause or a LIMIT.",
+    workspaceSize: "Workspace size",
+    workspaceSizeDesc:
+      "{n} records. Exports stay fast, but the browser store grows with every backup kept.",
+    rerun: "Re-run benchmark",
+    clearMetrics: "Clear metrics",
+    bFullScan: "Full source scan",
+    bContentJoin: "Content join",
+    bAggregation: "Grouped aggregation",
+    bFiltered: "Filtered + ordered",
+    bLookup: "Analysis lookup",
+  },
+  print: {
+    title: "Print & Export Header Settings",
+    headerCard: "Document header",
+    header1: "Header line 1",
+    header2: "Header line 2",
+    header3: "Header line 3",
+    phOrg: "Organization name",
+    phDept: "Department",
+    phExtra: "Additional info",
+    includeDate: "Include date",
+    repeatEveryPage: "Repeat on every page",
+    logo: "Logo",
+    logoPreview: "logo preview",
+    printLogo: "Print logo",
+    titleCard: "Title & document numbering",
+    defaultTitle: "Default report title",
+    defaultSubtitle: "Default subtitle",
+    numberPrefix: "Number prefix",
+    nextAuto: "Next auto number",
+    resetSequence: "Reset sequence",
+    manualOverride: "Manual override",
+    phAuto: "Leave empty for auto",
+    geoCard: "Page geometry & footer",
+    orientation: "Orientation",
+    portrait: "Portrait",
+    landscape: "Landscape",
+    pageSize: "Page size",
+    pageNumbers: "Page numbers",
+    footerText: "Footer text",
+    phFooter: "Appears on every page footer",
+    pageOf: "page 1 of N",
+    unsaved: "Unsaved changes",
+    resetDefaults: "Reset to defaults",
+    saveClose: "Save & close",
+    savedToast: "Print settings saved",
+    logoTooBig: "Logo must be smaller than 512 KB.",
   },
 }
 

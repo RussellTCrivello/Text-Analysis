@@ -679,9 +679,7 @@ export function SettingsDialog({
                         className="tnum"
                         style={{ fontFamily: "var(--font-mono)" }}
                       >
-                        {t.backup.lastBackup === "Last backup"
-                          ? "Last saved "
-                          : ""}
+                        {t.backup.lastSaved}
                         {lastSavedAt.replace("T", " ").slice(0, 19)}
                       </span>
                     ) : (

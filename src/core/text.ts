@@ -32,7 +32,7 @@ export function splitList(value: unknown): string[] {
   const s = String(value ?? '').trim();
   if (!s) return [];
   return s
-    .split(/[;\n\u2022|]+|\s{2,},|,\s+/)
+    .split(/[;\n\u2022|]+|,\s*/)
     .map((p) => p.trim().replace(/^[-*]\s*/, ''))
     .filter(Boolean);
 }
@@ -204,6 +204,9 @@ function isoOf(y: number, mo: number, d: number, h = 0, mi = 0, s = 0): string |
   if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
   const dt = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
   if (Number.isNaN(dt.getTime())) return null;
+  // Calendar overflow guard: Date.UTC would silently roll "31 Feb" over to
+  // "02 Mar". Reject any day the month does not actually contain.
+  if (dt.getUTCDate() !== d) return null;
   return dt.toISOString();
 }
 

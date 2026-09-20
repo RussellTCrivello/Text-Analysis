@@ -52,7 +52,7 @@ import { FormLayoutEditor } from "../components/FormLayoutEditor"
 import { useFormEngine } from "../components/useFormEngine"
 import { docTypeMetadata } from "../core/framework"
 import { orderedVisibleFormFields, normalizeFormLayout, defaultFormLayout } from "../core/formEngine"
-import { formatDateTime, nowIso } from "../core/text"
+import { fold, formatDateTime, nowIso } from "../core/text"
 import { BulkOperations } from "../components/BulkOperations"
 import { ImportWizard } from "../components/ImportWizard"
 import { useAppData } from "../store/AppContext"
@@ -151,8 +151,10 @@ export function SourcesView({
 
   const filtered = useMemo(() => {
     const rows = data.sources as unknown as Record<string, unknown>[]
+    // Vocabulary values are normalised (fold) — compare folded so
+    // "Website" and "website" match the same filter option.
     const typed = typeFilter
-      ? rows.filter((s) => String(s.type) === typeFilter)
+      ? rows.filter((s) => fold(String(s.type)) === fold(typeFilter))
       : rows
     const byText = freeTextSearch(typed, search)
     const byAdvanced = advancedIds
@@ -283,8 +285,8 @@ export function SourcesView({
       config: printConfig,
       title: `${t.sections.sources.title} — ${filtered.length} ${t.messages.records}`,
       subtitle: [
-        search ? `search: ${search}` : "",
-        typeFilter ? `type: ${typeFilter}` : "",
+        search ? t.messages.printSearch.replace("{v}", search) : "",
+        typeFilter ? t.messages.printType.replace("{v}", typeOpts.find((o) => o.value === typeFilter)?.label ?? typeFilter) : "",
       ]
         .filter(Boolean)
         .join(" · "),
@@ -302,7 +304,7 @@ export function SourcesView({
     [data.sources],
   )
   const typeOpts = [
-    { value: "", label: `— All types —` },
+    { value: "", label: t.messages.allTypes },
     ...typeOptions.map((o) => ({ value: o.value, label: o.value })),
   ]
   // Values stored on records but missing from the vocabulary are still offered.
@@ -343,7 +345,7 @@ export function SourcesView({
         <Badge>
           <span
             className="type-dot"
-            style={{ background: paletteFor(s.type ?? ""), color: s.type ?? "" }}
+            style={{ background: paletteFor(s.type ?? "", settings.colorBlindMode), color: s.type ?? "" }}
           />
           {s.type}
         </Badge>
@@ -423,7 +425,7 @@ export function SourcesView({
   ]
 
   const exportColumns = [
-    { key: "id", label: "ID" },
+    { key: "id", label: t.fields.id },
     { key: "name", label: t.fields.name },
     { key: "type", label: t.fields.type },
     { key: "link_sources", label: t.fields.link_sources },
@@ -449,7 +451,7 @@ export function SourcesView({
       onClick: () => setShowAdvSearch(true),
     },
     {
-      label: "Filter builder",
+      label: t.messages.sourceFilterBuilder,
       icon: <SearchCodeIcon size="xs" />,
       onClick: () => setShowFilterBuilder(true),
     },
@@ -501,13 +503,18 @@ export function SourcesView({
     const byKey = new Map(metadata.map((field) => [field.key, field]))
     const orderedKeys = sourceLayout.order.filter((key, index, all) => byKey.has(key) && all.indexOf(key) === index)
     const missing = metadata.map((field) => field.key).filter((key) => !orderedKeys.includes(key))
-    return [...orderedKeys, ...missing].map((key) => byKey.get(key)!).filter((field) => showSourceField(field.key))
-  }, [sourceLayout])
+    // Translate the field captions through the active locale (the framework
+    // metadata carries English-only labels).
+    return [...orderedKeys, ...missing]
+      .map((key) => byKey.get(key)!)
+      .map((field) => ({ ...field, label: (t.fields as Record<string, string>)[field.key] ?? field.label }))
+      .filter((field) => showSourceField(field.key))
+  }, [sourceLayout, t])
 
   const renderForm = () => (
     <div className="flex flex-col gap-3.5">
       <div className="flex justify-end">
-        <Btn size="xs" variant="ghost" onClick={() => { formEngine.reset(); setImportancePct(showEdit && selected ? (selected.importance * 100).toFixed(2) : "75.00") }}>Reset form</Btn>
+        <Btn size="xs" variant="ghost" onClick={() => { formEngine.reset(); setImportancePct(showEdit && selected ? (selected.importance * 100).toFixed(2) : "75.00") }}>{t.messages.resetForm}</Btn>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
         {frameworkSourceFields.map((field) => (
@@ -523,9 +530,9 @@ export function SourcesView({
       <div className="form-section"><span>{t.sections.sources.formIdentity}</span><i /></div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
         <Field label={t.fields.type} required>
-          <ComboField id="source-type" value={form.type} onChange={(next) => setForm((f) => ({ ...f, type: next }))} options={typeOptions} usage={typeUsage} placeholder="Type or pick a type…" error={!!errors.type}
+          <ComboField id="source-type" value={form.type} onChange={(next) => setForm((f) => ({ ...f, type: next }))} options={typeOptions} usage={typeUsage} placeholder={t.messages.typeOrPick} error={!!errors.type}
             onCreate={(value) => { addVocabularyValue(TYPE_VOCABULARY, value); onToast(t.sections.dictionary.vocabAdded.replace("{v}", value).replace("{k}", TYPE_VOCABULARY)) }}
-            onRemove={(value) => { const result = removeVocabularyValue(TYPE_VOCABULARY, value, typeUsage[value.toLowerCase()] ?? 0); onToast(result.ok ? `Removed “${value}”` : `Cannot remove “${value}”: ${result.reason ?? "in use"}`) }} />
+            onRemove={(value) => { const result = removeVocabularyValue(TYPE_VOCABULARY, value, typeUsage[value.toLowerCase()] ?? 0); onToast(result.ok ? t.messages.removedValue.replace("{v}", value) : t.messages.cannotRemove.replace("{v}", value).replace("{reason}", result.reason ?? t.messages.inUse)) }} />
         </Field>
         <Field label={`${t.fields.importance} (0–100%)`} required error={errors.importance}><ImportanceControl value={importancePct} onChange={setImportancePct} error={!!errors.importance} /></Field>
       </div>
@@ -542,7 +549,7 @@ export function SourcesView({
         count={{ value: data.sources.length, label: t.messages.records }}
         actions={
           <div className="flex gap-2">
-            <Btn variant="ghost" onClick={() => setShowFormLayout(true)}>Form layout</Btn>
+            <Btn variant="ghost" onClick={() => setShowFormLayout(true)}>{t.messages.formLayout}</Btn>
           </div>
         }
       />
@@ -643,7 +650,7 @@ export function SourcesView({
             variant="ghost"
             icon={<Refresh size="sm" />}
           >
-            {t.actions.refresh}
+            {t.shared.clearSelection}
           </Btn>
           <ToolbarSep />
           <Btn onClick={() => setShowImport(true)} icon={<ImportFile size="sm" />}>
@@ -723,11 +730,6 @@ export function SourcesView({
               advancedIds || search || typeFilter || dateFrom || dateTo
                 ? t.messages.noFilterMatches
                 : t.sections.sources.noData
-            }
-            description={
-              advancedIds || search || typeFilter || dateFrom || dateTo
-                ? undefined
-                : undefined
             }
             action={
               search || typeFilter || dateFrom || dateTo || advancedIds ? (
@@ -821,7 +823,7 @@ export function SourcesView({
         />
       )}
 
-      <InfoModal isOpen={showFormLayout} title="Sources form layout" onClose={() => setShowFormLayout(false)} size="lg">
+      <InfoModal isOpen={showFormLayout} title={t.messages.sourceFormLayout} onClose={() => setShowFormLayout(false)} size="lg">
         <FormLayoutEditor
           fields={sourceLayoutFields}
           layout={sourceLayout}
@@ -875,13 +877,13 @@ export function SourcesView({
 
       {/* Advanced Search */}
       {showFilterBuilder && (
-        <InfoModal isOpen title="Source filter builder" onClose={() => setShowFilterBuilder(false)} size="lg">
+        <InfoModal isOpen title={t.messages.sourceFilterBuilder} onClose={() => setShowFilterBuilder(false)} size="lg">
           <FilterBuilder entity="sources" onApply={(groups: FilterGroup[]) => {
             const rows = applyFilterGroups(data.sources as unknown as Record<string, unknown>[], groups)
             setAdvancedIds(rows.map((row) => String(row.id)))
             setPage(1)
             setShowFilterBuilder(false)
-            onToast(`Applied filter builder: ${rows.length} records`)
+            onToast(t.messages.filterBuilderApplied.replace("{n}", String(rows.length)))
           }} onClear={() => { setAdvancedIds(null); setShowFilterBuilder(false) }} />
         </InfoModal>
       )}
@@ -1023,7 +1025,7 @@ export function SourcesView({
             {t.dialogs.statistics.dateRange}: {statsInfo.dateRange.from ?? "—"}{" "}
             → {statsInfo.dateRange.to ?? "—"}
             <br />
-            Field coverage:{" "}
+            {t.messages.fieldCoverage}:{" "}
             {statsInfo.filled
               .map((f) => `${f.field} ${f.filled}/${statsInfo.total}`)
               .join(" · ")}

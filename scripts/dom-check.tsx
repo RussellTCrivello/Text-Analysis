@@ -247,7 +247,7 @@ async function main() {
   await sleep(30)
   const noRes = !!document
     .querySelector("main")
-    ?.textContent?.includes("No records found matching current filters.")
+    ?.textContent?.includes("No records match the current filters.")
   if (!noRes)
     console.log(
       "DEBUG MAIN:",

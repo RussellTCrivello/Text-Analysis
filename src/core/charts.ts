@@ -2,6 +2,7 @@
  * Pure chart maths for the overview band (sparklines, donut, deltas).
  * Kept React-free so it is unit-testable and reusable by print/exports.
  */
+import type { ColorBlindMode } from '../types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -86,9 +87,26 @@ const CATEGORY_PALETTE = [
   '#F97316', // orange
 ] as const
 
+/**
+ * Okabe–Ito palette, colour-blind safe by construction. Used when the
+ * accessibility setting requests a color-blind mode (see index.css, which
+ * re-maps the semantic tokens the same way).
+ */
+const CATEGORY_PALETTE_CVD = [
+  '#0072B2', // blue
+  '#E69F00', // orange
+  '#009E73', // bluish green
+  '#CC79A7', // reddish purple
+  '#56B4E9', // sky blue
+  '#D55E00', // vermillion
+  '#F0E442', // yellow
+  '#999999', // grey
+] as const
+
 /** Stable hue for an arbitrary category string (source types, tags…). */
-export function paletteFor(value: string): string {
+export function paletteFor(value: string, mode: ColorBlindMode = 'none'): string {
   let h = 0
   for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0
-  return CATEGORY_PALETTE[h % CATEGORY_PALETTE.length]
+  const palette = mode === 'none' ? CATEGORY_PALETTE : CATEGORY_PALETTE_CVD
+  return palette[h % palette.length]
 }

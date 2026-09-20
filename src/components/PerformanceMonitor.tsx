@@ -8,6 +8,7 @@ import { InfoModal } from "./FormModal"
 import { Btn } from "./ui"
 import { Check, CircleXIcon, Close, GaugeIcon, Refresh } from "./icons"
 import { useAppData } from "../store/AppContext"
+import { useTranslation } from "../i18n"
 import { formatBytes } from "../core/text"
 
 interface Props {
@@ -24,22 +25,29 @@ interface Benchmark {
   ok: boolean
 }
 
-const BENCHMARKS: { label: string; sql: string }[] = [
-  { label: "Full source scan", sql: "SELECT * FROM sources" },
+type BenchmarkLabelKey =
+  | "bFullScan"
+  | "bContentJoin"
+  | "bAggregation"
+  | "bFiltered"
+  | "bLookup"
+
+const BENCHMARKS: { key: BenchmarkLabelKey; sql: string }[] = [
+  { key: "bFullScan", sql: "SELECT * FROM sources" },
   {
-    label: "Content join",
+    key: "bContentJoin",
     sql: "SELECT c.title, s.name AS source_name FROM contents c JOIN sources s ON c.sources_id = s.id",
   },
   {
-    label: "Grouped aggregation",
+    key: "bAggregation",
     sql: "SELECT type, COUNT(*) AS n, AVG(importance) AS avg_importance FROM sources GROUP BY type ORDER BY n DESC",
   },
   {
-    label: "Filtered + ordered",
+    key: "bFiltered",
     sql: "SELECT name, importance FROM sources WHERE importance > 0.5 ORDER BY importance DESC LIMIT 50",
   },
   {
-    label: "Analysis lookup",
+    key: "bLookup",
     sql: "SELECT classification, COUNT(*) AS n FROM analyses GROUP BY classification HAVING n >= 1",
   },
 ]
@@ -47,15 +55,18 @@ const BENCHMARKS: { label: string; sql: string }[] = [
 const SLOW_MS = 50
 
 export function PerformanceMonitor({ isOpen, onClose }: Props) {
-  const { repo, stats, sql } = useAppData()
+  const { stats, sql } = useAppData()
+  const { t } = useTranslation()
   const [runs, setRuns] = useState<Benchmark[][]>([])
 
+  const labelOf = (key: BenchmarkLabelKey) => t.perf[key]
+
   const measure = useCallback(() => {
-    const pass: Benchmark[] = BENCHMARKS.map(({ label, sql: statement }) => {
+    const pass: Benchmark[] = BENCHMARKS.map(({ key, sql: statement }) => {
       const out = sql.run(statement)
       if (out.error || !out.result) {
         return {
-          label,
+          label: labelOf(key),
           sql: statement,
           rows: 0,
           scanned: 0,
@@ -64,7 +75,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
         }
       }
       return {
-        label,
+        label: labelOf(key),
         sql: statement,
         rows: out.result.rows.length,
         scanned: out.result.scanned,
@@ -73,7 +84,8 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
       }
     })
     setRuns((r) => [...r.slice(-4), pass])
-  }, [sql])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sql, t])
 
   useEffect(() => {
     if (isOpen) measure()
@@ -81,7 +93,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
 
   const latest = runs[runs.length - 1] ?? []
   const times = latest.filter((b) => b.ok).map((b) => b.elapsedMs)
-  const totalTime = times.reduce((n, t) => n + t, 0)
+  const totalTime = times.reduce((n, tms) => n + tms, 0)
   const avgTime = times.length ? totalTime / times.length : 0
   const maxTime = times.length ? Math.max(...times) : 0
   const slow = latest.filter((b) => b.ok && b.elapsedMs > SLOW_MS)
@@ -102,23 +114,27 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
   })()
 
   const orphans = Object.entries(stats.orphans).filter(([, n]) => n > 0)
+  const entityName = (entity: string) =>
+    (t.nav as unknown as Record<string, string>)[entity] ?? entity
 
   const suggestions = [
     ...orphans.map(([entity, n]) => ({
       level: "warning",
-      title: `Orphaned ${entity}`,
-      desc: `${n} record(s) reference a missing parent. Use merge/restore with the referential check, or delete them.`,
+      title: t.perf.orphanTitle.replace("{entity}", entityName(entity)),
+      desc: t.perf.orphanDesc.replace("{n}", String(n)),
     })),
     ...slow.map((b) => ({
       level: "info",
-      title: `Slow query: ${b.label}`,
-      desc: `${b.elapsedMs.toFixed(2)} ms over ${b.scanned} scanned rows. Consider narrowing the WHERE clause or a LIMIT.`,
+      title: t.perf.slowQuery.replace("{label}", b.label),
+      desc: t.perf.slowDesc
+        .replace("{ms}", b.elapsedMs.toFixed(2))
+        .replace("{rows}", String(b.scanned)),
     })),
     stats.total > 5000
       ? {
           level: "info",
-          title: "Workspace size",
-          desc: `${stats.total} records. Exports stay fast, but the browser store grows with every backup kept.`,
+          title: t.perf.workspaceSize,
+          desc: t.perf.workspaceSizeDesc.replace("{n}", String(stats.total)),
         }
       : null,
   ].filter(Boolean) as { level: string; title: string; desc: string }[]
@@ -158,7 +174,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
   return (
     <InfoModal
       isOpen={isOpen}
-      title="Performance Monitor"
+      title={t.perf.title}
       onClose={onClose}
       size="lg"
       icon={<GaugeIcon size="sm" />}
@@ -172,19 +188,19 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
             className="text-xs font-bold uppercase tracking-wide mb-3"
             style={{ color: "var(--muted-fg)" }}
           >
-            Query benchmark · {runs.length} run(s) this session
+            {t.perf.benchmarkHeader.replace("{n}", String(runs.length))}
           </div>
-          {stat("Queries executed", latest.length)}
-          {stat("Rows scanned", scannedRows)}
-          {stat("Total time", `${totalTime.toFixed(2)} ms`)}
-          {stat("Average time", `${avgTime.toFixed(2)} ms`)}
-          {stat("Slowest query", `${maxTime.toFixed(2)} ms`)}
-          {stat(`Slow queries (> ${SLOW_MS} ms)`, slow.length)}
+          {stat(t.perf.queriesExecuted, latest.length)}
+          {stat(t.perf.rowsScanned, scannedRows)}
+          {stat(t.perf.totalTime, `${totalTime.toFixed(2)} ms`)}
+          {stat(t.perf.avgTime, `${avgTime.toFixed(2)} ms`)}
+          {stat(t.perf.slowest, `${maxTime.toFixed(2)} ms`)}
+          {stat(t.perf.slowQueries.replace("{n}", String(SLOW_MS)), slow.length)}
           <div className="mt-3 flex flex-col gap-2">
             <div>
               <div className="flex justify-between text-xs mb-0.5">
                 <span style={{ color: "var(--muted-fg)" }}>
-                  Average query time
+                  {t.perf.avgQueryTime}
                 </span>
                 <span className="font-mono">{avgTime.toFixed(2)} ms</span>
               </div>
@@ -197,7 +213,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
             <div>
               <div className="flex justify-between text-xs mb-0.5">
                 <span style={{ color: "var(--muted-fg)" }}>
-                  Rows scanned per query
+                  {t.perf.rowsPerQuery}
                 </span>
                 <span className="font-mono">
                   {latest.length ? Math.round(scannedRows / latest.length) : 0}
@@ -220,18 +236,24 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
             className="text-xs font-bold uppercase tracking-wide mb-3"
             style={{ color: "var(--muted-fg)" }}
           >
-            Workspace
+            {t.perf.workspace}
           </div>
           {stat(
-            "Records",
-            `${stats.counts.sources} sources · ${stats.counts.contents} contents · ${stats.counts.analyses} analyses`,
+            t.perf.records,
+            t.perf.recordsValue
+              .replace("{s}", String(stats.counts.sources))
+              .replace("{c}", String(stats.counts.contents))
+              .replace("{a}", String(stats.counts.analyses)),
           )}
-          {stat("In-memory payload", formatBytes(stats.bytes))}
-          {stat("Browser storage", formatBytes(storageBytes))}
-          {stat("Audit entries", stats.auditEntries)}
-          {stat("Undo / redo depth", `${stats.undoDepth} / ${stats.redoDepth}`)}
-          {stat("Integrity checksum", stats.checksum.slice(0, 16))}
-          {stat("Last persisted", stats.lastPersisted ?? "never")}
+          {stat(t.perf.inMemory, formatBytes(stats.bytes))}
+          {stat(t.perf.browserStorage, formatBytes(storageBytes))}
+          {stat(t.perf.auditEntries, stats.auditEntries)}
+          {stat(t.perf.undoRedo, `${stats.undoDepth} / ${stats.redoDepth}`)}
+          {stat(t.perf.checksum, stats.checksum.slice(0, 16))}
+          {stat(
+            t.perf.lastPersisted,
+            stats.lastPersisted ?? t.perf.never,
+          )}
         </div>
 
         <div>
@@ -239,14 +261,20 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
             className="text-xs font-bold uppercase tracking-wide mb-2"
             style={{ color: "var(--muted-fg)" }}
           >
-            Benchmark detail
+            {t.perf.benchmarkDetail}
           </div>
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr style={{ background: "var(--secondary-bg)" }}>
-                {["Query", "Rows", "Scanned", "ms", ""].map((h) => (
+                {[
+                  t.perf.thQuery,
+                  t.perf.thRows,
+                  t.perf.thScanned,
+                  "ms",
+                  "",
+                ].map((h, i) => (
                   <th
-                    key={h}
+                    key={i}
                     className="px-2 py-1 text-start"
                     style={{ borderBottom: "1px solid var(--border)" }}
                   >
@@ -288,7 +316,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
                         b.elapsedMs > SLOW_MS ? "var(--warning)" : "var(--fg)",
                     }}
                   >
-                    {b.ok ? b.elapsedMs.toFixed(2) : "error"}
+                    {b.ok ? b.elapsedMs.toFixed(2) : t.perf.error}
                   </td>
                   <td
                     className="px-2 py-1"
@@ -321,7 +349,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
             className="text-xs font-bold uppercase tracking-wide mb-2"
             style={{ color: "var(--muted-fg)" }}
           >
-            Recommendations
+            {t.perf.recommendations}
           </div>
           {suggestions.length === 0 ? (
             <div
@@ -332,7 +360,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
                 color: "var(--success)",
               }}
             >
-              <Check size="sm" /> No performance or integrity issues detected.
+              <Check size="sm" /> {t.perf.allClear}
             </div>
           ) : (
             suggestions.map((s, i) => (
@@ -365,7 +393,7 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
             onClick={measure}
             icon={<Refresh size="xs" />}
           >
-            Re-run benchmark
+            {t.perf.rerun}
           </Btn>
           <Btn
             size="sm"
@@ -373,10 +401,10 @@ export function PerformanceMonitor({ isOpen, onClose }: Props) {
             onClick={() => setRuns([])}
             icon={<Close size="xs" />}
           >
-            Clear metrics
+            {t.perf.clearMetrics}
           </Btn>
           <Btn size="sm" onClick={onClose}>
-            Close
+            {t.actions.close}
           </Btn>
         </div>
       </div>

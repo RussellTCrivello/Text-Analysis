@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react"
+import React, { useMemo, useState } from "react"
 import {
   BarChart,
   Bar,
@@ -49,6 +49,7 @@ import { useTranslation } from "../i18n"
 import type { SavedReport } from "../types"
 import { generateId } from "../data/sampleData"
 import {
+  buildDatabase,
   buildSql,
   queryTemplates,
   type SqlError,
@@ -62,6 +63,7 @@ import {
 import { buildPrintDocument, printHtml } from "../core/print"
 import { sqlColumns } from "../core/schema"
 import type { EntityName } from "../core/schema"
+import type { Row } from "../core/repository"
 
 const COLORS = [
   "#0f766e",
@@ -99,35 +101,6 @@ interface QueryResult {
   sql: string
 }
 
-const FIELDS = [
-  "id",
-  "name",
-  "type",
-  "importance",
-  "country",
-  "city",
-  "description",
-  "link_sources",
-  "accounts",
-  "note",
-  "ownership",
-  "date_entry",
-  "date_creation",
-  "date_modified",
-  "title",
-  "content_data",
-  "sources_id",
-  "attachments",
-  "date_content",
-  "content_id",
-  "classification",
-  "list_names_people",
-  "list_names_places",
-  "list_coordinates",
-  "list_sides",
-  "date_analysis",
-]
-
 const OPERATORS = [
   "=",
   "!=",
@@ -149,7 +122,7 @@ interface VisualFilter {
 
 export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
   const { t } = useTranslation()
-  const { sql, printConfig } = useAppData()
+  const { sql, printConfig, data, repo } = useAppData()
   const r = t.sections.reports
 
   const [queryMode, setQueryMode] = useState<"sql" | "visual">("sql")
@@ -173,7 +146,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
   const [chartData, setChartData] = useState<Record<string, unknown>[]>([])
   const [hasChart, setHasChart] = useState(false)
 
-  const [reportTitle, setReportTitle] = useState("Untitled Report")
+  const [reportTitle, setReportTitle] = useState(r.untitled)
   const [includeChart, setIncludeChart] = useState(true)
 
   const [savedReports, setSavedReports] = useState<SavedReport[]>(() => {
@@ -188,8 +161,6 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
   const [queryError, setQueryError] = useState<SqlError | null>(null)
   const [showPlan, setShowPlan] = useState(false)
   const [showSchema, setShowSchema] = useState(false)
-
-  const printRef = useRef<HTMLDivElement>(null)
 
   // The visual builder emits real SQL through the shared query compiler.
   const generatedSQL = useMemo(
@@ -215,15 +186,21 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
     [visTable, visFields, visFilters, visOrderBy, visOrderDir, visLimit],
   )
 
+  // Templates are validated against the LIVE database so a schema/data
+  // mismatch (e.g. a renamed column) hides the broken template instead of
+  // shipping SQL that will error for the user.
   const templates = useMemo(
     () =>
-      queryTemplates({
-        sources: [],
-        contents: [],
-        analyses: [],
-        all_records: [],
-      }),
-    [],
+      queryTemplates(
+        buildDatabase({
+          sources: data.sources as unknown as Row[],
+          contents: data.contents as unknown as Row[],
+          analyses: data.analyses as unknown as Row[],
+          allRecords: repo.allRecords(),
+        }),
+        (label) => (r.templateLabels as Record<string, string>)[label] ?? label,
+      ),
+    [data, repo, r],
   )
   const schemaInfo: TableInfo[] = useMemo(() => sql.schemaInfo(), [sql])
 
@@ -258,10 +235,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
     const lf = labelField || queryResult.columns[0] || ""
     const vf = valueField || queryResult.columns[1] || ""
     const limited = queryResult.rows.slice(0, parseInt(chartRowLimit) || 20)
-    let processed = limited.map((row) => ({
-      name: String(row[lf] ?? ""),
-      value: parseFloat(String(row[vf] ?? 0)) || 0,
-    }))
+    let processed: { name: string; value: number }[]
     if (aggregation === "count") {
       const grouped: Record<string, number> = {}
       limited.forEach((row) => {
@@ -272,6 +246,41 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
         name,
         value,
       }))
+    } else {
+      // Group by the label field and aggregate the value field numerically.
+      const grouped = new Map<string, number[]>()
+      let numericCount = 0
+      limited.forEach((row) => {
+        const k = String(row[lf] ?? "")
+        const n = parseFloat(String(row[vf] ?? ""))
+        const arr = grouped.get(k) ?? []
+        if (Number.isFinite(n)) {
+          arr.push(n)
+          numericCount++
+        }
+        grouped.set(k, arr)
+      })
+      processed = [...grouped.entries()].map(([name, nums]) => {
+        if (!nums.length) return { name, value: 0 }
+        const sum = nums.reduce((a, b) => a + b, 0)
+        switch (aggregation) {
+          case "sum":
+            return { name, value: sum }
+          case "avg":
+            return { name, value: sum / nums.length }
+          case "min":
+            return { name, value: Math.min(...nums) }
+          case "max":
+            return { name, value: Math.max(...nums) }
+          default:
+            return { name, value: 0 }
+        }
+      })
+      if (!numericCount) {
+        onToast(
+          t.messages.chartValueNotNumeric.replace("{f}", vf || r.value),
+        )
+      }
     }
     setChartData(processed)
     setHasChart(true)
@@ -304,11 +313,8 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
     setLabelField(rep.labelField)
     setValueField(rep.valueField)
     setReportTitle(rep.name)
-    onToast(`Loaded: ${rep.name}`)
+    onToast(r.loaded.replace("{name}", rep.name))
   }
-
-  const deleteReport = (id: string) =>
-    setSavedReports((rs) => rs.filter((r) => r.id !== id))
 
   const exportAs = (format: ExportFormat) => {
     if (!queryResult) {
@@ -331,7 +337,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
       pageSize: printConfig.pageSize,
     })
     downloadArtifact(artifact)
-    onToast(`${artifact.filename} exported`)
+    onToast(r.exported.replace("{file}", artifact.filename))
   }
 
   const exportCSV = () => exportAs("csv")
@@ -350,51 +356,56 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
       config: printConfig,
       title: reportTitle,
       subtitle: queryResult.sql.replace(/\s+/g, " ").slice(0, 200),
-      preamble: `${queryResult.rows.length} rows \u00b7 ${queryResult.elapsedMs.toFixed(1)} ms \u00b7 ${queryResult.scanned} rows scanned`,
+      preamble: `${queryResult.rows.length} ${r.rows} \u00b7 ${queryResult.elapsedMs.toFixed(1)} ms \u00b7 ${r.execPlan.replace("{n}", String(queryResult.scanned))}`,
     })
     if (!printHtml(html))
       onToast(t.messages.printUnavailable)
   }
 
+  const fieldLabel = (f: string) =>
+    (t.fields as Record<string, string>)[f] ?? f
   const fieldOpts = [
-    { value: "", label: "— Field —" },
-    ...sqlColumns(visTable as EntityName).map((f) => ({ value: f, label: f })),
+    { value: "", label: r.fieldDash },
+    ...sqlColumns(visTable as EntityName).map((f) => ({
+      value: f,
+      label: fieldLabel(f),
+    })),
   ]
   const tableOpts = [
     ...(["sources", "contents", "analyses"] as EntityName[]).map((name) => ({
       value: name,
       label: name,
     })),
-    { value: "all_records", label: "all_records (view)" },
+    { value: "all_records", label: r.allRecordsView },
   ]
   const operatorOpts = OPERATORS.map((op) => ({ value: op, label: op }))
   const chartOpts: { value: ChartType; label: string }[] = [
-    { value: "bar", label: "Bar" },
-    { value: "line", label: "Line" },
-    { value: "pie", label: "Pie" },
-    { value: "area", label: "Area" },
-    { value: "radar", label: "Radar" },
-    { value: "scatter", label: "Scatter" },
+    { value: "bar", label: r.chartBar },
+    { value: "line", label: r.chartLine },
+    { value: "pie", label: r.chartPie },
+    { value: "area", label: r.chartArea },
+    { value: "radar", label: r.chartRadar },
+    { value: "scatter", label: r.chartScatter },
   ]
   const aggOpts: { value: Aggregation; label: string }[] = [
-    { value: "count", label: "Count" },
-    { value: "sum", label: "Sum" },
-    { value: "avg", label: "Avg" },
-    { value: "min", label: "Min" },
-    { value: "max", label: "Max" },
+    { value: "count", label: r.aggCount },
+    { value: "sum", label: r.aggSum },
+    { value: "avg", label: r.aggAvg },
+    { value: "min", label: r.aggMin },
+    { value: "max", label: r.aggMax },
   ]
   const schemeOpts: { value: ColorScheme; label: string }[] = [
-    { value: "mixed", label: "Mixed" },
-    { value: "teal", label: "Teal" },
-    { value: "blue", label: "Blue" },
-    { value: "red", label: "Red" },
+    { value: "mixed", label: r.schemeMixed },
+    { value: "teal", label: r.schemeTeal },
+    { value: "blue", label: r.schemeBlue },
+    { value: "red", label: r.schemeRed },
   ]
   const colColors = SCHEME_COLORS[colorScheme]
 
   const resultCols = queryResult?.columns ?? []
   const resultColOpts = [
-    { value: "", label: "— auto —" },
-    ...resultCols.map((c) => ({ value: c, label: c })),
+    { value: "", label: r.autoDash },
+    ...resultCols.map((c) => ({ value: c, label: fieldLabel(c) })),
   ]
 
   const queryModeTab = [
@@ -475,7 +486,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
           onClick={exportJSON}
           icon={<Download size="xs" />}
         >
-          JSON
+          {r.json}
         </Btn>
         <Btn
           size="xs"
@@ -496,7 +507,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
           onClick={() => setShowSchema((v) => !v)}
           icon={<TableIcon size="xs" />}
         >
-          {showSchema ? "Hide schema" : "Schema"}
+          {showSchema ? r.hideSchema : r.schema}
         </Btn>
         <Btn
           size="xs"
@@ -505,7 +516,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
           disabled={!queryResult}
           icon={<Clipboard size="xs" />}
         >
-          Plan
+          {r.plan}
         </Btn>
         <div className="flex-1" />
         {savedReports.length > 0 && (
@@ -611,7 +622,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                       className="text-xs w-12 shrink-0"
                       style={{ color: "var(--muted-fg)" }}
                     >
-                      Table
+                      {r.table}
                     </span>
                     <Select
                       value={visTable}
@@ -625,7 +636,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                       className="text-xs w-12 shrink-0"
                       style={{ color: "var(--muted-fg)" }}
                     >
-                      Fields
+                      {r.fields}
                     </span>
                     <Input
                       value={visFields}
@@ -677,7 +688,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                           )
                         }
                         className="flex-1"
-                        placeholder="value"
+                        placeholder={r.value}
                       />
                       <IconButton
                         label={r.removeFilter}
@@ -716,7 +727,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                         { value: "", label: "—" },
                         ...sqlColumns(visTable as EntityName).map((f2) => ({
                           value: f2,
-                          label: f2,
+                          label: fieldLabel(f2),
                         })),
                       ]}
                       className="flex-1"
@@ -752,7 +763,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                     className="text-[10px] font-semibold uppercase tracking-wide mt-1"
                     style={{ color: "var(--muted-fg)" }}
                   >
-                    Generated SQL
+                    {r.generatedSql}
                   </div>
                   <div
                     className="text-[10px] rounded p-2 break-all"
@@ -864,7 +875,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                   </div>
                 ))}
                 <Btn size="sm" onClick={generateChart} className="mt-1">
-                  Generate Chart
+                  {r.generateChart}
                 </Btn>
               </div>
             </div>
@@ -898,7 +909,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                   {queryResult.columns.length} {r.columns}
                   {" · "}
                   {queryResult.elapsedMs.toFixed(1)} ms
-                  {queryResult.grouped ? " · grouped" : ""}
+                  {queryResult.grouped ? ` · ${r.grouped}` : ""}
                 </span>
               )}
               <div className="flex-1" />
@@ -930,16 +941,14 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                 </span>
                 <div>
                   <div className="font-semibold">
-                    {queryError.kind === "syntax"
-                      ? "SQL syntax error"
-                      : "Query error"}
+                    {queryError.kind === "syntax" ? r.syntaxError : r.queryError}
                   </div>
                   <div style={{ fontFamily: "var(--font-mono)" }}>
                     {queryError.message}
                   </div>
                   {queryError.hint && (
                     <div style={{ color: "var(--warning)" }}>
-                      Hint: {queryError.hint}
+                      {r.hint} {queryError.hint}
                     </div>
                   )}
                 </div>
@@ -961,7 +970,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                     color: "var(--muted-fg)",
                   }}
                 >
-                  Execution plan · {queryResult.scanned} rows scanned
+                  {r.execPlan.replace("{n}", String(queryResult.scanned))}
                 </div>
                 {queryResult.plan.map((line) => (
                   <div key={line}>{line}</div>
@@ -994,8 +1003,8 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                     </button>
                     <span style={{ color: "var(--muted-fg)" }}>
                       {" "}
-                      ({table.rowCount} rows
-                      {table.kind === "view" ? " · view" : ""}) —{" "}
+                      ({table.rowCount} {r.rows}
+                      {table.kind === "view" ? ` · ${r.viewSuffix}` : ""}) —{" "}
                     </span>
                     <span style={{ color: "var(--muted-fg)" }}>
                       {table.columns.map((c) => c.name).join(", ")}
@@ -1074,14 +1083,14 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
               <Input
                 value={saveName}
                 onChange={(e) => setSaveName(e.target.value)}
-                placeholder="Name to save as…"
+                placeholder={r.nameToSave}
                 className="w-36 !text-xs"
               />
               <Btn size="xs" onClick={saveReport} icon={<Save size="xs" />}>
                 {t.actions.save}
               </Btn>
             </div>
-            <div ref={printRef} className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4">
               {!queryResult && !hasChart ? (
                 <EmptyState compact variant="empty" title={r.noPreview} />
               ) : (
@@ -1101,7 +1110,7 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                       className="text-xs"
                       style={{ color: "var(--muted-fg)" }}
                     >
-                      Generated {new Date().toLocaleDateString()}
+                      {r.generatedOn.replace("{date}", new Date().toLocaleDateString())}
                     </div>
                   </div>
 
@@ -1109,8 +1118,8 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                   {queryResult && (
                     <div className="flex gap-4 mb-4">
                       {[
-                        ["Records", queryResult.rows.length],
-                        ["Columns", queryResult.columns.length],
+                        [r.recordsLabel, queryResult.rows.length],
+                        [r.columnsLabel, queryResult.columns.length],
                       ].map(([label, val]) => (
                         <div
                           key={label as string}
@@ -1220,6 +1229,22 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                               fillOpacity={0.4}
                             />
                           </RadarChart>
+                        ) : chartType === "scatter" ? (
+                          <ScatterChart>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              type="category"
+                              dataKey="name"
+                              tick={{ fontSize: 9 }}
+                            />
+                            <YAxis
+                              type="number"
+                              dataKey="value"
+                              tick={{ fontSize: 9 }}
+                            />
+                            <Tooltip />
+                            <Scatter data={chartData} fill={colColors[0]} />
+                          </ScatterChart>
                         ) : (
                           <BarChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" />
@@ -1304,7 +1329,10 @@ export function ReportsView({ onToast }: { onToast: (m: string) => void }) {
                           className="px-3 py-1 text-xs"
                           style={{ color: "var(--muted-fg)" }}
                         >
-                          + {queryResult.rows.length - 8} more rows…
+                          {r.moreRows.replace(
+                            "{n}",
+                            String(queryResult.rows.length - 8),
+                          )}
                         </div>
                       )}
                     </div>

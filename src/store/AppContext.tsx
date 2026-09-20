@@ -500,7 +500,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const entry = backupToEntry(envelope)
         setBackups((prev) => [entry, ...prev])
         repo.audit.record({
-          action: "restore",
+          // "restore" is reserved for restoreBackup() — creating a backup is
+          // a create, and the summary states what was captured.
+          action: "create",
           entity: "workspace",
           recordId: entry.id,
           title: entry.name,

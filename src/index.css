@@ -230,6 +230,49 @@
   --fg: #FFFFFF;
 }
 
+/* ─── Color-blind modes ───────────────────────────────────────────────────
+   The Settings dialog offers red-green (deuteranopia/protanopia) and
+   blue-yellow (tritanopia) alternatives. Both themes are re-mapped with
+   the Okabe–Ito palette, which is colour-blind safe by construction. */
+html[data-color-blind='deuteranopia'],
+html[data-color-blind='protanopia'] {
+  --success: #0072B2;
+  --success-soft: rgba(0, 114, 178, 0.12);
+  --error: #D55E00;
+  --error-soft: rgba(213, 94, 0, 0.12);
+  --warning: #E69F00;
+  --warning-soft: rgba(230, 159, 0, 0.14);
+  --info: #56B4E9;
+  --info-soft: rgba(86, 180, 233, 0.16);
+}
+.dark[data-color-blind='deuteranopia'],
+.dark[data-color-blind='protanopia'] {
+  --success: #56B4E9;
+  --success-soft: rgba(86, 180, 233, 0.16);
+  --error: #E69F00;
+  --error-soft: rgba(230, 159, 0, 0.16);
+  --warning: #CC79A7;
+  --warning-soft: rgba(204, 121, 167, 0.16);
+  --info: #0072B2;
+  --info-soft: rgba(0, 114, 178, 0.22);
+}
+html[data-color-blind='tritanopia'] {
+  --info: #D55E00;
+  --info-soft: rgba(213, 94, 0, 0.12);
+  --warning: #E69F00;
+  --warning-soft: rgba(230, 159, 0, 0.14);
+  --success: #009E73;
+  --success-soft: rgba(0, 158, 115, 0.13);
+}
+.dark[data-color-blind='tritanopia'] {
+  --info: #E69F00;
+  --info-soft: rgba(230, 159, 0, 0.16);
+  --warning: #CC79A7;
+  --warning-soft: rgba(204, 121, 167, 0.16);
+  --success: #56B4E9;
+  --success-soft: rgba(86, 180, 233, 0.16);
+}
+
 /* ============================================================================
    BASE
    ========================================================================== */

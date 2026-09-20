@@ -195,7 +195,7 @@ export function ComboField({
         <button
           type="button"
           tabIndex={-1}
-          aria-label={open ? "Collapse options" : "Expand options"}
+          aria-label={open ? t.shared.collapseOptions : t.shared.expandOptions}
           disabled={disabled}
           onClick={() => {
             setOpen((o) => !o)

@@ -45,6 +45,7 @@ import {
   Close,
 } from "./icons"
 import { useTranslation } from "../i18n"
+import { formatValidationIssue } from "../i18n/validation"
 import { useAppData } from "../store/AppContext"
 import { importTargets, SCHEMA, type EntityName } from "../core/schema"
 import {
@@ -791,13 +792,7 @@ export function ImportWizard({
                   }}
                 >
                   {row.issues
-                    .map(
-                      (i) =>
-                        `${
-                          (t.fields as Record<string, string>)[i.field] ??
-                          i.field
-                        }: ${i.message}`,
-                    )
+                    .map((i) => formatValidationIssue(i, t))
                     .join(" · ") || "—"}
                 </td>
               </tr>
@@ -862,13 +857,13 @@ export function ImportWizard({
         <span style={{ color: "var(--success)" }}>
           <Check size="xs" />
         </span>{" "}
-        {applyResult.inserted} inserted
+        {iw.insertedN.replace("{n}", String(applyResult.inserted))}
         {applyResult.issues.length > 0 && (
           <>
             <span style={{ color: "var(--error)" }}>
               <ErrorIcon size="xs" />
             </span>{" "}
-            {applyResult.issues.length} issues
+            {iw.issuesN.replace("{n}", String(applyResult.issues.length))}
           </>
         )}
       </div>
@@ -876,8 +871,7 @@ export function ImportWizard({
         className="text-[11px] max-w-md text-center"
         style={{ color: "var(--muted-fg-2)" }}
       >
-        Every imported row was validated against the schema and written in a
-        single audited transaction.
+        {iw.transactionNote}
       </p>
       <Btn variant="primary" onClick={close} icon={<Check size="sm" />}>
         {iw.viewImported}
@@ -1012,8 +1006,9 @@ function ImportStepper({
   onBack: (i: number) => void
   canGoBack: boolean
 }) {
+  const { t } = useTranslation()
   return (
-    <ol className="flex items-center gap-1 w-full" aria-label="Import progress">
+    <ol className="flex items-center gap-1 w-full" aria-label={t.dialogs.importWizard.progressAria}>
       {steps.map((s, i) => {
         const done = i + 1 < current
         const active = i + 1 === current

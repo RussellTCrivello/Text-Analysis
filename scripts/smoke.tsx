@@ -23,6 +23,12 @@ import { PerformanceMonitor } from '../src/components/PerformanceMonitor';
 import { PrintHeaderSettings } from '../src/components/PrintHeaderSettings';
 import { ComboField } from '../src/components/ComboField';
 import { AttachmentField } from '../src/components/AttachmentField';
+import { HelpDialog } from '../src/components/HelpDialog';
+import { ResetDialog } from '../src/components/ResetDialog';
+import { SummaryDialog } from '../src/components/SummaryDialog';
+import { ComparisonDialog } from '../src/components/ComparisonDialog';
+import { FilterBuilder } from '../src/components/FilterBuilder';
+import type { Analysis } from '../src/types';
 import { DateTimeInput, Field } from '../src/components/ui';
 import { sampleData } from '../src/data/sampleData';
 
@@ -45,7 +51,23 @@ const views: Record<string, React.ReactNode> = {
   backup: <BackupDialog isOpen onClose={() => {}} onToast={toast} />,
   attachments: <AttachmentManager isOpen onClose={() => {}} onToast={toast} />,
   performanceMonitor: <PerformanceMonitor isOpen onClose={() => {}} />,
+  'performanceMonitor:ar': <PerformanceMonitor isOpen onClose={() => {}} />,
   printHeader: <PrintHeaderSettings isOpen onClose={() => {}} onToast={toast} />,
+  'printHeader:ar': <PrintHeaderSettings isOpen onClose={() => {}} onToast={toast} />,
+  help: <HelpDialog isOpen onClose={() => {}} />,
+  'help:ar': <HelpDialog isOpen onClose={() => {}} />,
+  reset: <ResetDialog isOpen onClose={() => {}} onResetData={() => {}} onResetAll={() => {}} />,
+  summary: <SummaryDialog isOpen onClose={() => {}} analyses={sampleData.analyses as Analysis[]} />,
+  comparison: (
+    <ComparisonDialog
+      isOpen
+      onClose={() => {}}
+      analyses={sampleData.analyses as Analysis[]}
+      contentTitle={(id) => id}
+    />
+  ),
+  filterBuilder: <FilterBuilder entity="sources" onApply={() => {}} onClear={() => {}} />,
+  'filterBuilder:ar': <FilterBuilder entity="sources" onApply={() => {}} onClear={() => {}} />,
   comboField: (
     <Field label="Type">
       <ComboField

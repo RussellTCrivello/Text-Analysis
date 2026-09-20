@@ -682,7 +682,7 @@ export function AppShell({
       <div className="flex flex-1 overflow-hidden">
         {/* ── Sidebar ── */}
         <nav
-          aria-label="Main navigation"
+          aria-label={t.shared.mainNavigation}
           className="flex flex-col h-full shrink-0 overflow-hidden"
           style={{
             width: sidebarCollapsed
@@ -923,7 +923,7 @@ export function AppShell({
             }}
           >
             <nav
-              aria-label="Breadcrumb"
+              aria-label={t.shared.breadcrumb}
               className="flex items-center gap-1.5 min-w-0"
             >
               <span
@@ -993,7 +993,7 @@ export function AppShell({
               }
             >
               <ThemeToggle size="xs" />
-              {settings.theme}
+              {settings.theme === "dark" ? t.settings.themeDark : t.settings.themeLight}
             </ToggleChip>
           </div>
 

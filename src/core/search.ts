@@ -20,7 +20,7 @@ export function applyColumnFilters<T>(
   if (!active.length) return rows;
   return rows.filter((row) =>
     active.every(([key, needle]) =>
-      valueOf(row, key).toLowerCase().includes(String(needle).trim().toLowerCase()),
+      fold(valueOf(row, key)).includes(fold(needle)),
     ),
   );
 }
@@ -179,7 +179,7 @@ export function evaluateCondition(row: Row, condition: SearchCondition): boolean
     }
     case 'in_list':
     case 'not_in_list': {
-      const list = value.split(',').map((v) => fold(v.trim()));
+      const list = value.split(/[;,]/).map((v) => fold(v.trim())).filter(Boolean);
       const parts = cellFold.split(/[,;]/).map((p) => p.trim());
       const hit = parts.some((p) => list.includes(p)) || list.includes(cellFold);
       return condition.operator === 'in_list' ? hit : !hit;
@@ -234,17 +234,21 @@ export function conditionsToSql(conditions: SearchCondition[], logic: 'AND' | 'O
     .map((c) => {
       const f = c.field;
       const v = c.value.replace(/'/g, "''");
+      // Numeric values render as bare literals so the SQL reads correctly
+      // and compares numerically on every engine; dates and text stay quoted.
+      const num = toNumber(c.value.trim());
+      const lit = num !== null && /^-?\d*\.?\d+([eE][+-]?\d+)?$/.test(c.value.trim()) ? String(num) : `'${v}'`;
       switch (c.operator) {
         case 'contains': return `${f} LIKE '%${v}%'`;
         case 'not_contains': return `${f} NOT LIKE '%${v}%'`;
-        case 'equals': return numericEquals('', c.value) ? `${f} = ${c.value}` : `${f} = '${v}'`;
-        case 'not_equals': return `${f} != '${v}'`;
+        case 'equals': return `${f} = ${lit}`;
+        case 'not_equals': return `${f} != ${lit}`;
         case 'starts_with': return `${f} LIKE '${v}%'`;
         case 'ends_with': return `${f} LIKE '%${v}'`;
-        case 'gt': return `${f} > '${v}'`;
-        case 'lt': return `${f} < '${v}'`;
-        case 'gte': return `${f} >= '${v}'`;
-        case 'lte': return `${f} <= '${v}'`;
+        case 'gt': return `${f} > ${lit}`;
+        case 'lt': return `${f} < ${lit}`;
+        case 'gte': return `${f} >= ${lit}`;
+        case 'lte': return `${f} <= ${lit}`;
         case 'between': {
           const [a, b] = c.value.split(',').map((x) => x.trim());
           return `${f} BETWEEN '${a}' AND '${b}'`;

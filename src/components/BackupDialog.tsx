@@ -229,7 +229,7 @@ export function BackupDialog({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
               {
-                label: t.fields.name === "Name" ? "Sources" : t.nav.sources,
+                label: t.nav.sources,
                 value: data.sources.length,
                 color: "var(--color-source)",
                 icon: <DatabaseIcon size="sm" />,

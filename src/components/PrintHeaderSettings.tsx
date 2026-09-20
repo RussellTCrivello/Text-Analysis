@@ -9,6 +9,7 @@ import { InfoModal } from "./FormModal"
 import { Btn, Field, Input, Select, Checkbox } from "./ui"
 import { Check, Close, Print, Reset, Save } from "./icons"
 import { useAppData } from "../store/AppContext"
+import { useTranslation } from "../i18n"
 import {
   DEFAULT_PRINT_CONFIG,
   nextDocumentNumber,
@@ -23,6 +24,7 @@ interface Props {
 
 export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
   const { printConfig, setPrintConfig } = useAppData()
+  const { t } = useTranslation()
   const [cfg, setCfg] = useState<PrintHeaderConfig>(printConfig)
   const [dirty, setDirty] = useState(false)
 
@@ -34,7 +36,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
   const save = () => {
     setPrintConfig(cfg)
     setDirty(false)
-    onToast?.("Print settings saved")
+    onToast?.(t.print.savedToast)
     onClose()
   }
 
@@ -53,7 +55,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
   const pickLogo = (file: File | undefined) => {
     if (!file) return
     if (file.size > 512 * 1024) {
-      onToast?.("Logo must be smaller than 512 KB.")
+      onToast?.(t.print.logoTooBig)
       return
     }
     const reader = new FileReader()
@@ -71,7 +73,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
   return (
     <InfoModal
       isOpen={isOpen}
-      title="Print & Export Header Settings"
+      title={t.print.title}
       onClose={onClose}
       size="lg"
       icon={<Print size="sm" />}
@@ -80,34 +82,34 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
         {/* Header */}
         <div className={card} style={cardStyle}>
           <div className={heading} style={{ color: "var(--muted-fg)" }}>
-            Document header
+            {t.print.headerCard}
           </div>
           {row(
-            "Header line 1",
+            t.print.header1,
             <Input
               value={cfg.header1}
               onChange={(e) => set({ header1: e.target.value })}
-              placeholder="Organization name"
+              placeholder={t.print.phOrg}
             />,
           )}
           {row(
-            "Header line 2",
+            t.print.header2,
             <Input
               value={cfg.header2}
               onChange={(e) => set({ header2: e.target.value })}
-              placeholder="Department"
+              placeholder={t.print.phDept}
             />,
           )}
           {row(
-            "Header line 3",
+            t.print.header3,
             <Input
               value={cfg.header3}
               onChange={(e) => set({ header3: e.target.value })}
-              placeholder="Additional info"
+              placeholder={t.print.phExtra}
             />,
           )}
           {row(
-            "Include date",
+            t.print.includeDate,
             <input
               type="checkbox"
               checked={cfg.includeDate}
@@ -115,7 +117,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
             />,
           )}
           {row(
-            "Repeat on every page",
+            t.print.repeatEveryPage,
             <input
               type="checkbox"
               checked={cfg.repeatHeaderOnEveryPage}
@@ -125,7 +127,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
             />,
           )}
           {row(
-            "Logo",
+            t.print.logo,
             <div className="flex items-center gap-2">
               <input
                 type="file"
@@ -136,7 +138,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
               {cfg.logoDataUrl && (
                 <img
                   src={cfg.logoDataUrl}
-                  alt="logo preview"
+                  alt={t.print.logoPreview}
                   style={{ maxHeight: 28 }}
                 />
               )}
@@ -148,13 +150,13 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
                     set({ logoDataUrl: undefined, includeLogo: false })
                   }
                 >
-                  Remove
+                  {t.shared.remove}
                 </Btn>
               )}
             </div>,
           )}
           {row(
-            "Print logo",
+            t.print.printLogo,
             <input
               type="checkbox"
               checked={cfg.includeLogo}
@@ -167,24 +169,24 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
         {/* Title + numbering */}
         <div className={card} style={cardStyle}>
           <div className={heading} style={{ color: "var(--muted-fg)" }}>
-            Title & document numbering
+            {t.print.titleCard}
           </div>
           {row(
-            "Default report title",
+            t.print.defaultTitle,
             <Input
               value={cfg.reportTitle}
               onChange={(e) => set({ reportTitle: e.target.value })}
             />,
           )}
           {row(
-            "Default subtitle",
+            t.print.defaultSubtitle,
             <Input
               value={cfg.reportSubtitle}
               onChange={(e) => set({ reportSubtitle: e.target.value })}
             />,
           )}
           {row(
-            "Number prefix",
+            t.print.numberPrefix,
             <Input
               value={cfg.docNumberPrefix}
               onChange={(e) => set({ docNumberPrefix: e.target.value })}
@@ -192,7 +194,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
             />,
           )}
           {row(
-            "Next auto number",
+            t.print.nextAuto,
             <div className="flex items-center gap-2">
               <span
                 className="text-xs"
@@ -205,16 +207,16 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
                 variant="ghost"
                 onClick={() => set({ docNumberSequence: 1 })}
               >
-                Reset sequence
+                {t.print.resetSequence}
               </Btn>
             </div>,
           )}
           {row(
-            "Manual override",
+            t.print.manualOverride,
             <Input
               value={cfg.docNumberManual}
               onChange={(e) => set({ docNumberManual: e.target.value })}
-              placeholder="Leave empty for auto"
+              placeholder={t.print.phAuto}
             />,
           )}
         </div>
@@ -222,10 +224,10 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
         {/* Geometry + footer */}
         <div className={card} style={cardStyle}>
           <div className={heading} style={{ color: "var(--muted-fg)" }}>
-            Page geometry & footer
+            {t.print.geoCard}
           </div>
           {row(
-            "Orientation",
+            t.print.orientation,
             <Select
               value={cfg.orientation}
               onChange={(e) =>
@@ -235,13 +237,13 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
                 })
               }
               options={[
-                { value: "portrait", label: "Portrait" },
-                { value: "landscape", label: "Landscape" },
+                { value: "portrait", label: t.print.portrait },
+                { value: "landscape", label: t.print.landscape },
               ]}
             />,
           )}
           {row(
-            "Page size",
+            t.print.pageSize,
             <Select
               value={cfg.pageSize}
               onChange={(e) =>
@@ -256,7 +258,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
             />,
           )}
           {row(
-            "Page numbers",
+            t.print.pageNumbers,
             <input
               type="checkbox"
               checked={cfg.includePageNumbers}
@@ -264,11 +266,11 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
             />,
           )}
           {row(
-            "Footer text",
+            t.print.footerText,
             <Input
               value={cfg.footerText}
               onChange={(e) => set({ footerText: e.target.value })}
-              placeholder="Appears on every page footer"
+              placeholder={t.print.phFooter}
             />,
           )}
         </div>
@@ -343,7 +345,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
                   fontFamily: "var(--font-mono)",
                 }}
               >
-                page 1 of N
+                {t.print.pageOf}
               </span>
             )}
           </div>
@@ -356,7 +358,7 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
               style={{ color: "var(--warning)" }}
             >
               <Reset size="xs" />
-              Unsaved changes
+              {t.print.unsaved}
             </span>
           )}
           <div className="flex-1" />
@@ -368,13 +370,13 @@ export function PrintHeaderSettings({ isOpen, onClose, onToast }: Props) {
             }}
             icon={<Reset size="xs" />}
           >
-            Reset to defaults
+            {t.print.resetDefaults}
           </Btn>
           <Btn variant="ghost" onClick={onClose} icon={<Close size="xs" />}>
-            Cancel
+            {t.actions.cancel}
           </Btn>
           <Btn variant="primary" onClick={save} icon={<Save size="xs" />}>
-            Save &amp; close
+            {t.print.saveClose}
           </Btn>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React from 'react'
 import { InfoModal } from './FormModal'
 import { Btn } from './ui'
 import { Attachment, Pencil } from './icons'
+import { useTranslation } from '../i18n'
 import type { Content, Source } from '../types'
 
 interface Props {
@@ -14,31 +15,32 @@ interface Props {
 }
 
 export function ContentPreviewDialog({ isOpen, onClose, content, source, onAttach, onEdit }: Props) {
+  const { t } = useTranslation()
   if (!content) return null
   const metadata = [
-    ['Source', source?.name ?? '—'],
-    ['Date', content.date_content || '—'],
-    ['Importance', content.importance == null ? '—' : `${Math.round(Number(content.importance) * 100)}%`],
+    [t.fields.source, source?.name ?? '—'],
+    [t.fields.date, content.date_content || '—'],
+    [t.fields.importance, content.importance == null ? '—' : `${Math.round(Number(content.importance) * 100)}%`],
   ]
   return (
-    <InfoModal isOpen={isOpen} title="Content workspace" onClose={onClose} size="lg">
+    <InfoModal isOpen={isOpen} title={t.messages.contentPreviewTitle} onClose={onClose} size="lg">
       <div className="flex flex-col gap-4">
         <header className="flex items-start gap-3 border-b pb-3" style={{ borderColor: 'var(--border)' }}>
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1" style={{ color: 'var(--muted-fg-2)' }}>
-              Contents / Preview
+              {t.messages.contentPreviewEyebrow}
             </div>
             <h2 className="text-lg font-bold truncate" style={{ fontFamily: 'var(--font-display)', color: 'var(--fg)' }}>
-              {content.title || '(No Title)'}
+              {content.title || t.messages.noTitle}
             </h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--muted-fg)' }}>
-              <span>Content record</span>
+              <span>{t.messages.contentRecord}</span>
               {source?.name && <span>{source.name}</span>}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {onEdit && <Btn size="sm" variant="subtle" onClick={onEdit} icon={<Pencil size="xs" />}>Edit</Btn>}
-            {onAttach && <Btn size="sm" variant="subtle" onClick={onAttach} icon={<Attachment size="xs" />}>Attach</Btn>}
+            {onEdit && <Btn size="sm" variant="subtle" onClick={onEdit} icon={<Pencil size="xs" />}>{t.actions.edit}</Btn>}
+            {onAttach && <Btn size="sm" variant="subtle" onClick={onAttach} icon={<Attachment size="xs" />}>{t.sections.attachments.attachFile}</Btn>}
           </div>
         </header>
 
@@ -51,16 +53,16 @@ export function ContentPreviewDialog({ isOpen, onClose, content, source, onAttac
           ))}
         </div>
 
-        <section aria-label="Content body">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>Overview</div>
+        <section aria-label={t.messages.contentBodyAria}>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>{t.messages.overview}</div>
           <div className="rounded-[var(--radius)] border p-4 text-sm leading-relaxed whitespace-pre-wrap" style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: 340, overflowY: 'auto', color: 'var(--fg)' }}>
-            {content.content_data || '(empty)'}
+            {content.content_data || t.messages.emptyValue}
           </div>
         </section>
 
         {content.note && (
           <section>
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>Notes</div>
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-fg)' }}>{t.messages.notes}</div>
             <div className="text-sm" style={{ color: 'var(--muted-fg)' }}>{content.note}</div>
           </section>
         )}

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react"
-import { Sort, SortAsc, SortDesc, EmptyFile, ChevronU, ChevronD } from "./icons"
+import { Sort, SortAsc, SortDesc, EmptyFile, ChevronU, ChevronD, Close } from "./icons"
 import { RowCheckbox } from "./ui"
+import { useTranslation } from "../i18n"
 import { fieldsOf, type EntityName } from "../core/schema"
 import { docTypeMetadata } from "../core/framework"
 import { normalizeTableLayout } from "../core/tableLayout"
@@ -44,16 +45,24 @@ export function DataTable<T extends { id: string }>({
   onSelect,
   onSelectionChange,
   onDoubleClick,
-  emptyText = "No records.",
+  emptyText,
   rowNumberOffset = 0,
   density = "comfortable",
   entity,
 }: DataTableProps<T>) {
+  const { t } = useTranslation()
   const { settings, updateTableLayout } = useSettings()
+  const densityLabels: Record<"compact" | "comfortable" | "expansive", string> = {
+    compact: t.shared.densityCompact,
+    comfortable: t.shared.densityComfortable,
+    expansive: t.shared.densityExpansive,
+  }
   const schemaColumns = entity
     ? fieldsOf(entity).map((field) => ({
         key: field.key,
-        header: docTypeMetadata(entity).fields.find((item) => item.key === field.key)?.label ?? field.key,
+        // Prefer the ACTIVE locale's field name; the framework label is the
+        // English fallback for keys missing from the dictionary.
+        header: (t.fields as Record<string, string>)[field.key] ?? docTypeMetadata(entity).fields.find((item) => item.key === field.key)?.label ?? field.key,
         sortable: field.kind !== "textarea",
         render: (row: T) => <span className="truncate" title={String((row as Record<string, unknown>)[field.key] ?? "")}>{String((row as Record<string, unknown>)[field.key] ?? "—")}</span>,
       })) as Column<T>[]
@@ -200,38 +209,38 @@ export function DataTable<T extends { id: string }>({
       <div className="sticky top-0 z-10 flex justify-end px-2 py-1" style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
         <details className="relative">
           <summary className="cursor-pointer select-none rounded px-2 py-1 text-xs font-semibold" style={{ color: "var(--muted-fg)", border: "1px solid var(--border)" }}>
-            Manage columns
+            {t.shared.manageColumns}
           </summary>
           <div className="absolute end-0 mt-1 z-20 min-w-52 rounded p-2 shadow-lg" style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}>
-            <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>Displayed fields</div>
-            <input className="ctrl mb-1 w-full text-xs" placeholder="Find a field…" value={columnQuery} onChange={(event) => setColumnQuery(event.target.value)} />
+            <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>{t.shared.displayedFields}</div>
+            <input className="ctrl mb-1 w-full text-xs" placeholder={t.shared.findField} value={columnQuery} onChange={(event) => setColumnQuery(event.target.value)} />
             {columns.filter((column) => `${column.header} ${String(column.key)}`.toLowerCase().includes(columnQuery.toLowerCase())).map((column) => {
               const key = String(column.key)
               return <label key={key} className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer">
                 <input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => setHiddenColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} />
                 <span className="truncate">{column.header}</span>
                 <button type="button" className="ms-auto text-[10px] underline" onClick={(event) => { event.preventDefault(); setPinnedColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]) }}>
-                  {pinnedColumns.includes(key) ? "Unpin" : "Pin"}
+                  {pinnedColumns.includes(key) ? t.shared.unpin : t.shared.pin}
                 </button>
-                <button type="button" className="text-[10px]" title="Move field earlier" aria-label={`Move ${column.header} field earlier`} onClick={(event) => { event.preventDefault(); setColumnOrder((current) => { const base = current.length ? current : columns.map((item) => String(item.key)); const index = base.indexOf(key); if (index <= 0) return base; const next = [...base]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next }) }}><ChevronU size="xs" /></button>
-                <button type="button" className="text-[10px]" title="Move field later" aria-label={`Move ${column.header} field later`} onClick={(event) => { event.preventDefault(); setColumnOrder((current) => { const base = current.length ? current : columns.map((item) => String(item.key)); const index = base.indexOf(key); if (index < 0 || index >= base.length - 1) return base; const next = [...base]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next }) }}><ChevronD size="xs" /></button>
+                <button type="button" className="text-[10px]" title={t.shared.moveFieldEarlier.replace("{name}", column.header)} aria-label={t.shared.moveFieldEarlier.replace("{name}", column.header)} onClick={(event) => { event.preventDefault(); setColumnOrder((current) => { const base = current.length ? current : columns.map((item) => String(item.key)); const index = base.indexOf(key); if (index <= 0) return base; const next = [...base]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next }) }}><ChevronU size="xs" /></button>
+                <button type="button" className="text-[10px]" title={t.shared.moveFieldLater.replace("{name}", column.header)} aria-label={t.shared.moveFieldLater.replace("{name}", column.header)} onClick={(event) => { event.preventDefault(); setColumnOrder((current) => { const base = current.length ? current : columns.map((item) => String(item.key)); const index = base.indexOf(key); if (index < 0 || index >= base.length - 1) return base; const next = [...base]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next }) }}><ChevronD size="xs" /></button>
               </label>
             })}
             <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
-              <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>Row density</div>
+              <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>{t.shared.rowDensity}</div>
               <div className="flex gap-1">
-                {(["compact", "comfortable", "expansive"] as const).map((option) => <button key={option} type="button" className="rounded px-1.5 py-1 text-[10px]" style={{ background: tableDensity === option ? "var(--primary)" : "var(--surface-2)", color: tableDensity === option ? "var(--primary-fg)" : "var(--fg)" }} onClick={() => setTableDensity(option)}>{option}</button>)}
+                {(["compact", "comfortable", "expansive"] as const).map((option) => <button key={option} type="button" className="rounded px-1.5 py-1 text-[10px]" style={{ background: tableDensity === option ? "var(--primary)" : "var(--surface-2)", color: tableDensity === option ? "var(--primary-fg)" : "var(--fg)" }} onClick={() => setTableDensity(option)}>{densityLabels[option]}</button>)}
               </div>
             </div>
             <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
-              <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>Saved layouts</div>
+              <div className="mb-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-fg)" }}>{t.shared.savedLayouts}</div>
               <div className="flex gap-1">
-                <input className="ctrl min-w-0 flex-1 text-xs" placeholder="Layout name" value={profileName} onChange={(event) => setProfileName(event.target.value)} />
-                <button type="button" className="text-xs underline" onClick={() => { const name = profileName.trim(); if (!name) return; const next = { ...profiles, [name]: { hidden: hiddenColumns, widths: columnWidths, pinned: pinnedColumns, order: columnOrder, density: tableDensity, sort: sortRules } }; setProfiles(next); localStorage.setItem(`${preferenceKey}.profiles`, JSON.stringify(next)); updateTableLayout(preferenceKey, { profiles: next }); setProfileName("") }}>Save</button>
+                <input className="ctrl min-w-0 flex-1 text-xs" placeholder={t.shared.layoutName} value={profileName} onChange={(event) => setProfileName(event.target.value)} />
+                <button type="button" className="text-xs underline" onClick={() => { const name = profileName.trim(); if (!name) return; const next = { ...profiles, [name]: { hidden: hiddenColumns, widths: columnWidths, pinned: pinnedColumns, order: columnOrder, density: tableDensity, sort: sortRules } }; setProfiles(next); localStorage.setItem(`${preferenceKey}.profiles`, JSON.stringify(next)); updateTableLayout(preferenceKey, { profiles: next }); setProfileName("") }}>{t.actions.save}</button>
               </div>
-              {Object.keys(profiles).map((name) => <span key={name} className="mt-1 me-1 inline-flex items-center rounded" style={{ background: "var(--surface-2)" }}><button type="button" className="px-1.5 py-1 text-[10px]" onClick={() => { const profile = profiles[name]; setHiddenColumns(profile.hidden); setColumnWidths(profile.widths); setPinnedColumns(profile.pinned); setColumnOrder(profile.order); setTableDensity(profile.density); setSortRules(profile.sort) }}>{name}</button><button type="button" className="px-1 text-[10px]" aria-label={`Delete ${name} layout`} onClick={() => { const next = { ...profiles }; delete next[name]; setProfiles(next); localStorage.setItem(`${preferenceKey}.profiles`, JSON.stringify(next)) }}>×</button></span>)}
+              {Object.keys(profiles).map((name) => <span key={name} className="mt-1 me-1 inline-flex items-center rounded" style={{ background: "var(--surface-2)" }}><button type="button" className="px-1.5 py-1 text-[10px]" onClick={() => { const profile = profiles[name]; setHiddenColumns(profile.hidden); setColumnWidths(profile.widths); setPinnedColumns(profile.pinned); setColumnOrder(profile.order); setTableDensity(profile.density); setSortRules(profile.sort) }}>{name}</button><button type="button" className="inline-flex px-1 text-[10px]" aria-label={t.shared.deleteLayout.replace("{name}", name)} title={t.shared.deleteLayout.replace("{name}", name)} onClick={() => { const next = { ...profiles }; delete next[name]; setProfiles(next); localStorage.setItem(`${preferenceKey}.profiles`, JSON.stringify(next)) }}><Close size="xs" /></button></span>)}
             </div>
-            <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setColumnWidths({}); setSortRules([]); setPinnedColumns([]); setColumnOrder([]); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`); localStorage.removeItem(`${preferenceKey}.widths`); localStorage.removeItem(`${preferenceKey}.density`); localStorage.removeItem(`${preferenceKey}.sort`); localStorage.removeItem(`${preferenceKey}.order`) }}>Reset table layout</button>
+            <button type="button" className="mt-2 text-xs underline" onClick={() => { setHiddenColumns([]); setColumnWidths({}); setSortRules([]); setPinnedColumns([]); setColumnOrder([]); setTableDensity(density); localStorage.removeItem(`${preferenceKey}.hidden`); localStorage.removeItem(`${preferenceKey}.widths`); localStorage.removeItem(`${preferenceKey}.density`); localStorage.removeItem(`${preferenceKey}.sort`); localStorage.removeItem(`${preferenceKey}.order`) }}>{t.shared.resetTableLayout}</button>
           </div>
         </details>
       </div>
@@ -268,8 +277,8 @@ export function DataTable<T extends { id: string }>({
                   }
                   label={
                     selectedIds.length === data.length && data.length > 0
-                      ? "Deselect all rows"
-                      : "Select all rows"
+                      ? t.shared.deselectAllRows
+                      : t.shared.selectAllRows
                   }
                   onChange={(v) =>
                     onSelectionChange(v ? data.map((r) => r.id) : [])
@@ -280,7 +289,7 @@ export function DataTable<T extends { id: string }>({
             <th
               scope="col"
               className="text-center"
-              aria-label="Row number"
+              aria-label={t.shared.rowNumber}
               style={{
                 background: "var(--thead-glass)",
                 borderBottom: "1px solid var(--border-strong)",
@@ -331,7 +340,7 @@ export function DataTable<T extends { id: string }>({
                       color: "inherit",
                       font: "inherit",
                     }}
-                    title={`Sort by ${col.header}`}
+                    title={t.shared.sortBy.replace("{name}", col.header)}
                   >
                     {col.header}
                     <SortIcon col={col} />
@@ -341,7 +350,7 @@ export function DataTable<T extends { id: string }>({
                 )}
                 <span
                   role="separator"
-                  aria-label={`Resize ${col.header} column`}
+                  aria-label={t.shared.resizeColumn.replace("{name}", col.header)}
                   onMouseDown={(event) => {
                     event.preventDefault()
                     resizeColumn(String(col.key), event.clientX, (event.currentTarget.parentElement?.getBoundingClientRect().width ?? 160))
@@ -353,7 +362,7 @@ export function DataTable<T extends { id: string }>({
             ))}
           </tr>
           {visibleColumns.some((col) => col.filter) && (
-            <tr aria-label="Column filters">
+            <tr aria-label={t.shared.columnFilters}>
               {onSelectionChange && (
                 <th style={{ background: "var(--thead-glass)" }} aria-hidden="true" />
               )}
@@ -391,7 +400,7 @@ export function DataTable<T extends { id: string }>({
                   <span style={{ color: "var(--muted-fg-2)", opacity: 0.6 }}>
                     <EmptyFile size="xl" />
                   </span>
-                  <span>{emptyText}</span>
+                  <span>{emptyText ?? t.messages.noRecords}</span>
                 </div>
               </td>
             </tr>
@@ -434,7 +443,7 @@ export function DataTable<T extends { id: string }>({
                     >
                       <RowCheckbox
                         checked={selectedIds.includes(row.id)}
-                        label={`Select row ${rowNumberOffset + idx + 1}`}
+                        label={t.shared.selectRow.replace("{n}", String(rowNumberOffset + idx + 1))}
                         onChange={(v) => {
                           const next = v
                             ? [...selectedIds, row.id]

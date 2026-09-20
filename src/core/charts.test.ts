@@ -39,3 +39,16 @@ test('paletteFor is stable and within the palette', () => {
   assert.match(paletteFor('website'), /^#[0-9A-F]{6}$/i);
   assert.notEqual(paletteFor('website'), paletteFor('podcast'), 'different labels generally differ');
 });
+
+test('paletteFor switches to the colour-blind-safe palette on request', () => {
+  // Same label, stable within a mode…
+  assert.equal(paletteFor('website', 'deuteranopia'), paletteFor('website', 'deuteranopia'));
+  // …but the CVD palettes differ from the default for at least one label.
+  let differs = false;
+  for (const label of ['a', 'b', 'c', 'website', 'podcast']) {
+    if (paletteFor(label) !== paletteFor(label, 'tritanopia')) differs = true;
+  }
+  assert.ok(differs, 'CVD palette should not be identical to the default');
+  // Every mode still returns a valid hex colour.
+  assert.match(paletteFor('website', 'protanopia'), /^#[0-9A-F]{6}$/i);
+});

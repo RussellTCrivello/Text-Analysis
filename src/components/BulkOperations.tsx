@@ -8,6 +8,7 @@ import { InfoModal } from "./FormModal"
 import { Btn, Field, Input, Select, Textarea, EmptyState } from "./ui"
 import { Check, CircleXIcon, Close, Pencil, Trash } from "./icons"
 import { useTranslation } from "../i18n"
+import { formatValidationIssue } from "../i18n/validation"
 import { useAppData } from "../store/AppContext"
 import { editableFields, type EntityName, type FieldSpec } from "../core/schema"
 import { hasErrors, type ValidationIssue } from "../core/validation"
@@ -84,11 +85,17 @@ export function BulkOperations({
   }, [field, value])
 
   const previewIssues = useMemo(() => {
-    if (mode !== "edit" || !field || !checked.size) return []
-    const sample = data.find((d) => checked.has(d.id))
-    if (!sample) return []
-    return validate(entity, { id: sample.id, ...patch })
-  }, [mode, field, value, checked, data, entity, validate, patch])
+    if (mode !== "edit" || !field || !checked.size || !Object.keys(patch).length) return []
+    const sampleId = [...checked].find((id) => checked.has(id))
+    if (!sampleId) return []
+    // Validate the REAL stored row patched with the change — validating the
+    // partial `{ id, ...patch }` shape alone flags every other required
+    // field and floods the preview with false errors.
+    const rows = (appData as unknown as Record<string, { id: string }[]>)[entity] ?? []
+    const stored = rows.find((r) => r.id === sampleId) as Record<string, unknown> | undefined
+    if (!stored) return []
+    return validate(entity, { ...stored, ...patch }, sampleId)
+  }, [mode, field, value, checked, patch, entity, validate, appData])
 
   const execute = () => {
     if (!checked.size) return
@@ -122,7 +129,8 @@ export function BulkOperations({
     setIssues([])
     setDone({
       count: checked.size,
-      message: `${checked.size} record(s) updated · ${field?.labelKey ?? fieldKey}`,
+      message: t.dialogs.bulkOps.updated.replace("{n}", String(checked.size))
+        .replace("{f}", (t.fields as Record<string, string>)[field?.labelKey ?? fieldKey] ?? fieldKey),
     })
   }
 
@@ -257,7 +265,7 @@ export function BulkOperations({
                 className="rounded-lg p-3 flex flex-col gap-2"
                 style={{ background: "var(--secondary-bg)" }}
               >
-                <Field label="Field to set">
+                <Field label={t.messages.bulkFieldToSet}>
                   <Select
                     value={fieldKey}
                     onChange={(e) => {
@@ -273,10 +281,10 @@ export function BulkOperations({
                   />
                 </Field>
                 <Field
-                  label="New value"
+                  label={t.messages.bulkNewValue}
                   hint={
                     field?.format === "percent"
-                      ? "Enter a percentage; stored as a 0–1 fraction"
+                      ? t.messages.bulkPercentHint
                       : undefined
                   }
                   error={issues.find((i) => i.field === fieldKey)?.message}
@@ -310,7 +318,7 @@ export function BulkOperations({
                     key={`${i.field}-${i.code}`}
                     className="inline-flex items-center gap-1.5"
                   >
-                    <CircleXIcon size="xs" /> {i.message}
+                    <CircleXIcon size="xs" /> {formatValidationIssue(i, t)}
                   </div>
                 ))}
               </div>

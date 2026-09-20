@@ -160,7 +160,10 @@ test('conditions translate into SQL that the engine executes', () => {
   ];
   const where = conditionsToSql(conditions, 'AND');
   assert.match(where, /country IN \('UK', 'Qatar'\)/);
-  assert.match(where, /importance >= '0\.7'/);
+  // Numeric values must translate to bare numeric literals, not quoted
+  // strings, so comparisons behave numerically on any engine.
+  assert.match(where, /importance >= 0\.7\b/);
+  assert.doesNotMatch(where, /importance >= '0\.7'/);
 
   const data = dataset();
   const engine = new SqlEngine(() => buildDatabase({ ...data, allRecords: [] }));

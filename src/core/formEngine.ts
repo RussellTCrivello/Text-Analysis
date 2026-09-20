@@ -18,7 +18,14 @@ export function formFields(entity: EntityName, layout?: Partial<FormLayout>): Fi
   const hidden = new Set(layout?.hidden ?? [])
   const readOnly = new Set(layout?.readOnly ?? [])
   const order = layout?.order ?? metadata.map((field) => field.key)
-  return [...metadata].filter((field) => field.form && !hidden.has(field.key)).sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key)).map((field) => ({ ...field, required: field.required, sortable: field.sortable, form: true, export: field.export, filter: field.filter, list: field.list, readOnly: readOnly.has(field.key) } as FieldMetadata & { readOnly: boolean }))
+  // Keys missing from `order` rank AFTER every ordered key (not before, as
+  // indexOf === -1 did) — matching orderedVisibleFormFields, which the form
+  // layout editor uses. Ties keep the schema order (stable sort).
+  const rank = (key: string) => {
+    const i = order.indexOf(key)
+    return i === -1 ? order.length : i
+  }
+  return [...metadata].filter((field) => field.form && !hidden.has(field.key)).sort((a, b) => rank(a.key) - rank(b.key)).map((field) => ({ ...field, required: field.required, sortable: field.sortable, form: true, export: field.export, filter: field.filter, list: field.list, readOnly: readOnly.has(field.key) } as FieldMetadata & { readOnly: boolean }))
 }
 
 export function defaultFormLayout(entity: EntityName): FormLayout {
@@ -54,11 +61,20 @@ export function resetForm(state: FormState): FormState {
   return { ...state, values: { ...state.initial }, errors: {}, dirty: false, submitting: false }
 }
 
-export function validateForm(entity: EntityName, state: FormState): Record<string, string> {
+/**
+ * Required-field validation. The message is injected by the UI layer
+ * (useFormEngine passes the translated string) so the core stays
+ * framework- and locale-free.
+ */
+export function validateForm(
+  entity: EntityName,
+  state: FormState,
+  requiredMessage = "This field is required",
+): Record<string, string> {
   const errors: Record<string, string> = {}
   for (const field of formFields(entity)) {
     const value = state.values[field.key]
-    if (field.required && (value == null || String(value).trim() === "")) errors[field.key] = "This field is required"
+    if (field.required && (value == null || String(value).trim() === "")) errors[field.key] = requiredMessage
   }
   return errors
 }

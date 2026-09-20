@@ -3,7 +3,7 @@
  * chronological event stream with filtering, sorting, statistics and chart
  * series — the data half of the Timeline workspace.
  */
-import { isBlank, parseDate, splitList, truncate, uniqueSorted } from './text';
+import { fold, isBlank, parseDate, splitList, truncate, uniqueSorted } from './text';
 import type { AppData, Row } from './repository';
 
 export type TimelineRecordType = 'source' | 'content' | 'analysis';
@@ -137,14 +137,14 @@ export function filterTimeline(events: TimelineEvent[], filters: TimelineFilters
     if (from !== null && ts < from) return false;
     if (to !== null && ts > to) return false;
     if (filters.types?.length && !filters.types.includes(event.type)) return false;
-    if (filters.person && !event.people.some((p) => p.toLowerCase() === filters.person?.toLowerCase())) return false;
-    if (filters.place && !event.places.some((p) => p.toLowerCase() === filters.place?.toLowerCase())) return false;
-    if (filters.category && event.classification.toLowerCase() !== filters.category.toLowerCase()) return false;
+    if (filters.person && !event.people.some((p) => fold(p) === fold(filters.person))) return false;
+    if (filters.place && !event.places.some((p) => fold(p) === fold(filters.place))) return false;
+    if (filters.category && fold(event.classification) !== fold(filters.category)) return false;
     if (query) {
-      const haystack = [event.title, event.summary, event.classification, event.source, ...event.people, ...event.places]
-        .join(' ')
-        .toLowerCase();
-      if (!haystack.includes(query)) return false;
+      const haystack = fold(
+        [event.title, event.summary, event.classification, event.source, ...event.people, ...event.places].join(' '),
+      );
+      if (!haystack.includes(fold(query))) return false;
     }
     return true;
   });
@@ -264,7 +264,12 @@ function countBy(values: string[], limit: number): [string, number][] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit || undefined);
 }
 
-export function timelineSeries(events: TimelineEvent[], chart: TimelineChart): { name: string; value: number }[] {
+export function timelineSeries(
+  events: TimelineEvent[],
+  chart: TimelineChart,
+  days: string[] = WEEKDAYS,
+): { name: string; value: number }[] {
+  const dayNames = days.length === 7 ? days : WEEKDAYS;
   switch (chart) {
     case 'daily':
       return countBy(events.map((e) => e.date.slice(0, 10)), 0)
@@ -279,7 +284,9 @@ export function timelineSeries(events: TimelineEvent[], chart: TimelineChart): {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([name, value]) => ({ name, value }));
     case 'weekday':
-      return WEEKDAYS.map((name, index) => ({ name, value: events.filter((e) => e.dayOfWeek === index).length }));
+      // Localised day names are injected by the UI (WEEKDAYS is the
+      // English fallback) so Arabic sessions do not get English axis labels.
+      return dayNames.map((name, index) => ({ name, value: events.filter((e) => e.dayOfWeek === index).length }));
     case 'type':
       return (['source', 'content', 'analysis'] as TimelineRecordType[]).map((type) => ({
         name: type,

@@ -49,10 +49,10 @@ const DEFAULT_ACTOR = 'local-user';
 
 export class AuditLog {
   private entries: AuditEntry[] = [];
-  private readonly capacity: number;
+  private readonly maxEntries: number;
 
   constructor(capacity = 2000) {
-    this.capacity = capacity;
+    this.maxEntries = capacity;
   }
 
   record(input: Omit<AuditEntry, 'id' | 'ts' | 'actor'> & Partial<Pick<AuditEntry, 'actor' | 'ts'>>): AuditEntry {
@@ -68,7 +68,7 @@ export class AuditLog {
       changes: input.changes,
       meta: input.meta,
     };
-    this.entries = [entry, ...this.entries].slice(0, this.capacity);
+    this.entries = [entry, ...this.entries].slice(0, this.maxEntries);
     return entry;
   }
 
@@ -100,8 +100,13 @@ export class AuditLog {
     return this.entries.length;
   }
 
+  /** Ring-buffer size the log wraps at; UIs display "N / capacity". */
+  get capacity(): number {
+    return this.maxEntries;
+  }
+
   get full(): boolean {
-    return this.entries.length >= this.capacity;
+    return this.entries.length >= this.maxEntries;
   }
 
   clear(): void {
@@ -113,7 +118,7 @@ export class AuditLog {
   }
 
   restore(snapshot: AuditEntry[]): void {
-    this.entries = [...snapshot].slice(0, this.capacity);
+    this.entries = [...snapshot].slice(0, this.maxEntries);
   }
 
   toJSON(): AuditEntry[] {

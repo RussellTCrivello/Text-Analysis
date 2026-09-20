@@ -65,7 +65,7 @@ import {
 import { computeEntityStats } from "../core/stats"
 import { buildPrintDocument, printHtml } from "../core/print"
 import type { Row } from "../core/repository"
-import { formatDateTime, nowIso } from "../core/text"
+import { fold, formatDateTime, nowIso } from "../core/text"
 import type { Analysis } from "../types"
 
 const CLASSIFICATION_VOCABULARY = "analyses.classification"
@@ -73,9 +73,12 @@ const CLASSIFICATION_VOCABULARY = "analyses.classification"
 function emptyAnalysis(
   contentId = "",
 ): Omit<Analysis, "id" | "date_creation" | "date_modified"> {
+  // classification is intentionally empty: pre-filling an opinionated default
+  // (e.g. "Security / Diplomacy") meant the merge-from-extraction could never
+  // override it, and every new record started with a bogus taxonomy tag.
   return {
     content_id: contentId,
-    classification: "Security / Diplomacy",
+    classification: "",
     list_names_people: "",
     list_names_places: "",
     list_coordinates: "",
@@ -173,12 +176,21 @@ export function AnalysisView({
       }
     }) as unknown as Row[]
     const byText = freeTextSearch(enriched, search)
+    // Case- AND script-insensitive (fold) so Arabic alef/hamza variants match.
     const byClass = classFilter
-      ? byText.filter((a) => String(a.classification) === classFilter)
+      ? byText.filter(
+          (a) => fold(String(a.classification)) === fold(classFilter),
+        )
       : byText
     const byColumns = applyColumnFilters(byClass, colFilters, (row, key) => {
       const v = row[key as keyof typeof row] ?? row[key]
       const raw = String(v ?? "")
+      // The table shows the content TITLE but stores content_id — let the
+      // per-column filter match on both (plus the source name) or the
+      // title-based suggestions would never match a stored id.
+      if (key === "content_id") {
+        return `${row.content_title ?? ""} ${row.source_name ?? ""} ${raw}`
+      }
       return key.startsWith("date_") && raw
         ? `${raw} ${formatDateTime(raw)}`
         : raw
@@ -238,7 +250,17 @@ export function AnalysisView({
     const result = extract(text)
     setExtraction(result)
     onToast(
-      `Extracted ${result.people.length + result.places.length + result.organizations.length + result.sides.length} entities (${result.coordinates.length} coordinates)`,
+      t.messages.extractionN
+        .replace(
+          "{n}",
+          String(
+            result.people.length +
+              result.places.length +
+              result.organizations.length +
+              result.sides.length,
+          ),
+        )
+        .replace("{c}", String(result.coordinates.length)),
     )
   }
 
@@ -285,14 +307,19 @@ export function AnalysisView({
       setErrors(errs)
       return
     }
-    if (showAdd) addAnalysis(form)
-    else
-      updateAnalysis({
-        ...form,
-        id: selectedId!,
-        date_creation: selected!.date_creation,
-        date_modified: "",
-      })
+    const result = showAdd
+      ? addAnalysis(form)
+      : updateAnalysis({
+          ...form,
+          id: selectedId!,
+          date_creation: selected!.date_creation,
+          date_modified: "",
+        })
+    if (!result.ok) {
+      const first = result.issues.find((i) => i.level === "error")
+      onToast(t.messages.saveFailed.replace("{m}", first?.message ?? ""))
+      return
+    }
     setShowAdd(false)
     setShowEdit(false)
     onToast(t.messages.saved)
@@ -337,7 +364,7 @@ export function AnalysisView({
     [data.analyses],
   )
   const classOpts = [
-    { value: "", label: "— All —" },
+    { value: "", label: t.messages.allCategories },
     ...classOptions.map((o) => ({ value: o.value, label: o.value })),
   ]
   const orphanClasses = useMemo(
@@ -487,7 +514,7 @@ export function AnalysisView({
       config: printConfig,
       title: `${t.sections.analysis.title} — ${filtered.length} ${t.messages.records}`,
       subtitle: [
-        search ? `search: ${search}` : "",
+        search ? t.messages.printSearch.replace("{v}", search) : "",
         classFilter ? `classification: ${classFilter}` : "",
       ]
         .filter(Boolean)
@@ -518,7 +545,7 @@ export function AnalysisView({
       onClick: () => setShowAdvSearch(true),
     },
     {
-      label: "Filter builder",
+      label: t.messages.analysisFilterBuilder,
       icon: <SearchCodeIcon size="xs" />,
       onClick: () => setShowFilterBuilder(true),
     },
@@ -572,7 +599,7 @@ export function AnalysisView({
             onChange={(next) => setForm((f) => ({ ...f, content_id: next }))}
             options={contentOpts}
             allowCreate={false}
-            placeholder="Search content by title or source…"
+            placeholder={t.messages.searchContentBy}
             error={!!errors.content_id}
           />
         </Field>
@@ -580,7 +607,7 @@ export function AnalysisView({
           <Input
             readOnly
             value={form.content_id ? sourceName(form.content_id) : ""}
-            placeholder="Selected content source appears here"
+            placeholder={t.messages.selectedSourceHint}
             aria-label={t.fields.sources_id}
             style={{
               background: "var(--surface-2)",
@@ -602,9 +629,11 @@ export function AnalysisView({
             }
             options={classOptions}
             usage={classUsage}
-            placeholder="Type or pick a classification…"
+            placeholder={t.messages.typeOrPick}
             error={!!errors.classification}
-            createLabel={(typed) => `Add “${typed}” and teach the extractor`}
+            createLabel={(typed) =>
+              t.messages.addClassTeach.replace("{v}", typed)
+            }
             onCreate={(value) => {
               addVocabularyValue(CLASSIFICATION_VOCABULARY, value)
               // A new category is only useful if automated extraction knows it.
@@ -620,7 +649,7 @@ export function AnalysisView({
                 ])
               }
               onToast(
-                `Classification “${value}” added — add keywords in the Dictionary to enable auto-classification`,
+                t.messages.classificationAdded.replace("{v}", value),
               )
             }}
             onRemove={(value) => {
@@ -631,8 +660,10 @@ export function AnalysisView({
               )
               onToast(
                 result.ok
-                  ? `Removed “${value}”`
-                  : `Cannot remove “${value}”: ${result.reason ?? "in use"}`,
+                  ? t.messages.removedValue.replace("{v}", value)
+                  : t.messages.cannotRemove
+                      .replace("{v}", value)
+                      .replace("{reason}", result.reason ?? t.messages.inUse),
               )
             }}
           />
@@ -643,7 +674,7 @@ export function AnalysisView({
           className="text-xs font-semibold uppercase tracking-wide"
           style={{ color: "var(--muted-fg)" }}
         >
-          Entity extraction
+          {t.messages.entityExtraction}
         </span>
         <div className="flex gap-2">
           <Btn
@@ -652,7 +683,7 @@ export function AnalysisView({
             onClick={runExtraction}
             disabled={!form.content_id}
           >
-            Preview extraction
+            {t.messages.previewExtraction}
           </Btn>
           <Btn
             size="xs"
@@ -673,23 +704,30 @@ export function AnalysisView({
           }}
         >
           <div className="flex items-center justify-between">
-            <span className="font-semibold">Extraction preview</span>
+            <span className="font-semibold">
+              {t.messages.extractionPreview}
+            </span>
             <span
               style={{
                 color: "var(--muted-fg)",
                 fontFamily: "var(--font-mono)",
               }}
             >
-              {extraction.stats.words} words · {extraction.stats.language} ·{" "}
-              {extraction.stats.elapsedMs.toFixed(1)} ms
+              {t.messages.extractionWords
+                .replace("{n}", String(extraction.stats.words))
+                .replace("{lang}", extraction.stats.language)
+                .replace("{ms}", extraction.stats.elapsedMs.toFixed(1))}
             </span>
           </div>
           <div style={{ color: "var(--muted-fg)" }}>
-            {extraction.people.length} people · {extraction.places.length}{" "}
-            places · {extraction.organizations.length} organizations ·{" "}
-            {extraction.sides.length} sides · {extraction.coordinates.length}{" "}
-            coordinates · {extraction.dates.length} dates
-            {extraction.stats.truncated ? " · document truncated" : ""}
+            {t.messages.extractionCounts
+              .replace("{p}", String(extraction.people.length))
+              .replace("{pl}", String(extraction.places.length))
+              .replace("{o}", String(extraction.organizations.length))
+              .replace("{s}", String(extraction.sides.length))
+              .replace("{c}", String(extraction.coordinates.length))
+              .replace("{d}", String(extraction.dates.length))}
+            {extraction.stats.truncated ? ` · ${t.messages.docTruncated}` : ""}
           </div>
           <div
             style={{
@@ -699,13 +737,14 @@ export function AnalysisView({
             }}
           >
             {extraction.suggestion.classification || "—"} ·{" "}
-            {extraction.suggestion.list_names_people || "no people"} ·{" "}
-            {extraction.suggestion.list_names_places || "no places"} ·{" "}
-            {extraction.suggestion.list_coordinates || "no coordinates"}
+            {extraction.suggestion.list_names_people || t.messages.noPeople} ·{" "}
+            {extraction.suggestion.list_names_places || t.messages.noPlaces} ·{" "}
+            {extraction.suggestion.list_coordinates ||
+              t.messages.noCoordinates}
           </div>
           <div className="flex gap-2 pt-1">
             <Btn size="xs" variant="primary" onClick={autoExtract}>
-              Apply to form (merge)
+              {t.messages.applyMerge}
             </Btn>
             <Btn
               size="xs"
@@ -721,16 +760,16 @@ export function AnalysisView({
                 )
               }
             >
-              Fill empty only
+              {t.messages.fillEmpty}
             </Btn>
             <Btn size="xs" variant="ghost" onClick={() => setExtraction(null)}>
-              Dismiss
+              {t.shared.dismiss}
             </Btn>
           </div>
         </div>
       )}
       <div className="grid grid-cols-2 gap-4">
-        <Field label={t.fields.list_names_people} hint="Comma-separated names">
+        <Field label={t.fields.list_names_people} hint={t.messages.commaNames}>
           <Textarea
             value={form.list_names_people}
             onChange={(e) =>
@@ -739,7 +778,7 @@ export function AnalysisView({
             rows={3}
           />
         </Field>
-        <Field label={t.fields.list_names_places} hint="Comma-separated places">
+        <Field label={t.fields.list_names_places} hint={t.messages.commaPlaces}>
           <Textarea
             value={form.list_names_places}
             onChange={(e) =>
@@ -748,16 +787,16 @@ export function AnalysisView({
             rows={3}
           />
         </Field>
-        <Field label={t.fields.list_coordinates} hint="lat, lon">
+        <Field label={t.fields.list_coordinates} hint={t.messages.latLon}>
           <Input
             value={form.list_coordinates}
             onChange={(e) =>
               setForm((f) => ({ ...f, list_coordinates: e.target.value }))
             }
-            placeholder="e.g. 39.92, 32.85"
+            placeholder={t.messages.coordExample}
           />
         </Field>
-        <Field label={t.fields.list_sides} hint="Semicolon-separated">
+        <Field label={t.fields.list_sides} hint={t.messages.semiSeparated}>
           <Input
             value={form.list_sides}
             onChange={(e) =>
@@ -767,7 +806,7 @@ export function AnalysisView({
         </Field>
         <Field
           label={t.fields.date_analysis}
-          hint="Date and time of the analysis"
+          hint={t.messages.dateAnalysisHint}
         >
           <DateTimeInput
             value={form.date_analysis}
@@ -1086,7 +1125,7 @@ export function AnalysisView({
         onToast={onToast}
       />
       {showFilterBuilder && (
-        <InfoModal isOpen title="Analysis filter builder" onClose={() => setShowFilterBuilder(false)} size="lg">
+        <InfoModal isOpen title={t.messages.analysisFilterBuilder} onClose={() => setShowFilterBuilder(false)} size="lg">
           <FilterBuilder
             entity="analyses"
             onApply={(groups: FilterGroup[]) => {
@@ -1094,7 +1133,7 @@ export function AnalysisView({
               setAdvancedIds(rows.map((row) => String(row.id)))
               setPage(1)
               setShowFilterBuilder(false)
-              onToast(`Applied filter builder: ${rows.length} records`)
+              onToast(t.messages.filterBuilderApplied.replace("{n}", String(rows.length)))
             }}
             onClear={() => { setAdvancedIds(null); setShowFilterBuilder(false) }}
           />
@@ -1177,7 +1216,7 @@ export function AnalysisView({
             </div>
           ))}
           <div style={{ color: "var(--muted-fg)" }}>
-            Geotagged: {analysisStats.withCoordinates ?? 0} ·{" "}
+            {t.messages.geotagged}: {analysisStats.withCoordinates ?? 0} ·{" "}
             {t.dialogs.statistics.dateRange}:{" "}
             {analysisStats.dateRange.from ?? "—"} →{" "}
             {analysisStats.dateRange.to ?? "—"}

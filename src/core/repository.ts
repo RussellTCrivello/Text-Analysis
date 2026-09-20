@@ -16,7 +16,7 @@ import { AuditLog, diffRecords, type AuditAction, type AuditEntry } from './audi
 import { createStorage, StorageQuotaError, type StorageAdapter } from './persist';
 import { SCHEMA, ENTITY_ORDER, type EntityName } from './schema';
 import { hasErrors, normalizeRecord, validateRecord, type ValidationIssue } from './validation';
-import { fileStamp, fnv1a64, id as makeId, stableStringify, timestamp } from './text';
+import { fileStamp, fnv1a64, fold, id as makeId, stableStringify, timestamp } from './text';
 
 export type Row = Record<string, unknown>;
 
@@ -205,7 +205,10 @@ export class Repository {
         date_modified: c.date_modified,
         country: parent ? parent.country : '',
         city: parent ? parent.city : '',
-        type: 'content',
+        // One consistent meaning: the owning source's category (was the
+        // literal 'content', which made GROUP BY type mix categories with
+        // record kinds). Record kind lives in record_type.
+        type: parent ? String(parent.type ?? '') : '',
       });
     }
     for (const a of this.list('analyses')) {
@@ -225,7 +228,7 @@ export class Repository {
         date_modified: a.date_modified,
         country: source ? source.country : '',
         city: source ? source.city : '',
-        type: 'analysis',
+        type: source ? String(source.type ?? '') : '',
       });
     }
     return out;
@@ -297,14 +300,15 @@ export class Repository {
   }
 
   bulkDelete(entity: EntityName, ids: string[], opts: WriteOptions = {}): WriteResult {
+    const existing = [...new Set(ids)].filter((idValue) => this.get(entity, idValue));
+    if (!existing.length) return { ok: true, issues: [], cascaded: [] };
     this.pushUndo();
     const cascaded: { entity: EntityName; ids: string[] }[] = [];
     let removed = 0;
-    for (const idValue of ids) {
-      if (!this.get(entity, idValue)) continue;
+    for (const idValue of existing) {
       for (const c of this.cascadeRemove(entity, idValue)) {
-        const existing = cascaded.find((x) => x.entity === c.entity);
-        if (existing) existing.ids.push(...c.ids);
+        const group = cascaded.find((x) => x.entity === c.entity);
+        if (group) group.ids.push(...c.ids);
         else cascaded.push(c);
       }
       removed++;
@@ -320,10 +324,28 @@ export class Repository {
   /** Apply a partial patch to many rows in one audited operation. */
   bulkUpdate(entity: EntityName, ids: string[], patch: Row, opts: WriteOptions = {}): WriteResult {
     if (!Object.keys(patch).length) return { ok: true, issues: [] };
+    const targetIds = new Set(ids.map(String));
+    const targets = this.collections[entity].filter((row) => targetIds.has(String(row.id)));
+    if (!targets.length) return { ok: true, issues: [] };
+    // Validate each patched row first; rows the patch would invalidate are
+    // skipped and reported instead of being silently corrupted.
+    const issues: ValidationIssue[] = [];
+    const valid = new Set<string>();
+    for (const row of targets) {
+      const rowIssues = opts.skipValidation
+        ? []
+        : this.validate(entity, { ...row, ...patch }, { editingId: String(row.id) });
+      if (hasErrors(rowIssues)) {
+        for (const i of rowIssues) if (i.level === 'error') issues.push({ ...i, field: `row ${row.id}:${i.field}` });
+        continue;
+      }
+      valid.add(String(row.id));
+    }
+    if (!valid.size) return { ok: false, issues };
     this.pushUndo();
     let touched = 0;
     this.collections[entity] = this.collections[entity].map((row) => {
-      if (!ids.includes(String(row.id))) return row;
+      if (!valid.has(String(row.id))) return row;
       const next = normalizeRecord(entity, { ...row, ...patch });
       next.id = row.id;
       next.date_creation = row.date_creation;
@@ -331,12 +353,12 @@ export class Repository {
       touched++;
       return next;
     });
-    this.commit('update', entity, ids, opts.action ?? 'bulk_update', opts.silent, {
+    this.commit('update', entity, [...valid], opts.action ?? 'bulk_update', opts.silent, {
       title: `${touched} ${entity}`,
       summary: `Bulk updated ${touched} ${entity} (${Object.keys(patch).join(', ')})`,
-      meta: { patch },
+      meta: { patch, skipped: targets.length - touched },
     });
-    return { ok: true, issues: [] };
+    return { ok: issues.length === 0, issues };
   }
 
   duplicate(entity: EntityName, idValue: string): WriteResult {
@@ -352,9 +374,19 @@ export class Repository {
     delete copy.date_creation;
     delete copy.date_modified;
     const titleField = SCHEMA[entity].titleField;
-    if (typeof copy[titleField] === 'string') copy[titleField] = `${copy[titleField]} (Copy)`;
-    if (entity === 'sources') copy.name = `${orig.name} (Copy)`;
-    return this.insert(entity, copy, { skipValidation: true, action: 'create' });
+    // Choose a title the uniqueness check will accept: "X (Copy)",
+    // "X (Copy 2)", … — validating (instead of skipping it) keeps the
+    // repository the authority on every constraint, including `unique`.
+    const base = String(orig[titleField] ?? '');
+    let suffix = 0;
+    let candidate = base ? `${base} (Copy)` : '(Copy)';
+    const taken = new Set(this.collections[entity].map((r) => fold(r[titleField])));
+    while (taken.has(fold(candidate))) {
+      suffix++;
+      candidate = base ? `${base} (Copy ${suffix})` : `(Copy ${suffix})`;
+    }
+    copy[titleField] = candidate;
+    return this.insert(entity, copy, { action: 'create' });
   }
 
   /** Wholesale replace (reset / restore / load sample). */
@@ -391,18 +423,22 @@ export class Repository {
     const snapshot = JSON.stringify(this.collections);
     const issues: ValidationIssue[] = [];
     let inserted = 0;
+    let skipped = 0;
     try {
-      for (const row of rows) {
+      rows.forEach((row, index) => {
         if (opts.validate) {
           const rowIssues = this.validate(entity, row, { detectDuplicates: true });
           if (hasErrors(rowIssues)) {
-            issues.push(...rowIssues.map((i) => ({ ...i, field: `row ${inserted + issues.length + 1}:${i.field}` })));
-            continue;
+            // The row number is the 1-based input position, not a function of
+            // how many issues earlier rows produced.
+            issues.push(...rowIssues.map((i) => ({ ...i, field: `row ${index + 1}:${i.field}` })));
+            skipped++;
+            return;
           }
         }
         this.collections[entity] = [...this.collections[entity], this.finalize(entity, row)];
         inserted++;
-      }
+      });
     } catch (err) {
       this.collections = JSON.parse(snapshot) as Record<EntityName, Row[]>;
       return {
@@ -414,7 +450,7 @@ export class Repository {
     this.commit('insert', entity, [], opts.action ?? 'import', false, {
       title: `${inserted} ${entity}`,
       summary: opts.summary ?? `Imported ${inserted} ${entity}`,
-      meta: { skipped: issues.length },
+      meta: { skipped, issues: issues.length },
     });
     return { ok: issues.length === 0, inserted, issues };
   }
@@ -537,8 +573,10 @@ export class Repository {
     const byId = rows.find((r) => String(r.id) === target);
     if (byId) return String(byId.id);
     const label = SCHEMA[spec.parent.entity].titleField;
-    const norm = target.toLowerCase();
-    const byName = rows.find((r) => String(r[label] ?? '').toLowerCase() === norm);
+    // fold() — not toLowerCase() — so Arabic alef/hamza variants and
+    // case differences all resolve to the same parent record.
+    const norm = fold(target);
+    const byName = rows.find((r) => fold(String(r[label] ?? '')) === norm);
     return byName ? String(byName.id) : null;
   }
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import {
   BarChart,
   Bar,
@@ -135,6 +135,14 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
 
   const summary = useMemo(() => summarizeTimeline(filtered), [filtered])
 
+  // A filter change can drop the open detail event out of the result set —
+  // close the stale panel instead of showing data that no longer exists.
+  useEffect(() => {
+    if (selectedEvent && !filtered.some((e) => e.id === selectedEvent.id)) {
+      setSelectedEvent(null)
+    }
+  }, [filtered, selectedEvent])
+
   const toggleType = (type: TimelineRecordType) =>
     setTypes((current) =>
       current.includes(type)
@@ -142,19 +150,28 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
         : [...current, type],
     )
 
-  const chartData = useMemo(
-    () => timelineSeries(filtered, chartType),
-    [filtered, chartType],
-  )
+  const chartData = useMemo(() => {
+    const series = timelineSeries(filtered, chartType, t.sections.timeline.weekdays)
+    if (chartType === "type") {
+      // Core series names are record-kind tokens; show the locale's names.
+      const names: Record<string, string> = {
+        source: t.nav.sources,
+        content: t.nav.contents,
+        analysis: t.nav.analysis,
+      }
+      return series.map((p) => ({ ...p, name: names[p.name] ?? p.name }))
+    }
+    return series
+  }, [filtered, chartType, t])
 
   const stats = timelineStats(allEvents, filtered)
 
   const sortOpts: { value: TimelineSort; label: string }[] = [
     { value: "date", label: t.sections.timeline.sortDate },
     { value: "source", label: t.sections.timeline.sortSource },
-    { value: "classification", label: "Classification" },
-    { value: "people", label: "People" },
-    { value: "places", label: "Places" },
+    { value: "classification", label: t.sections.timeline.sortClassification },
+    { value: "people", label: t.sections.timeline.sortPeople },
+    { value: "places", label: t.sections.timeline.sortPlaces },
   ]
   const dirOpts = [
     { value: "asc", label: t.sections.timeline.ascending },
@@ -170,19 +187,19 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
     { value: "monthly", label: t.sections.timeline.chartMonthly },
     { value: "weekday", label: t.sections.timeline.chartDayOfWeek },
     { value: "classification", label: t.sections.timeline.chartClassification },
-    { value: "daily", label: "Daily" },
-    { value: "yearly", label: "Yearly" },
+    { value: "daily", label: t.sections.timeline.daily },
+    { value: "yearly", label: t.sections.timeline.yearly },
   ]
   const classOpts = [
-    { value: "", label: "— All —" },
+    { value: "", label: t.messages.allCategories },
     ...facets.categories.map((c) => ({ value: c, label: c })),
   ]
   const peopleOpts = [
-    { value: "", label: "— All people —" },
+    { value: "", label: t.sections.timeline.allPeople },
     ...facets.people.map((p) => ({ value: p, label: p.slice(0, 40) })),
   ]
   const placesOpts = [
-    { value: "", label: "— All places —" },
+    { value: "", label: t.sections.timeline.allPlaces },
     ...facets.places.map((p) => ({ value: p, label: p.slice(0, 40) })),
   ]
 
@@ -221,9 +238,9 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
           onChange={setSearch}
           placeholder={t.messages.searchPlaceholder}
         />
-        <ComboField value={classFilter} onChange={setClassFilter} options={classOpts} allowCreate={false} placeholder="Search classification…" />
-        <ComboField value={peopleFilter} onChange={setPeopleFilter} options={peopleOpts} allowCreate={false} placeholder="Search people…" />
-        <ComboField value={placesFilter} onChange={setPlacesFilter} options={placesOpts} allowCreate={false} placeholder="Search places…" />
+        <ComboField value={classFilter} onChange={setClassFilter} options={classOpts} allowCreate={false} placeholder={t.sections.timeline.searchClassification} />
+        <ComboField value={peopleFilter} onChange={setPeopleFilter} options={peopleOpts} allowCreate={false} placeholder={t.sections.timeline.searchPeople} />
+        <ComboField value={placesFilter} onChange={setPlacesFilter} options={placesOpts} allowCreate={false} placeholder={t.sections.timeline.searchPlaces} />
         <DateInput
           label={t.messages.dateFrom}
           value={dateFrom}
@@ -267,7 +284,11 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
                 active={types.includes(type)}
                 onClick={() => toggleType(type)}
               >
-                {type}
+                {type === "source"
+                  ? t.sections.timeline.sourcesCount
+                  : type === "content"
+                    ? t.nav.contents
+                    : t.sections.timeline.analysesCount}
               </ToggleChip>
             ),
           )}
@@ -305,7 +326,7 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
             color: "var(--color-analysis)",
           },
           {
-            label: "Geotagged",
+            label: t.messages.geotagged,
             value: stats.withCoordinates,
             icon: <MapPinIcon size="xs" />,
           },
@@ -319,9 +340,15 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
           />
         ))}
         <span className="text-[11px]" style={{ color: "var(--muted-fg)" }}>
-          {summary.range.from ?? "—"} → {summary.range.to ?? "—"} · busiest{" "}
-          {summary.mostActivePeriod?.label ?? "—"} (
-          {summary.mostActivePeriod?.count ?? 0})
+          {summary.range.from ?? "—"} → {summary.range.to ?? "—"} ·{" "}
+          {summary.mostActivePeriod
+            ? t.sections.timeline.busiest
+                .replace("{label}", summary.mostActivePeriod.label)
+                .replace(
+                  "{count}",
+                  String(summary.mostActivePeriod.count ?? 0),
+                )
+            : "—"}
         </span>
         <div className="flex-1" />
         <Select
@@ -367,7 +394,7 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
                 className="text-xs font-semibold"
                 style={{ color: "var(--muted-fg)" }}
               >
-                Chart
+                {t.sections.timeline.chart}
               </span>
               <Select
                 value={chartType}
@@ -445,7 +472,9 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
                 style={{ background: "var(--border)" }}
               />
 
-              {filtered.map((event, idx) => {
+              {/* Only the current page is rendered — the footer's "showing N
+                  of M" pagination must match what is actually on screen. */}
+              {pageEvents.map((event, idx) => {
                 const dot = axisDot(event.type)
                 const isSelected = selectedEvent?.id === event.id
                 return (
@@ -480,7 +509,7 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
                       className="flex-1 min-w-0 pb-2"
                       style={{
                         borderBottom:
-                          idx < filtered.length - 1
+                          idx < pageEvents.length - 1
                             ? "1px solid var(--border)"
                             : "none",
                       }}
@@ -523,7 +552,7 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
                             <Badge size="xs">{event.classification}</Badge>
                           )}
                           {event.hasCoordinates && (
-                            <Badge size="xs">geotagged</Badge>
+                            <Badge size="xs">{t.messages.geotagged}</Badge>
                           )}
                           {event.people.slice(0, 3).map((p) => (
                             <Badge key={p} size="xs">
@@ -572,13 +601,13 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
               {selectedEvent.title}
             </h3>
             {[
-              ["Date", selectedEvent.date],
-              ["Source", selectedEvent.source],
-              ["Classification", selectedEvent.classification],
-              ["People", selectedEvent.people.join(", ")],
-              ["Places", selectedEvent.places.join(", ")],
+              [t.sections.timeline.detailDate, selectedEvent.date],
+              [t.sections.timeline.detailSource, selectedEvent.source],
+              [t.sections.timeline.detailClassification, selectedEvent.classification],
+              [t.sections.timeline.detailPeople, selectedEvent.people.join(", ")],
+              [t.sections.timeline.detailPlaces, selectedEvent.places.join(", ")],
               [
-                "Importance",
+                t.sections.timeline.detailImportance,
                 selectedEvent.importance
                   ? (selectedEvent.importance * 100).toFixed(0) + "%"
                   : "",
@@ -606,7 +635,7 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
                   className="text-[10px] uppercase tracking-wide font-semibold mb-1"
                   style={{ color: "var(--muted-fg)" }}
                 >
-                  Summary
+                  {t.sections.timeline.detailSummary}
                 </div>
                 <p className="text-xs leading-relaxed">
                   {selectedEvent.summary}
@@ -624,8 +653,11 @@ export function TimelineView({ onToast }: { onToast: (m: string) => void }) {
         }}
       >
         <span style={{ color: "var(--muted-fg)" }}>
-          Page {page} of {Math.max(1, pages)} · showing {pageEvents.length} of{" "}
-          {filtered.length}
+          {t.sections.timeline.pageLine
+            .replace("{page}", String(page))
+            .replace("{pages}", String(Math.max(1, pages)))
+            .replace("{shown}", String(pageEvents.length))
+            .replace("{total}", String(filtered.length))}
         </span>
         <div className="flex-1" />
         <Btn
