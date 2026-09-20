@@ -552,67 +552,6 @@ export function SourcesView({
 
       <div className="work-card mx-3 mb-3">
         {/* Command rail: record actions, live results meta, overflow */}
-        <WorkspaceToolbar
-          selectionCount={selectedIds.length}
-          onClearSelection={() => {
-            setSelectedId(null)
-            setSelectedIds([])
-          }}
-        >
-          <div className="rail-row w-full">
-          <Btn onClick={openEdit} disabled={!selected} icon={<Pencil size="sm" />}>
-            {t.actions.edit}
-          </Btn>
-          <Btn
-            variant="danger"
-            onClick={() => setShowDelete(true)}
-            disabled={!selected}
-            icon={<Trash size="sm" />}
-          >
-            {t.actions.delete}
-          </Btn>
-          <Btn
-            onClick={() => {
-              setSelectedId(null)
-              setSelectedIds([])
-            }}
-            variant="ghost"
-            icon={<Refresh size="sm" />}
-          >
-            {t.actions.refresh}
-          </Btn>
-          <ToolbarSep />
-          <Btn onClick={() => setShowImport(true)} icon={<ImportFile size="sm" />}>
-            {t.actions.import}
-          </Btn>
-          <Btn
-            onClick={handleDuplicate}
-            disabled={!selected}
-            icon={<CopyIcon size="sm" />}
-          >
-            {t.actions.duplicate}
-          </Btn>
-          <ToolbarSep />
-          <Btn onClick={() => setShowExport(true)} icon={<ExportArrow size="sm" />}>
-            {t.actions.export}
-          </Btn>
-          <Btn onClick={handlePrint} icon={<Print size="sm" />}>
-            {t.actions.print}
-          </Btn>
-          <div className="ms-auto flex items-center gap-2">
-            <ResultsStrip
-              total={data.sources.length}
-              filtered={filtered.length}
-              selected={selectedIds.length}
-              recordsLabel={t.messages.records}
-              totalLabel={t.messages.total}
-              selectedLabel={t.messages.selected}
-            />
-            <MoreMenu items={moreItems} />
-          </div>
-          </div>
-        </WorkspaceToolbar>
-
         {/* Filter rail */}
         <div className="rail-row rail-row--quiet" role="search">
           <div className="min-w-0" style={{ flex: "1 1 240px", maxWidth: 380 }}>
@@ -679,6 +618,67 @@ export function SourcesView({
             </Btn>
           )}
         </div>
+
+        <WorkspaceToolbar
+          selectionCount={selectedIds.length}
+          onClearSelection={() => {
+            setSelectedId(null)
+            setSelectedIds([])
+          }}
+        >
+          <div className="rail-row w-full">
+          <Btn onClick={openEdit} disabled={!selected} icon={<Pencil size="sm" />}>
+            {t.actions.edit}
+          </Btn>
+          <Btn
+            variant="danger"
+            onClick={() => setShowDelete(true)}
+            disabled={!selected}
+            icon={<Trash size="sm" />}
+          >
+            {t.actions.delete}
+          </Btn>
+          <Btn
+            onClick={() => {
+              setSelectedId(null)
+              setSelectedIds([])
+            }}
+            variant="ghost"
+            icon={<Refresh size="sm" />}
+          >
+            {t.actions.refresh}
+          </Btn>
+          <ToolbarSep />
+          <Btn onClick={() => setShowImport(true)} icon={<ImportFile size="sm" />}>
+            {t.actions.import}
+          </Btn>
+          <Btn
+            onClick={handleDuplicate}
+            disabled={!selected}
+            icon={<CopyIcon size="sm" />}
+          >
+            {t.actions.duplicate}
+          </Btn>
+          <ToolbarSep />
+          <Btn onClick={() => setShowExport(true)} icon={<ExportArrow size="sm" />}>
+            {t.actions.export}
+          </Btn>
+          <Btn onClick={handlePrint} icon={<Print size="sm" />}>
+            {t.actions.print}
+          </Btn>
+          <div className="ms-auto flex items-center gap-2">
+            <ResultsStrip
+              total={data.sources.length}
+              filtered={filtered.length}
+              selected={selectedIds.length}
+              recordsLabel={t.messages.records}
+              totalLabel={t.messages.total}
+              selectedLabel={t.messages.selected}
+            />
+            <MoreMenu items={moreItems} />
+          </div>
+          </div>
+        </WorkspaceToolbar>
 
       {orphanTypes.length > 0 && (
         <div
