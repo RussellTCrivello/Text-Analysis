@@ -909,6 +909,7 @@ export function AppShell({
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Breadcrumb bar */}
           <div
+            data-workspace-region="context-bar"
             className="flex items-center px-4 shrink-0 gap-2"
             style={{
               background: "var(--surface)",

@@ -2160,6 +2160,7 @@ export function WorkspaceHeader({
 }) {
   return (
     <header
+      data-workspace-region="header"
       className="flex items-center gap-3 px-4 shrink-0"
       style={{
         background: "var(--surface)",
@@ -2257,6 +2258,7 @@ export function WorkspaceToolbar({
 }) {
   return (
     <div
+      data-workspace-region="action-toolbar"
       className="flex min-h-[46px] items-center gap-2 border-b px-3 py-2"
       style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       role="toolbar"
