@@ -23,6 +23,7 @@ import {
   ColumnFilter,
   StatCard,
   PageHeader,
+  WorkspaceToolbar,
   EmptyState,
 } from "../components/ui"
 import {
@@ -46,6 +47,9 @@ import {
 import { ExportDialog } from "../components/ExportDialog"
 import { ImportWizard } from "../components/ImportWizard"
 import { AdvancedSearch } from "../components/AdvancedSearch"
+import { FilterBuilder } from "../components/FilterBuilder"
+import { applyFilterGroups, type FilterGroup } from "../core/filterBuilder"
+import { ComboField, usageMap } from "../components/ComboField"
 import {
   AttachmentField,
   type AttachmentFieldHandle,
@@ -83,10 +87,12 @@ function emptyContent(
 export function ContentsView({
   onToast,
   onLinkToAnalysis,
+  onQuickAddSource,
   autoOpenAdd = 0,
 }: {
   onToast: (m: string) => void
   onLinkToAnalysis?: (contentId: string) => void
+  onQuickAddSource?: () => void
   autoOpenAdd?: number
 }) {
   const { t } = useTranslation()
@@ -104,6 +110,7 @@ export function ContentsView({
   const [showStats, setShowStats] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showAdvSearch, setShowAdvSearch] = useState(false)
+  const [showFilterBuilder, setShowFilterBuilder] = useState(false)
   const [advancedIds, setAdvancedIds] = useState<string[] | null>(null)
   const attachRef = useRef<AttachmentFieldHandle>(null)
 
@@ -295,7 +302,16 @@ export function ContentsView({
     { value: "", label: "— All sources —" },
     ...data.sources.map((s) => ({ value: s.id, label: s.name })),
   ]
-  const srcFormOpts = data.sources.map((s) => ({ value: s.id, label: s.name }))
+  const srcFormOpts = data.sources.map((s) => ({
+    value: s.id,
+    // The picker searches this display string, so every useful source column
+    // is available without exposing implementation IDs to the user.
+    label: [s.name, s.type, s.country, s.city, s.ownership].filter(Boolean).join(" · "),
+  }))
+  const sourceUsage = useMemo(
+    () => usageMap(data.contents as unknown as Record<string, unknown>[], "sources_id"),
+    [data.contents],
+  )
 
   const handlePrint = () => {
     const html = buildPrintDocument({
@@ -461,6 +477,11 @@ export function ContentsView({
       onClick: () => setShowAdvSearch(true),
     },
     {
+      label: "Filter builder",
+      icon: <SearchCodeIcon size="xs" />,
+      onClick: () => setShowFilterBuilder(true),
+    },
+    {
       label: t.actions.importContents,
       icon: <ImportFile size="xs" />,
       onClick: () => setShowImport(true),
@@ -502,14 +523,23 @@ export function ContentsView({
           </Field>
         </div>
         <Field label={t.fields.sources_id} required error={errors.sources_id}>
-          <Select
+          <div className="flex items-start gap-2">
+          <ComboField
+            id="content-source"
             value={form.sources_id}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, sources_id: e.target.value }))
-            }
+            onChange={(next) => setForm((f) => ({ ...f, sources_id: next }))}
             options={srcFormOpts}
-            placeholder="Select source..."
+            usage={sourceUsage}
+            allowCreate={false}
+            placeholder="Search source by name, type or country…"
+            error={!!errors.sources_id}
           />
+          {onQuickAddSource && (
+            <Btn type="button" size="sm" variant="ghost" onClick={onQuickAddSource} title="Add a new source without losing your place" aria-label="Add source">
+              <Plus size="xs" />
+            </Btn>
+          )}
+          </div>
         </Field>
         <Field
           label={`${t.fields.importance} (0–100%)`}
@@ -604,11 +634,6 @@ export function ContentsView({
         subtitle={t.sections.contents.subtitle}
         icon={<NavContents size="md" />}
         count={{ value: data.contents.length, label: t.messages.records }}
-        actions={
-          <Btn variant="primary" onClick={openAdd} icon={<Plus size="sm" />}>
-            {t.sections.contents.add}
-          </Btn>
-        }
       />
 
       <div className="work-card mx-3 mb-3">
@@ -677,6 +702,13 @@ export function ContentsView({
         )}
       </FilterRow>
 
+      <WorkspaceToolbar
+        selectionCount={selectedIds.length}
+        onClearSelection={() => {
+          setSelectedId(null)
+          setSelectedIds([])
+        }}
+      >
       <Toolbar>
         <Btn
           onClick={openEdit}
@@ -738,6 +770,7 @@ export function ContentsView({
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
+      </WorkspaceToolbar>
 
       <ResultsStrip
         total={data.contents.length}
@@ -798,6 +831,7 @@ export function ContentsView({
         ) : (
           <DataTable
             columns={columns}
+            entity="contents"
             data={paged}
             selectedId={selectedId ?? undefined}
             selectedIds={selectedIds}
@@ -897,6 +931,17 @@ export function ContentsView({
         targetType="content"
         onToast={onToast}
       />
+      {showFilterBuilder && (
+        <InfoModal isOpen title="Content filter builder" onClose={() => setShowFilterBuilder(false)} size="lg">
+          <FilterBuilder entity="contents" onApply={(groups: FilterGroup[]) => {
+            const rows = applyFilterGroups(data.contents as unknown as Record<string, unknown>[], groups)
+            setAdvancedIds(rows.map((row) => String(row.id)))
+            setPage(1)
+            setShowFilterBuilder(false)
+            onToast(`Applied filter builder: ${rows.length} records`)
+          }} onClear={() => { setAdvancedIds(null); setShowFilterBuilder(false) }} />
+        </InfoModal>
+      )}
       <AdvancedSearch
         isOpen={showAdvSearch}
         onClose={() => setShowAdvSearch(false)}
@@ -922,6 +967,12 @@ export function ContentsView({
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
         content={selected}
+        onEdit={() => { setShowPreview(false); openEdit() }}
+        onAttach={() => {
+          if (selectedId) {
+            window.dispatchEvent(new window.CustomEvent("tam:open-attachments", { detail: { contentId: selectedId } }))
+          }
+        }}
         source={
           selected
             ? data.sources.find((s) => s.id === selected.sources_id)

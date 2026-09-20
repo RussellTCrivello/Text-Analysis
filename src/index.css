@@ -324,8 +324,8 @@ button, a, [role='button'], input, select, summary {
   .surface-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-1);
+    border-radius: 8px;
+    box-shadow: none;
   }
   .surface-panel {
     background: var(--surface-2);

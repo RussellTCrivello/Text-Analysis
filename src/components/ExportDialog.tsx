@@ -121,12 +121,21 @@ export function ExportDialog({
   const [failure, setFailure] = useState("")
   const [warning, setWarning] = useState("")
 
+  // Export labels are presentation data, so resolve them at export time from
+  // the active language. View-specific columns already pass translated labels;
+  // the fallback also covers raw schema keys such as `id` and report-derived
+  // columns without creating a second metadata map.
+  const localizedLabel = (column: (typeof columns)[number]) => {
+    if (column.key === "id" || column.label === "ID") return t.fields.id ?? column.label
+    const translated = (t.fields as Record<string, unknown>)[column.key]
+    return typeof translated === "string" ? translated : column.label
+  }
   const activeCols = useMemo(
     () =>
-      columns.filter(
-        (c) => selectedCols.has(c.key) && (includeId || c.key !== "id"),
-      ),
-    [columns, selectedCols, includeId],
+      columns
+        .filter((c) => selectedCols.has(c.key) && (includeId || c.key !== "id"))
+        .map((c) => ({ ...c, label: localizedLabel(c) })),
+    [columns, selectedCols, includeId, t.fields],
   )
 
   const filenameError = !filename.trim() || /[/\\]/.test(filename)

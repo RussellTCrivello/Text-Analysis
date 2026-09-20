@@ -64,6 +64,10 @@ export interface AppSettings {
   defaultPageSize: number;
   autoSave: boolean;
   autoSaveInterval: number; // seconds
+  /** Framework-owned table layouts, keyed by table identity. */
+  tableLayouts: Record<string, unknown>;
+  /** Framework-owned presentation layouts for create/edit/view forms. */
+  formLayouts: Record<string, unknown>;
 }
 
 export interface AppData {

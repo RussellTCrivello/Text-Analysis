@@ -66,6 +66,11 @@ export function ComboField({
     return () => document.removeEventListener("mousedown", onDocDown)
   }, [open])
 
+  // Relationship fields store IDs, but the UI must always show the human
+  // readable selected record. While the menu is closed the input is a label;
+  // once opened it becomes a searchable query.
+  const selectedOption = options.find((o) => o.value === value)
+  const displayValue = selectedOption?.label ?? value
   const query = fold(typed)
   const filtered = useMemo(
     () =>
@@ -164,14 +169,19 @@ export function ComboField({
           aria-autocomplete="list"
           autoComplete="off"
           disabled={disabled}
-          value={typed}
+          value={open ? typed : displayValue}
           placeholder={placeholder}
           onChange={(e) => {
             setTyped(e.target.value)
-            onChange(e.target.value)
+            // Free-text vocabularies keep their typed value; relationship
+            // pickers only commit an ID when an option is selected.
+            if (allowCreate) onChange(e.target.value)
             setOpen(true)
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setTyped(selectedOption?.label ?? value)
+            setOpen(true)
+          }}
           onKeyDown={onKeyDown}
           className="w-full outline-none"
           style={{

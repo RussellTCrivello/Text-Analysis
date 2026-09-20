@@ -22,6 +22,7 @@ import {
   Badge,
   StatCard,
   PageHeader,
+  WorkspaceToolbar,
   EmptyState,
 } from "../components/ui"
 import {
@@ -43,7 +44,14 @@ import {
 } from "../components/icons"
 import { ExportDialog } from "../components/ExportDialog"
 import { AdvancedSearch } from "../components/AdvancedSearch"
+import { FilterBuilder } from "../components/FilterBuilder"
+import { applyFilterGroups, type FilterGroup } from "../core/filterBuilder"
 import { ComboField, usageMap } from "../components/ComboField"
+import { MetadataField } from "../components/MetadataField"
+import { FormLayoutEditor } from "../components/FormLayoutEditor"
+import { useFormEngine } from "../components/useFormEngine"
+import { docTypeMetadata } from "../core/framework"
+import { orderedVisibleFormFields, normalizeFormLayout, defaultFormLayout } from "../core/formEngine"
 import { formatDateTime, nowIso } from "../core/text"
 import { BulkOperations } from "../components/BulkOperations"
 import { ImportWizard } from "../components/ImportWizard"
@@ -83,7 +91,12 @@ export function SourcesView({
   autoOpenAdd?: number
 }) {
   const { t } = useTranslation()
-  const { settings } = useSettings()
+  const { settings, updateFormLayout } = useSettings()
+  const [showFormLayout, setShowFormLayout] = useState(false)
+  const sourceLayout = normalizeFormLayout("sources", (settings.formLayouts.sources ?? {}) as Record<string, unknown>)
+  const showSourceField = (key: string) => !sourceLayout.hidden.includes(key)
+  const sourceFieldReadOnly = (key: string) => sourceLayout.readOnly.includes(key)
+  const sourceLayoutFields = orderedVisibleFormFields("sources", sourceLayout, ["type", "importance"])
   const {
     data,
     addSource,
@@ -112,11 +125,15 @@ export function SourcesView({
   const [showDelete, setShowDelete] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [showAdvSearch, setShowAdvSearch] = useState(false)
+  const [showFilterBuilder, setShowFilterBuilder] = useState(false)
   const [showBulkOps, setShowBulkOps] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showStats, setShowStats] = useState(false)
-  const [form, setForm] = useState(emptySource())
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const formEngine = useFormEngine("sources", emptySource())
+  const form = formEngine.form as ReturnType<typeof emptySource>
+  const setForm = formEngine.setValues
+  const errors = formEngine.state.errors
+  const setErrors = formEngine.setErrors
   const [importancePct, setImportancePct] = useState("75.00")
   const [advancedIds, setAdvancedIds] = useState<string[] | null>(null)
 
@@ -151,22 +168,23 @@ export function SourcesView({
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
 
   const openAdd = () => {
-    setForm(emptySource())
+    formEngine.load(emptySource(), "create")
     setImportancePct("75.00")
     setErrors({})
     setShowAdd(true)
   }
   const openEdit = () => {
     if (!selected) return
-    setForm({ ...selected })
+    formEngine.load({ ...selected }, "edit")
     setImportancePct((selected.importance * 100).toFixed(2))
     setErrors({})
     setShowEdit(true)
   }
 
-  const validateForm = (f: typeof form): Record<string, string> => {
+  // Form Engine owns schema/required validation. These are the only
+  // Sources-specific presentation/workflow checks that remain here.
+  const validateSourcesSpecific = (f: typeof form): Record<string, string> => {
     const errs: Record<string, string> = {}
-    if (!f.name.trim()) errs.name = t.messages.required
     if (f.link_sources && !/^https?:\/\//.test(f.link_sources))
       errs.link_sources = t.messages.urlInvalid
     const imp = parseFloat(importancePct)
@@ -178,7 +196,9 @@ export function SourcesView({
   const handleSave = () => {
     const imp = parseFloat(importancePct) / 100
     const payload = { ...form, importance: imp }
-    const localErrors = validateForm(payload)
+    const sharedErrors = formEngine.validate()
+    const specificErrors = validateSourcesSpecific(payload)
+    const localErrors = { ...sharedErrors, ...specificErrors }
     if (Object.keys(localErrors).length > 0) {
       setErrors(localErrors)
       return
@@ -216,6 +236,7 @@ export function SourcesView({
       onToast(messages[0] ?? t.messages.saved)
       return
     }
+    formEngine.commit(payload)
     setShowAdd(false)
     setShowEdit(false)
     onToast(
@@ -428,6 +449,11 @@ export function SourcesView({
       onClick: () => setShowAdvSearch(true),
     },
     {
+      label: "Filter builder",
+      icon: <SearchCodeIcon size="xs" />,
+      onClick: () => setShowFilterBuilder(true),
+    },
+    {
       label: t.actions.bulkOperations,
       icon: <LayersIcon size="xs" />,
       onClick: () => setShowBulkOps(true),
@@ -469,138 +495,40 @@ export function SourcesView({
     }
   }, [data.sources])
 
+  const frameworkSourceFields = useMemo(() => {
+    const specialized = new Set(["type", "importance"])
+    const metadata = docTypeMetadata("sources").fields.filter((field) => field.form && !specialized.has(field.key))
+    const byKey = new Map(metadata.map((field) => [field.key, field]))
+    const orderedKeys = sourceLayout.order.filter((key, index, all) => byKey.has(key) && all.indexOf(key) === index)
+    const missing = metadata.map((field) => field.key).filter((key) => !orderedKeys.includes(key))
+    return [...orderedKeys, ...missing].map((key) => byKey.get(key)!).filter((field) => showSourceField(field.key))
+  }, [sourceLayout])
+
   const renderForm = () => (
     <div className="flex flex-col gap-3.5">
-      <div className="form-section">
-        <span>{t.sections.sources.formIdentity}</span>
-        <i />
+      <div className="flex justify-end">
+        <Btn size="xs" variant="ghost" onClick={() => { formEngine.reset(); setImportancePct(showEdit && selected ? (selected.importance * 100).toFixed(2) : "75.00") }}>Reset form</Btn>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
-        <Field label={t.fields.name} required error={errors.name}>
-          <Input
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            error={!!errors.name}
+        {frameworkSourceFields.map((field) => (
+          <MetadataField
+            key={field.key}
+            field={{ ...field, readOnly: sourceFieldReadOnly(field.key) }}
+            value={form[field.key as keyof typeof form]}
+            onChange={(value) => setForm((current) => ({ ...current, [field.key]: value }))}
+            error={errors[field.key]}
           />
-        </Field>
+        ))}
+      </div>
+      <div className="form-section"><span>{t.sections.sources.formIdentity}</span><i /></div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
         <Field label={t.fields.type} required>
-          <ComboField
-            id="source-type"
-            value={form.type}
-            onChange={(next) => setForm((f) => ({ ...f, type: next }))}
-            options={typeOptions}
-            usage={typeUsage}
-            placeholder="Type or pick a type…"
-            error={!!errors.type}
-            onCreate={(value) => {
-              addVocabularyValue(TYPE_VOCABULARY, value)
-              onToast(
-                t.sections.dictionary.vocabAdded
-                  .replace("{v}", value)
-                  .replace("{k}", TYPE_VOCABULARY),
-              )
-            }}
-            onRemove={(value) => {
-              const result = removeVocabularyValue(
-                TYPE_VOCABULARY,
-                value,
-                typeUsage[value.toLowerCase()] ?? 0,
-              )
-              onToast(
-                result.ok
-                  ? `Removed “${value}”`
-                  : `Cannot remove “${value}”: ${result.reason ?? "in use"}`,
-              )
-            }}
-          />
+          <ComboField id="source-type" value={form.type} onChange={(next) => setForm((f) => ({ ...f, type: next }))} options={typeOptions} usage={typeUsage} placeholder="Type or pick a type…" error={!!errors.type}
+            onCreate={(value) => { addVocabularyValue(TYPE_VOCABULARY, value); onToast(t.sections.dictionary.vocabAdded.replace("{v}", value).replace("{k}", TYPE_VOCABULARY)) }}
+            onRemove={(value) => { const result = removeVocabularyValue(TYPE_VOCABULARY, value, typeUsage[value.toLowerCase()] ?? 0); onToast(result.ok ? `Removed “${value}”` : `Cannot remove “${value}”: ${result.reason ?? "in use"}`) }} />
         </Field>
-        <Field label={t.fields.link_sources} error={errors.link_sources}>
-          <Input
-            value={form.link_sources}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, link_sources: e.target.value }))
-            }
-            placeholder="https://"
-            error={!!errors.link_sources}
-          />
-        </Field>
-        <Field
-          label={`${t.fields.importance} (0–100%)`}
-          required
-          error={errors.importance}
-        >
-          <ImportanceControl
-            value={importancePct}
-            onChange={setImportancePct}
-            error={!!errors.importance}
-          />
-        </Field>
+        <Field label={`${t.fields.importance} (0–100%)`} required error={errors.importance}><ImportanceControl value={importancePct} onChange={setImportancePct} error={!!errors.importance} /></Field>
       </div>
-      <div className="form-section">
-        <span>{t.sections.sources.formContext}</span>
-        <i />
-      </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 max-[860px]:grid-cols-1">
-        <Field label={t.fields.country}>
-          <Input
-            value={form.country}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, country: e.target.value }))
-            }
-          />
-        </Field>
-        <Field label={t.fields.city}>
-          <Input
-            value={form.city}
-            onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-          />
-        </Field>
-        <Field label={t.fields.date_entry} required>
-          <DateTimeInput
-            value={form.date_entry}
-            onChange={(v) => setForm((f) => ({ ...f, date_entry: v }))}
-            hint="Date and time of entry"
-          />
-        </Field>
-        <Field label={t.fields.ownership}>
-          <Input
-            value={form.ownership}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, ownership: e.target.value }))
-            }
-          />
-        </Field>
-      </div>
-      <div className="form-section">
-        <span>{t.sections.sources.formNotes}</span>
-        <i />
-      </div>
-      <Field
-        label={t.fields.accounts}
-        hint="Separate multiple accounts with semicolons"
-      >
-        <Input
-          value={form.accounts}
-          onChange={(e) => setForm((f) => ({ ...f, accounts: e.target.value }))}
-        />
-      </Field>
-      <Field label={t.fields.description}>
-        <Textarea
-          value={form.description}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, description: e.target.value }))
-          }
-          rows={4}
-          placeholder={t.fields.description}
-        />
-      </Field>
-      <Field label={t.fields.note}>
-        <Textarea
-          value={form.note}
-          onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-          rows={2}
-        />
-      </Field>
     </div>
   )
 
@@ -613,67 +541,14 @@ export function SourcesView({
         icon={<NavSources size="md" />}
         count={{ value: data.sources.length, label: t.messages.records }}
         actions={
-          <Btn variant="primary" onClick={openAdd} icon={<Plus size="sm" />}>
-            {t.sections.sources.add}
-          </Btn>
+          <div className="flex gap-2">
+            <Btn variant="ghost" onClick={() => setShowFormLayout(true)}>Form layout</Btn>
+          </div>
         }
       />
 
       <div className="work-card mx-3 mb-3">
         {/* Command rail: record actions, live results meta, overflow */}
-        <div className="rail-row">
-          <Btn onClick={openEdit} disabled={!selected} icon={<Pencil size="sm" />}>
-            {t.actions.edit}
-          </Btn>
-          <Btn
-            variant="danger"
-            onClick={() => setShowDelete(true)}
-            disabled={!selected}
-            icon={<Trash size="sm" />}
-          >
-            {t.actions.delete}
-          </Btn>
-          <Btn
-            onClick={() => {
-              setSelectedId(null)
-              setSelectedIds([])
-            }}
-            variant="ghost"
-            icon={<Refresh size="sm" />}
-          >
-            {t.actions.refresh}
-          </Btn>
-          <ToolbarSep />
-          <Btn onClick={() => setShowImport(true)} icon={<ImportFile size="sm" />}>
-            {t.actions.import}
-          </Btn>
-          <Btn
-            onClick={handleDuplicate}
-            disabled={!selected}
-            icon={<CopyIcon size="sm" />}
-          >
-            {t.actions.duplicate}
-          </Btn>
-          <ToolbarSep />
-          <Btn onClick={() => setShowExport(true)} icon={<ExportArrow size="sm" />}>
-            {t.actions.export}
-          </Btn>
-          <Btn onClick={handlePrint} icon={<Print size="sm" />}>
-            {t.actions.print}
-          </Btn>
-          <div className="ms-auto flex items-center gap-2">
-            <ResultsStrip
-              total={data.sources.length}
-              filtered={filtered.length}
-              selected={selectedIds.length}
-              recordsLabel={t.messages.records}
-              totalLabel={t.messages.total}
-              selectedLabel={t.messages.selected}
-            />
-            <MoreMenu items={moreItems} />
-          </div>
-        </div>
-
         {/* Filter rail */}
         <div className="rail-row rail-row--quiet" role="search">
           <div className="min-w-0" style={{ flex: "1 1 240px", maxWidth: 380 }}>
@@ -740,6 +615,67 @@ export function SourcesView({
             </Btn>
           )}
         </div>
+
+        <WorkspaceToolbar
+          selectionCount={selectedIds.length}
+          onClearSelection={() => {
+            setSelectedId(null)
+            setSelectedIds([])
+          }}
+        >
+          <div className="rail-row w-full">
+          <Btn onClick={openEdit} disabled={!selected} icon={<Pencil size="sm" />}>
+            {t.actions.edit}
+          </Btn>
+          <Btn
+            variant="danger"
+            onClick={() => setShowDelete(true)}
+            disabled={!selected}
+            icon={<Trash size="sm" />}
+          >
+            {t.actions.delete}
+          </Btn>
+          <Btn
+            onClick={() => {
+              setSelectedId(null)
+              setSelectedIds([])
+            }}
+            variant="ghost"
+            icon={<Refresh size="sm" />}
+          >
+            {t.actions.refresh}
+          </Btn>
+          <ToolbarSep />
+          <Btn onClick={() => setShowImport(true)} icon={<ImportFile size="sm" />}>
+            {t.actions.import}
+          </Btn>
+          <Btn
+            onClick={handleDuplicate}
+            disabled={!selected}
+            icon={<CopyIcon size="sm" />}
+          >
+            {t.actions.duplicate}
+          </Btn>
+          <ToolbarSep />
+          <Btn onClick={() => setShowExport(true)} icon={<ExportArrow size="sm" />}>
+            {t.actions.export}
+          </Btn>
+          <Btn onClick={handlePrint} icon={<Print size="sm" />}>
+            {t.actions.print}
+          </Btn>
+          <div className="ms-auto flex items-center gap-2">
+            <ResultsStrip
+              total={data.sources.length}
+              filtered={filtered.length}
+              selected={selectedIds.length}
+              recordsLabel={t.messages.records}
+              totalLabel={t.messages.total}
+              selectedLabel={t.messages.selected}
+            />
+            <MoreMenu items={moreItems} />
+          </div>
+          </div>
+        </WorkspaceToolbar>
 
       {orphanTypes.length > 0 && (
         <div
@@ -824,6 +760,7 @@ export function SourcesView({
         ) : (
           <DataTable
             columns={columns}
+            entity="sources"
             data={paged}
             selectedId={selectedId ?? undefined}
             selectedIds={selectedIds}
@@ -884,6 +821,15 @@ export function SourcesView({
         />
       )}
 
+      <InfoModal isOpen={showFormLayout} title="Sources form layout" onClose={() => setShowFormLayout(false)} size="lg">
+        <FormLayoutEditor
+          fields={sourceLayoutFields}
+          layout={sourceLayout}
+          onChange={(next) => updateFormLayout("sources", next)}
+          onReset={() => updateFormLayout("sources", defaultFormLayout("sources"))}
+        />
+      </InfoModal>
+
       {/* Add dialog */}
       <FormModal
         isOpen={showAdd}
@@ -928,6 +874,17 @@ export function SourcesView({
       />
 
       {/* Advanced Search */}
+      {showFilterBuilder && (
+        <InfoModal isOpen title="Source filter builder" onClose={() => setShowFilterBuilder(false)} size="lg">
+          <FilterBuilder entity="sources" onApply={(groups: FilterGroup[]) => {
+            const rows = applyFilterGroups(data.sources as unknown as Record<string, unknown>[], groups)
+            setAdvancedIds(rows.map((row) => String(row.id)))
+            setPage(1)
+            setShowFilterBuilder(false)
+            onToast(`Applied filter builder: ${rows.length} records`)
+          }} onClear={() => { setAdvancedIds(null); setShowFilterBuilder(false) }} />
+        </InfoModal>
+      )}
       <AdvancedSearch
         isOpen={showAdvSearch}
         onClose={() => setShowAdvSearch(false)}

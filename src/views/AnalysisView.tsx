@@ -22,6 +22,7 @@ import {
   ColumnFilter,
   StatCard,
   PageHeader,
+  WorkspaceToolbar,
   EmptyState,
 } from "../components/ui"
 import {
@@ -46,6 +47,8 @@ import {
 import { ExportDialog } from "../components/ExportDialog"
 import { ImportWizard } from "../components/ImportWizard"
 import { AdvancedSearch } from "../components/AdvancedSearch"
+import { FilterBuilder } from "../components/FilterBuilder"
+import { applyFilterGroups, type FilterGroup } from "../core/filterBuilder"
 import { ComboField, usageMap } from "../components/ComboField"
 import { BulkOperations } from "../components/BulkOperations"
 import { ComparisonDialog } from "../components/ComparisonDialog"
@@ -114,6 +117,7 @@ export function AnalysisView({
   } = useAppData()
   const [showImport, setShowImport] = useState(false)
   const [showAdvSearch, setShowAdvSearch] = useState(false)
+  const [showFilterBuilder, setShowFilterBuilder] = useState(false)
   const [showStats, setShowStats] = useState(false)
   const [advancedIds, setAdvancedIds] = useState<string[] | null>(null)
 
@@ -241,14 +245,14 @@ export function AnalysisView({
   const autoExtract = () => {
     const result = extraction ?? runExtractionSilently()
     if (!result) return
-    setForm(
-      (f) =>
-        mergeSuggestion(
-          f as unknown as Record<string, unknown>,
-          result.suggestion,
-          "merge",
-        ) as unknown as typeof f,
-    )
+    setForm((f) => {
+      // mergeSuggestion intentionally returns only extracted fields. Keep the
+      // relational fields (especially content_id) from the form; otherwise the
+      // derived source name disappears and save validation asks the user to
+      // choose the content again.
+      const extracted = mergeSuggestion(f, result.suggestion, "merge")
+      return { ...f, ...extracted }
+    })
     setExtraction(null)
   }
 
@@ -345,10 +349,15 @@ export function AnalysisView({
       ),
     [vocabulary, vocabularyTick, data.analyses],
   )
-  const contentOpts = data.contents.map((c) => ({
-    value: c.id,
-    label: c.title,
-  }))
+  // Keep relational pickers searchable. IDs remain the stored value while
+  // titles, source names and content text are all searchable by the user.
+  const contentOpts = data.contents.map((c) => {
+    const source = data.sources.find((s) => s.id === c.sources_id)?.name ?? ""
+    return {
+      value: c.id,
+      label: [c.title, source, c.note, c.date_content].filter(Boolean).join(" · "),
+    }
+  })
 
   const setColFilter = (key: string, value: string) => {
     setColFilters((f) => {
@@ -509,6 +518,11 @@ export function AnalysisView({
       onClick: () => setShowAdvSearch(true),
     },
     {
+      label: "Filter builder",
+      icon: <SearchCodeIcon size="xs" />,
+      onClick: () => setShowFilterBuilder(true),
+    },
+    {
       label: t.dialogs.statistics.title,
       icon: <SigmaIcon size="xs" />,
       onClick: () => setShowStats(true),
@@ -552,29 +566,29 @@ export function AnalysisView({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-4">
         <Field label={t.fields.content_id} required error={errors.content_id}>
-          <Select
+          <ComboField
+            id="analysis-content"
             value={form.content_id}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, content_id: e.target.value }))
-            }
+            onChange={(next) => setForm((f) => ({ ...f, content_id: next }))}
             options={contentOpts}
-            placeholder="Select content..."
+            allowCreate={false}
+            placeholder="Search content by title or source…"
+            error={!!errors.content_id}
           />
         </Field>
-        {form.content_id && (
-          <Field label={t.fields.sources_id}>
-            <Input
-              readOnly
-              value={sourceName(form.content_id)}
-              aria-label={t.fields.sources_id}
-              style={{
-                background: "var(--surface-2)",
-                color: "var(--muted-fg)",
-                cursor: "default",
-              }}
-            />
-          </Field>
-        )}
+        <Field label={t.fields.sources_id}>
+          <Input
+            readOnly
+            value={form.content_id ? sourceName(form.content_id) : ""}
+            placeholder="Selected content source appears here"
+            aria-label={t.fields.sources_id}
+            style={{
+              background: "var(--surface-2)",
+              color: "var(--muted-fg)",
+              cursor: "default",
+            }}
+          />
+        </Field>
         <Field
           label={t.fields.classification}
           required
@@ -772,11 +786,6 @@ export function AnalysisView({
         subtitle={t.sections.analysis.subtitle}
         icon={<NavAnalysis size="md" />}
         count={{ value: data.analyses.length, label: t.messages.records }}
-        actions={
-          <Btn variant="primary" onClick={openAdd} icon={<Plus size="sm" />}>
-            {t.sections.analysis.add}
-          </Btn>
-        }
       />
 
       <div className="work-card mx-3 mb-3">
@@ -845,6 +854,13 @@ export function AnalysisView({
         )}
       </FilterRow>
 
+      <WorkspaceToolbar
+        selectionCount={selectedIds.length}
+        onClearSelection={() => {
+          setSelectedId(null)
+          setSelectedIds([])
+        }}
+      >
       <Toolbar>
         <Btn
           onClick={openEdit}
@@ -891,6 +907,7 @@ export function AnalysisView({
         <div className="flex-1" />
         <MoreMenu items={moreItems} />
       </Toolbar>
+      </WorkspaceToolbar>
 
       {orphanClasses.length > 0 && (
         <div
@@ -978,6 +995,7 @@ export function AnalysisView({
         ) : (
           <DataTable
             columns={columns}
+            entity="analyses"
             data={paged}
             selectedId={selectedId ?? undefined}
             selectedIds={selectedIds}
@@ -1067,6 +1085,21 @@ export function AnalysisView({
         targetType="analysis"
         onToast={onToast}
       />
+      {showFilterBuilder && (
+        <InfoModal isOpen title="Analysis filter builder" onClose={() => setShowFilterBuilder(false)} size="lg">
+          <FilterBuilder
+            entity="analyses"
+            onApply={(groups: FilterGroup[]) => {
+              const rows = applyFilterGroups(data.analyses as unknown as Record<string, unknown>[], groups)
+              setAdvancedIds(rows.map((row) => String(row.id)))
+              setPage(1)
+              setShowFilterBuilder(false)
+              onToast(`Applied filter builder: ${rows.length} records`)
+            }}
+            onClear={() => { setAdvancedIds(null); setShowFilterBuilder(false) }}
+          />
+        </InfoModal>
+      )}
       <AdvancedSearch
         isOpen={showAdvSearch}
         onClose={() => setShowAdvSearch(false)}

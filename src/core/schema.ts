@@ -392,6 +392,10 @@ export function importTargets(entity: EntityName): FieldSpec[] {
 /** All column names visible to the SQL engine, including join-derived columns. */
 export function sqlColumns(entity: EntityName): string[] {
   const spec = SCHEMA[entity];
+  // Reports can temporarily hold a view name such as `all_records` while a
+  // table selector is changing. Keep the schema helper total at the runtime
+  // boundary instead of allowing a transient UI value to crash the workspace.
+  if (!spec) return [];
   return [...spec.fields.map((f) => f.key), ...(spec.derived ?? []).map((d) => d.key)];
 }
 

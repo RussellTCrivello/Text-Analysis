@@ -3,8 +3,10 @@ import React, {
   useContext,
   useEffect,
   useState,
+  useCallback,
   type ReactNode,
 } from "react"
+import type { TableLayout } from "../core/tableLayout"
 import type {
   AppSettings,
   ColorBlindMode,
@@ -29,6 +31,8 @@ const defaults: AppSettings = {
   defaultPageSize: 50,
   autoSave: true,
   autoSaveInterval: 30,
+  tableLayouts: {},
+  formLayouts: {},
 }
 
 function load(): AppSettings {
@@ -46,6 +50,8 @@ interface SettingsCtx {
   setFontSize: (n: number) => void
   setDensity: (d: Density) => void
   saveSettings: (s: Partial<AppSettings>) => void
+  updateTableLayout: (key: string, layout: Partial<TableLayout>) => void
+  updateFormLayout: (key: string, layout: Record<string, unknown>) => void
 }
 
 const SettingsContext = createContext<SettingsCtx>({
@@ -55,6 +61,8 @@ const SettingsContext = createContext<SettingsCtx>({
   setFontSize: () => {},
   setDensity: () => {},
   saveSettings: () => {},
+  updateTableLayout: () => {},
+  updateFormLayout: () => {},
 })
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -86,6 +94,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSettings((s) => ({ ...s, density }))
   const saveSettings = (patch: Partial<AppSettings>) =>
     setSettings((s) => ({ ...s, ...patch }))
+  const updateTableLayout = useCallback((key: string, layout: Partial<TableLayout>) =>
+    setSettings((s) => {
+      const next = { ...(s.tableLayouts[key] as object ?? {}), ...layout }
+      if (JSON.stringify(s.tableLayouts[key]) === JSON.stringify(next)) return s
+      return { ...s, tableLayouts: { ...s.tableLayouts, [key]: next } }
+    }), [])
+  const updateFormLayout = useCallback((key: string, layout: Record<string, unknown>) =>
+    setSettings((s) => {
+      const next = { ...(s.formLayouts[key] as object ?? {}), ...layout }
+      if (JSON.stringify(s.formLayouts[key]) === JSON.stringify(next)) return s
+      return { ...s, formLayouts: { ...s.formLayouts, [key]: next } }
+    }), [])
 
   return (
     <SettingsContext.Provider
@@ -96,6 +116,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setFontSize,
         setDensity,
         saveSettings,
+        updateTableLayout,
+        updateFormLayout,
       }}
     >
       {children}
